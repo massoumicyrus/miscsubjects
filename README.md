@@ -33,7 +33,8 @@ The live system explains itself:
 1. **Every capability is a row.** The `directory` table in D1 holds one row per thing the system can
    do: an HTTP call, a function, an agent with a prompt, or a flow. Nothing is callable that is not a
    row, and every row is callable through one door, `POST /api/dispatch {key, body}`, which answers
-   `{ok, result, invocation, yield, _self}`.
+   `{ok, result, invocation, yield, _self}`: the result, the ledgered record of the run, its cost
+   and material, and the row's description of itself.
 2. **Every action is a receipt.** Each dispatch, model call, email, deploy and edit appends a row to
    an append-only ledger. Identity and credentials are removed at ingest, not afterwards.
 3. **Work exists only as a task object.** Agents lease a task, do what it says, and submit evidence.
@@ -60,24 +61,24 @@ The live system explains itself:
                        │
           ┌────────────┼──────────────┬──────────────┬─────────────────┐
           ▼            ▼              ▼              ▼                 ▼
-   D1 `DB`        D1 `LEDGER`      KV            R2 bucket      Sibling Workers
-   directory,     events           snapshots,    images,        cron, durable
-   articles,      (append-only)    settings,     screenshots,   objects, queues,
-   work_tasks,                     locks         uploads        browser rendering
+   D1 `DB`        D1 `LEDGER`      KV            R2 bucket      Workers beside Pages
+   directory,     events           snapshots,    images,        cron, Durable Objects,
+   articles,      (append-only)    settings,     screenshots,   queue, Workflows,
+   work_tasks,                     locks         uploads        browser, e-mail
    work_actions,
    settings …
                        │
                        ▼
-   The Mac bridge (bridge/, hooks/)  ← rows with runner=mac execute on the operator's
-                                        machine over a tunnel: shell, files, UI control,
-                                        coding agents
+   The Mac bridge (bridge/)  ← rows with runner=mac execute on the operator's machine
+                                over a tunnel: shell, files, UI control, coding agents;
+                                hooks/ posts every coding-agent turn to the ledger
 ```
 
 Every row also declares a **runner**, which says where it executes. There are four: **edge** rows
 run inside Cloudflare; **mac** rows are forwarded to the bridge on the operator's machine;
 **sibling** rows run in the `loop-safe-sibling` Worker, which holds what Pages Functions cannot
-(cron, Durable Objects, queue consumers, browser rendering); **apps_script** rows run in Google Apps
-Script (`apps-script/`) for spreadsheet work.
+(cron, Durable Objects, the queue consumer, Workflows, browser rendering, e-mail); **apps_script**
+rows run in Google Apps Script (`apps-script/`) for spreadsheet work.
 
 ## The pieces
 
@@ -93,14 +94,14 @@ Script (`apps-script/`) for spreadsheet work.
 | Articles | Articles with slots, claims, sources, comments and a model comment ledger | `functions/api/articles/`, `functions/a/[slug].js` |
 | Object Invocation Protocol | The self-describing invocation grammar every row answers to | `functions/api/dispatch.js`, `functions/_lib/object_contract.js`, `docs/OIP.md` |
 | MCP server | Exposes the directory to any MCP client | `functions/api/mcp.js`, `workers/mcp-server/` |
-| Agents | Router, writers, editors, adjudicators, governor; prompts are directory rows, never strings in code | `prompts/`, `functions/_lib/governor.js` |
+| Agents | Router, writers, editors, adjudicators, governor; prompts are directory rows, never strings in code. `hooks/` wires the coding-agent CLIs on the operator's machine so every turn lands on the ledger | `prompts/`, `functions/_lib/governor.js`, `hooks/` |
 | Automations | Wall-clock and interval jobs run by the sibling cron | `functions/api/automations/`, `workers/sibling/` |
 | Sheets | A spreadsheet surface over D1 with one Durable Object per sheet, in its own Worker | `workers/sheet-do/`, `functions/api/sheets/`, `functions/_lib/sheets_store.js` |
-| Background jobs | The `loop-tasks` queue, produced by Pages and consumed by the sibling Worker; durable agent loops in the `AgentDO` Durable Object | `workers/sibling/` |
+| Background jobs | The `loop-tasks` queue, produced by Pages and consumed by the sibling Worker; durable agent loops (`AgentDO`) and per-expert state (`ExpertDO`); the deliver and self-test Workflows | `workers/sibling/` |
 | Deploy gate | Lease, migrate, preview, smoke test, promote, run every post-promotion gate | `scripts/ship.mjs`, `scripts/gates.manifest.json` |
 | Failure vault | Every named failure mode as one mechanical entry, enforced pre-commit and pre-deploy | `failure-vault.json`, `scripts/check-failure-vault.mjs` |
 | Skills | The procedures agents load, one folder per skill | `.claude/skills/` |
-| Mac bridge | The local runner: shell, files, UI automation, coding agents, launchd services | `bridge/`, `hooks/` |
+| Mac bridge | The local runner: shell, files, UI automation, coding agents, launchd services | `bridge/` |
 | CLI | `misc`, a terminal agent that talks to the system through the same door and posts its own turns to the ledger | `misc-cli/` |
 
 [docs/REPO_MAP.md](docs/REPO_MAP.md) walks every directory. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
@@ -132,12 +133,12 @@ You need a Cloudflare account with Pages, Workers, D1, KV, R2 and Workers AI, No
 1. Create the two D1 databases, the KV namespace and the R2 bucket named in `wrangler.toml`, and put
    their ids in place of the ones there.
 2. Apply `migrations/*.sql` in numeric order to the `DB` database. Migrations that seeded published
-   content are not in this repository, so the sequence has gaps; the schema and the directory rows
-   are complete.
+   content, or that belong to the excluded integrations, are not in this repository, so the sequence
+   has gaps; the schema is complete.
 3. Deploy the Workers the Pages project binds by name first, or the Pages deploy fails on a missing
    binding: `workers/directory-do`, `workers/sheet-do`, `workers/storage`. Then `workers/sibling`,
-   which holds the cron and the queue consumer. The remaining Workers (`mcp-server`, `oip-peer`,
-   `robots-fix`) are independent services and can be deployed in any order.
+   which holds the cron and the queue consumer. The remaining Workers (`workers/mcp-server`,
+   `workers/oip-peer`, `workers/robots-fix`) are independent services and can be deployed in any order.
 4. Set the secrets the code reads as Pages environment variables. Nothing runs without
    `TERMINAL_KEY`; integrations degrade to a clear refusal when their key is absent, and the stubbed
    tenant modules throw with their path when reached.

@@ -10,8 +10,8 @@ One Cloudflare Pages project (`loop-safe-miscsubjects`, serving `miscsubjects.co
 whole HTTP surface as Pages Functions under `functions/`. Seven Workers sit beside it: one holds
 what Pages Functions cannot host (cron triggers, Durable Objects, queue consumers, Workflows,
 browser rendering, inbound e-mail), and six are single-purpose services (directory snapshot, sheets,
-storage, MCP, federation, robots). Two D1 databases, one KV namespace and one R2 bucket are shared
-by all of them. A local runner on the operator's machine, reached over a Cloudflare tunnel, executes
+storage, MCP, federation, robots). In production, two D1 databases, one KV namespace and one R2
+bucket are shared by all of them; preview deployments bind their own (§10). A local runner on the operator's machine, reached over a Cloudflare tunnel, executes
 the capabilities that need a real computer, and Google Apps Script executes the spreadsheet ones.
 
 ```
@@ -212,8 +212,9 @@ its deployed web app, for reading and writing spreadsheets and Drive files.
 
 `/start` (the door for people and agents), `/a/<slug>` (articles), `/ledger`, `/api/manual`
 (the REST manual generated from the live directory), `/api/work` and `/a/the-work-object`,
-`/skills` and `/.well-known/agent-skills/`, `/llms.txt`, `sitemap.xml`, `feed.xml`, and the
-`_ai_door` block that every JSON response carries so a model landing anywhere knows where it is.
+`/skills` and `/.well-known/agent-skills/`, `/llms.txt`, `sitemap.xml`, `feed.xml`. Every JSON
+response also carries an `_ai_door` object: a short note naming `/start` and stating that reading is
+a complete outcome, so a model that lands anywhere knows where it is and that it need not act.
 
 ## 14. This repository
 
