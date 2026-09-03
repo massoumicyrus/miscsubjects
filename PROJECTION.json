@@ -2,12 +2,12 @@
  "_what": "This repository is a generated projection of a private operating repository. Every file here was produced by scripts/publish-mirror.mjs from the source commit below, with identity substituted and gates run against the output. See docs/PUBLISHING.md.",
  "source": {
   "repository": "the private operating repository",
-  "commit": "0eef712229e25f1e4e5de72b98b6d40a2ee1962d"
+  "commit": "c2a6a2b7f1cb2071ef4d408595d28fa148ebded4"
  },
- "generated_at": "2026-09-03T01:30:40.865Z",
- "files": 1635,
- "bytes": 16641784,
- "tracked_in_source": 5759,
+ "generated_at": "2026-09-03T01:32:06.975Z",
+ "files": 1636,
+ "bytes": 16648343,
+ "tracked_in_source": 5760,
  "dropped": {
   "not in allow-list": 4105,
   "editor backups of prompts and modules; the live version is the file beside them": 15,
@@ -2089,13 +2089,13 @@
  "gates": [
   {
    "name": "forbidden_strings",
-   "examined": 1634,
+   "examined": 1635,
    "hits": 0,
    "ok": true
   },
   {
    "name": "paths",
-   "examined": 1634,
+   "examined": 1635,
    "hits": 0,
    "ok": true
   },
@@ -2108,18 +2108,18 @@
   },
   {
    "name": "size",
-   "examined": 1634,
+   "examined": 1635,
    "hits": 0,
    "ok": true
   },
   {
    "name": "gitleaks",
-   "examined": 1635,
+   "examined": 1636,
    "hits": 0,
    "ok": true,
    "note": "8.30.1"
   }
  ],
  "all_gates_ok": true,
- "content_hash": "08ddb63419db2aef810eaa9a6ca347cca56266826e800550c0e5d7731e871e47"
+ "content_hash": "a8cb50c55e9c3d16556a9354733ceb1808cc896b252b929c6d33a6ba308b9c04"
 }
