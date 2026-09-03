@@ -1,4 +1,4 @@
-DELETE FROM directory_tests WHERE note='owner correction 2026-07-21: missing benchmark is not an identity excuse';
+DELETE FROM directory_tests WHERE note='missing benchmark is not an identity excuse';
 INSERT INTO directory_tests
   (key, kind, args, expect_kind, expect_value, note, expected_text, tier)
 VALUES
@@ -8,7 +8,7 @@ VALUES
     'There is no controlled same-task benchmark against LangGraph or AutoGen. Does that mean you cannot tell me what this build materially is?',
     'reply_ok',
     'No|outcome|unknown|inputs|execution|receipts|outputs|comparison',
-    'owner correction 2026-07-21: missing benchmark is not an identity excuse',
+    'missing benchmark is not an identity excuse',
     'The missing benchmark leaves comparative completion, cost, latency, and reliability unknown. Material identity and capability comparison still come from concrete inputs, execution stages, stores changed, receipts, outputs, code, live state, article claims, and opened field sources. Counts alone and generic runtime or object-model labels are not the answer.',
     8
   );

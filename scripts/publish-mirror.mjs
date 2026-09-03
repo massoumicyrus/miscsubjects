@@ -1,44 +1,4 @@
 #!/usr/bin/env node
-// PUBLIC PROJECTION EXPORTER — the only path by which this build reaches a publishable repository.
-//
-// The operating repository can never be published as it stands. Its history carries the ledger
-// mirror (operational event data with personal information in it), copies of credential material
-// in files that were later fixed, and the owner's identity woven through code, prompts and notes.
-// Rewriting fourteen thousand commits under concurrent agents would break every clone and still
-// leave the current tree contaminated. So the public repository is not this repository. It is a
-// generated projection: a filtered, substituted, gate-checked copy of the tracked tree, committed
-// as one fresh commit per export onto a repository whose history contains nothing but projections.
-//
-// What this script does, in order:
-//   1. Lists the tracked files of the source repository (git ls-files — untracked scratch never
-//      travels).
-//   2. Keeps only the allow-listed prefixes and root files from the config; drops the excluded
-//      patterns; renames paths that carry identity.
-//   3. Substitutes identity in every text file: owner emails and personal email domains, phone
-//      numbers, the home directory, account handles, non-secret identifiers named in the config, and
-//      the owner-identity table the running site already uses at ledger ingest
-//      (functions/_lib/public_secret_guard.js — one table, two consumers, no drift).
-//   4. Runs the gates against the OUTPUT, not the input: secret patterns, real vault values (local
-//      runs only — the vault is not in CI), identity strings that must be absent, paths, size, and
-//      gitleaks when it is installed. Every gate reports how many files it examined. Any hit fails the
-//      export; the projection directory is deleted so a failed export cannot be pushed by hand.
-//   5. Writes PROJECTION.json (source commit, counts, per-gate results, which files were substituted
-//      and how many times — never the strings) into the projection.
-//   6. With --push: brings the mirror clone level with its remote, replaces its tree with the
-//      projection, commits once, pushes. No change → no commit.
-//
-// This file contains no identity string of its own. The strings live in
-// scripts/publish-mirror.config.json, which the config itself excludes from the projection. Running
-// this script from a projection therefore stops at "config missing" — by design.
-//
-// Usage:
-//   node scripts/publish-mirror.mjs --out <dir> [--push] [--remote <git url>] [--announce]
-//                                   [--require-gitleaks] [--keep] [--report <path>] [--json]
-//
-// --announce additionally PUTs the manifest to the build's public surface (needs TERMINAL_KEY) so the
-// projection state is readable at a public URL and the work object can grade it.
-//
-// Exit codes: 0 exported (and pushed if asked) · 1 a gate failed · 2 usage or environment error.
 
 import { spawnSync } from 'node:child_process';
 import {
@@ -99,12 +59,100 @@ function selected(path) {
   for (const e of excludeRes) if (e.re.test(path)) { e.hits += 1; return { keep: false, why: e.why }; }
   return { keep: true };
 }
-const kept = [];
+let kept = [];
 const droppedByReason = new Map();
 for (const p of tracked) {
   const s = selected(p);
   if (s.keep) kept.push(p);
   else droppedByReason.set(s.why, (droppedByReason.get(s.why) || 0) + 1);
+}
+
+const PROFILE = CFG.profile || null;
+const profileRules = PROFILE ? (PROFILE.exclude || []).map((r) => ({ re: new RegExp(r.re, r.flags || ''), why: r.why })) : [];
+const scopedAllow = PROFILE ? (PROFILE.scoped_allow || []).map((s) => ({ prefix: s.prefix, re: new RegExp(s.re), why: s.why })) : [];
+const trackedSet = new Set(tracked);
+const droppedByProfile = new Map(); // src path -> why
+function migrationIsContent(path) {
+  if (!PROFILE?.migrations || !/^migrations\/.*\.sql$/.test(path)) return false;
+  const text = readFileSync(join(ROOT, path), 'utf8');
+  if (/\b(CREATE|ALTER|DROP)\s+(TABLE|INDEX|TRIGGER|VIEW)\b/i.test(text)) return false;
+  return Buffer.byteLength(text) > (PROFILE.migrations.data_only_max_bytes || 30000);
+}
+function profileWhy(path) {
+  if (!PROFILE) return null;
+  for (const r of profileRules) if (r.re.test(path)) return r.why;
+  for (const s of scopedAllow) if (path.startsWith(s.prefix) && !s.re.test(path)) return s.why;
+  if (migrationIsContent(path)) return PROFILE.migrations.why;
+  return null;
+}
+if (PROFILE) {
+  const next = [];
+  for (const p of kept) {
+    const why = profileWhy(p);
+    if (why) droppedByProfile.set(p, why); else next.push(p);
+  }
+  kept = next;
+}
+
+// Stubs. For every kept JavaScript file, every relative import that points at a module the profile
+// dropped becomes a stub at that path. A stub exports the same names as the original and throws
+// with the module's name when any of them is used, so a reader sees exactly where the tenant code
+// was, and the rest of the primitive still parses, loads and runs up to that boundary.
+const stubs = new Map(); // dst path -> stub source
+function resolveRel(fromPath, spec) {
+  const parts = (dirname(fromPath) + '/' + spec).split('/');
+  const out = [];
+  for (const seg of parts) { if (seg === '..') out.pop(); else if (seg !== '.' && seg !== '') out.push(seg); }
+  return out.join('/');
+}
+function exportNamesOf(src) {
+  const names = new Set();
+  let hasDefault = false;
+  for (const m of src.matchAll(/^\s*export\s+(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/gm)) names.add(m[1]);
+  for (const m of src.matchAll(/^\s*export\s+(?:const|let|var|class)\s+([A-Za-z_$][\w$]*)/gm)) names.add(m[1]);
+  for (const m of src.matchAll(/^\s*export\s*\{([^}]*)\}/gm)) {
+    for (const part of m[1].split(',')) {
+      const seg = part.trim(); if (!seg) continue;
+      const as = seg.split(/\s+as\s+/);
+      const exported = (as[1] || as[0]).trim();
+      if (exported === 'default') hasDefault = true; else if (/^[A-Za-z_$][\w$]*$/.test(exported)) names.add(exported);
+    }
+  }
+  if (/^\s*export\s+default\b/m.test(src)) hasDefault = true;
+  return { names: [...names].sort(), hasDefault, star: /^\s*export\s+\*\s+from/m.test(src) };
+}
+function stubSource(path, original) {
+  const { names, hasDefault, star } = exportNamesOf(original);
+  const lines = original.split('\n').length;
+  const out = [
+    `// STUB. The module that lived here is a tenant integration of the operating repository and is not`,
+    `// part of the public primitive. The original (${lines} lines) exported the names below; each one`,
+    `// throws with this path when used, so the kernel keeps its shape and a caller sees exactly what`,
+    `// is absent. See docs/PUBLISHING.md, section "The primitive profile".`,
+    `const excluded = (name) => new Proxy(function excluded() {}, {`,
+    `  apply() { throw new Error('excluded from the public primitive: ${path}#' + name); },`,
+    `  construct() { throw new Error('excluded from the public primitive: ${path}#' + name); },`,
+    `  get(_t, p) { if (p === 'then' || p === Symbol.toPrimitive || p === Symbol.iterator || p === Symbol.toStringTag) return undefined; throw new Error('excluded from the public primitive: ${path}#' + name + '.' + String(p)); },`,
+    `});`,
+  ];
+  for (const n of names) out.push(`export const ${n} = excluded(${JSON.stringify(n)});`);
+  if (hasDefault) out.push(`export default excluded("default");`);
+  if (star) out.push(`// The original re-exported everything from another module (export * from); those names are not enumerable here.`);
+  return out.join('\n') + '\n';
+}
+if (PROFILE?.stub_excluded_imports) {
+  const importRe = /(?:^|\n)\s*(?:import|export)\s[^'"]*?from\s*['"](\.{1,2}\/[^'"]+)['"]|import\s*\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)|(?:^|\n)\s*import\s*['"](\.{1,2}\/[^'"]+)['"]/g;
+  for (const src of kept) {
+    if (!/\.(m?js|cjs)$/.test(src)) continue;
+    const text = readFileSync(join(ROOT, src), 'utf8');
+    for (const m of text.matchAll(importRe)) {
+      const spec = m[1] || m[2] || m[3];
+      const target = resolveRel(src, spec);
+      if (!droppedByProfile.has(target) || stubs.has(target)) continue;
+      if (!trackedSet.has(target)) continue;
+      stubs.set(target, stubSource(target, readFileSync(join(ROOT, target), 'utf8')));
+    }
+  }
 }
 
 // ───────────────────────────── 2 + 3. substitution ─────────────────────────────
@@ -130,13 +178,6 @@ const literalRes = (CFG.literal_replacements || []).map(([re, flags, rep]) => [n
 const phoneRes = (CFG.owner_phone_patterns || []).map(([re, rep]) => [new RegExp(re, 'g'), rep]);
 const genericPhone = CFG.generic_phone_pattern ? [new RegExp(CFG.generic_phone_pattern[0], 'g'), CFG.generic_phone_pattern[1]] : null;
 
-// Returns the substituted text and how many substitutions happened, by category. Order matters:
-// specific literals first (so a formatted phone or a workers.dev host is replaced whole), then
-// e-mail addresses, then phone numbers, then the site's own owner-identity table last as the
-// general sweep.
-// The name glued to identifier characters — OWNER_PHONE, isOwner, owner_iphone — is replaced with a
-// case-matched "owner" so the projected code still parses. A standalone word is left for the general
-// sweep, which turns it into "the owner".
 const identCtx = CFG.identifier_context_replacement || null;
 const identCtxRe = identCtx ? new RegExp(`([A-Za-z0-9_])?(${identCtx.from})(?=([A-Za-z0-9_]))|([A-Za-z0-9_])(${identCtx.from})`, 'gi') : null;
 function caseLike(sample, word) {
@@ -152,8 +193,6 @@ function substitute(text) {
   for (const [re, rep] of literalRes) {
     let n = 0; t = t.replace(re, (...m) => { n += 1; return rep.replace(/\$(\d)/g, (_, d) => m[Number(d)] ?? ''); }); bump('literal', n);
   }
-  // E-mail addresses go before the identity table: an address made of the owner's names would
-  // otherwise be split into words and stop looking like an address to this rule.
   {
     let n = 0;
     t = t.replace(emailRe, (m) => {
@@ -163,6 +202,21 @@ function substitute(text) {
       return ownerDomains.has(domain) ? '[OWNER_EMAIL]' : '[REDACTED_EMAIL]';
     });
     bump('email', n);
+  }
+  if (identCtx) {
+    // A bare identifier that IS the name: an all-caps constant (OWNER), a declared binding
+    // (const owner = …), a property (.owner), a call (owner(…)). The general sweep would turn these
+    // into prose and break the code.
+    const f = identCtx.from;
+    const rules = [
+      new RegExp(`\\b${f.toUpperCase()}\\b`, 'g'),
+      new RegExp(`(?<=\\b(?:const|let|var|function|class|async function)\\s+)${f}\\b`, 'gi'),
+      new RegExp(`(?<=\\.)${f}\\b`, 'gi'),
+      new RegExp(`\\b${f}(?=\\s*[=(])`, 'gi'),
+    ];
+    let n = 0;
+    for (const re of rules) t = t.replace(re, (m) => { n += 1; return caseLike(m, identCtx.to); });
+    bump('identifier', n);
   }
   // The site's own owner-identity table runs BEFORE the identifier rule: it knows the home directory,
   // the handles and the full name as whole strings. Run after, the identifier rule would split those
@@ -200,6 +254,184 @@ function projectPath(path) {
   return p;
 }
 
+// ───────────────────────────── 3b. diary removal ─────────────────────────────
+// The operating repository narrates itself: comments record who ordered a change, on what date, and
+// what went wrong the day before. That record belongs to the operation, not to the primitive. A
+// comment is removed when it matches the diary pattern; code, strings and regex literals are never
+// touched. JavaScript is scanned with a small state machine (strings, template literals with nested
+// expressions, regex literals by the usual preceding-token rule, line and block comments). SQL, shell,
+// YAML and TOML use full-line comment groups. Every JavaScript file whose comments were altered is
+// re-parsed by Node; if it no longer parses, the original is kept and the file is recorded.
+const STRIP = PROFILE?.strip_comments || null;
+const diaryCommentRe = STRIP ? new RegExp(STRIP.diary_re, STRIP.flags || 'i') : null;
+const stripExt = new Set(STRIP?.extensions || []);
+
+function jsComments(src) {
+  // Returns [{start, end, text, kind:'line'|'block', fullLine}] in source order.
+  const out = [];
+  const n = src.length;
+  let i = 0;
+  let lastSig = ''; // last significant (non-space, non-comment) character
+  let lastWord = ''; // last identifier/keyword
+  const regexPrev = new Set(['(', ',', '=', ':', '[', '!', '&', '|', '?', '{', '}', ';', '+', '-', '*', '%', '<', '>', '~', '^', '']);
+  const regexWords = new Set(['return', 'typeof', 'case', 'do', 'else', 'in', 'of', 'new', 'delete', 'void', 'throw', 'instanceof', 'yield', 'await']);
+  const tmplDepth = []; // stack of ${ depths inside template literals
+  const readString = (q) => { i += 1; while (i < n && src[i] !== q) { if (src[i] === '\\') i += 1; if (src[i] === '\n' && q !== '`') break; i += 1; } i += 1; };
+  const readTemplate = () => {
+    i += 1;
+    while (i < n) {
+      const c = src[i];
+      if (c === '\\') { i += 2; continue; }
+      if (c === '`') { i += 1; return; }
+      if (c === '$' && src[i + 1] === '{') { i += 2; tmplDepth.push(1); scanCode(true); continue; }
+      i += 1;
+    }
+  };
+  const readRegex = () => {
+    i += 1; let cls = false;
+    while (i < n) {
+      const c = src[i];
+      if (c === '\\') { i += 2; continue; }
+      if (c === '\n') break;
+      if (cls) { if (c === ']') cls = false; i += 1; continue; }
+      if (c === '[') { cls = true; i += 1; continue; }
+      if (c === '/') { i += 1; while (i < n && /[a-z]/i.test(src[i])) i += 1; return; }
+      i += 1;
+    }
+  };
+  function scanCode(inTemplateExpr) {
+    while (i < n) {
+      const c = src[i];
+      if (inTemplateExpr && c === '}') {
+        const d = tmplDepth[tmplDepth.length - 1];
+        if (d <= 1) { tmplDepth.pop(); i += 1; return; }
+        tmplDepth[tmplDepth.length - 1] = d - 1; lastSig = c; lastWord = ''; i += 1; continue;
+      }
+      if (inTemplateExpr && c === '{') { tmplDepth[tmplDepth.length - 1] += 1; lastSig = c; lastWord = ''; i += 1; continue; }
+      if (c === '/' && src[i + 1] === '/') {
+        const start = i; while (i < n && src[i] !== '\n') i += 1;
+        const lineStart = src.lastIndexOf('\n', start - 1) + 1;
+        out.push({ start, end: i, text: src.slice(start, i), kind: 'line', fullLine: /^\s*$/.test(src.slice(lineStart, start)) });
+        continue;
+      }
+      if (c === '/' && src[i + 1] === '*') {
+        const start = i; const close = src.indexOf('*/', i + 2); i = close < 0 ? n : close + 2;
+        const lineStart = src.lastIndexOf('\n', start - 1) + 1;
+        const after = src.indexOf('\n', i); const rest = src.slice(i, after < 0 ? n : after);
+        out.push({ start, end: i, text: src.slice(start, i), kind: 'block', fullLine: /^\s*$/.test(src.slice(lineStart, start)) && /^\s*$/.test(rest) });
+        continue;
+      }
+      if (c === '"' || c === "'") { readString(c); lastSig = c; lastWord = ''; continue; }
+      if (c === '`') { readTemplate(); lastSig = '`'; lastWord = ''; continue; }
+      if (c === '/') {
+        const isRegex = regexPrev.has(lastSig) || regexWords.has(lastWord) || (lastSig === ')' ? false : /^[\s]*$/.test(lastSig) && lastSig === '');
+        if (isRegex) { readRegex(); lastSig = '/'; lastWord = ''; continue; }
+        lastSig = c; lastWord = ''; i += 1; continue;
+      }
+      if (/\s/.test(c)) { i += 1; continue; }
+      if (/[A-Za-z_$]/.test(c)) { let j = i; while (j < n && /[\w$]/.test(src[j])) j += 1; lastWord = src.slice(i, j); lastSig = 'a'; i = j; continue; }
+      if (/[0-9]/.test(c)) { let j = i; while (j < n && /[\w.]/.test(src[j])) j += 1; lastWord = ''; lastSig = '0'; i = j; continue; }
+      lastSig = c; lastWord = ''; i += 1;
+    }
+  }
+  scanCode(false);
+  return out;
+}
+
+function stripDiaryJs(src) {
+  const comments = jsComments(src);
+  if (!comments.length) return { text: src, removed: 0 };
+  // Group consecutive full-line // comments into one unit; a block comment is its own unit.
+  const units = [];
+  for (const c of comments) {
+    const prev = units[units.length - 1];
+    if (c.kind === 'line' && c.fullLine && prev && prev.kind === 'line' && prev.fullLine && /^\n[ \t]*$/.test(src.slice(prev.end, c.start))) {
+      prev.end = c.end; prev.text += '\n' + c.text; continue;
+    }
+    units.push({ ...c });
+  }
+  const remove = units.filter((u) => diaryCommentRe.test(u.text));
+  if (!remove.length) return { text: src, removed: 0 };
+  let out = ''; let pos = 0;
+  for (const u of remove) {
+    let s = u.start; let e = u.end;
+    if (u.fullLine) {
+      // take the whole lines, including the trailing newline, so no blank gap is left behind
+      s = src.lastIndexOf('\n', s - 1) + 1;
+      if (src[e] === '\n') e += 1;
+    } else {
+      // trailing comment: also drop the spaces that separated it from the code
+      while (s > 0 && (src[s - 1] === ' ' || src[s - 1] === '\t')) s -= 1;
+    }
+    out += src.slice(pos, s); pos = e;
+  }
+  out += src.slice(pos);
+  return { text: out, removed: remove.length };
+}
+
+function stripDiaryLines(src, marker) {
+  // Full-line comment groups for --, # and similar. Shebangs are never comments here.
+  const lines = src.split('\n');
+  const isC = (l) => l.trimStart().startsWith(marker) && !l.startsWith('#!');
+  const out = []; let removed = 0; let i = 0;
+  while (i < lines.length) {
+    if (!isC(lines[i])) { out.push(lines[i]); i += 1; continue; }
+    let j = i; while (j < lines.length && isC(lines[j])) j += 1;
+    const group = lines.slice(i, j);
+    if (diaryCommentRe.test(group.join('\n'))) removed += 1; else out.push(...group);
+    i = j;
+  }
+  return { text: out.join('\n'), removed };
+}
+
+const MD = PROFILE?.markdown_filter || null;
+const diaryMdRe = MD ? new RegExp(MD.diary_re, MD.flags || 'i') : null;
+function filterMarkdown(src) {
+  // Blank-line-delimited blocks. A list block is filtered line by line; any other block that matches
+  // is dropped whole; fenced code is never touched.
+  const blocks = src.split(/\n{2,}/);
+  const out = []; let removed = 0; let inFence = false;
+  for (const b of blocks) {
+    const fences = (b.match(/^```/gm) || []).length;
+    if (inFence || fences) { out.push(b); if (fences % 2) inFence = !inFence; continue; }
+    const lines = b.split('\n');
+    const isList = lines.every((l) => /^\s*([-*+]|\d+\.)\s/.test(l) || /^\s{2,}\S/.test(l) || !l.trim());
+    if (isList) {
+      const keep = lines.filter((l) => !diaryMdRe.test(l));
+      removed += lines.length - keep.length;
+      if (keep.length) out.push(keep.join('\n'));
+      continue;
+    }
+    if (diaryMdRe.test(b)) { removed += 1; continue; }
+    out.push(b);
+  }
+  return { text: out.join('\n\n').replace(/\n{3,}/g, '\n\n'), removed };
+}
+
+const phraseRules = (PROFILE?.string_phrase_replacements?.rules || []).map(([re, flags, rep]) => [new RegExp(re, flags || 'g'), rep]);
+
+const JSON_T = PROFILE?.json_transforms || {};
+function transformJson(path, text) {
+  const how = JSON_T[path];
+  if (!how) return null;
+  const j = JSON.parse(text);
+  if (how === 'drop_quoted_words') {
+    for (const e of j.entries || []) for (const k of PROFILE.json_drop_keys || []) delete e[k];
+    j._what = 'Every named failure mode of the build as one mechanical entry. scripts/check-failure-vault.mjs enforces each entry on every commit (pre-commit) and every deploy (protected-features chain). An entry names the files and the strings they must contain so the failure cannot recur silently.';
+    return JSON.stringify(j, null, 2) + '\n';
+  }
+  if (how === 'prune_missing_gates') {
+    delete j._why;
+    return JSON.stringify(j, null, 2) + '\n'; // entries are pruned after the file list is final, below
+  }
+  return null;
+}
+
+function nodeParses(text) {
+  const r = spawnSync('node', ['--input-type=module', '--check'], { input: text, encoding: 'utf8' });
+  return { ok: r.status === 0, err: String(r.stderr || '').split('\n').slice(0, 3).join(' ').trim() };
+}
+
 // Fresh output directory, always. A stale projection with a failed gate must never survive.
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
@@ -207,6 +439,7 @@ mkdirSync(OUT, { recursive: true });
 const files = []; // {src, dst, bytes, binary, subs}
 let totalBytes = 0;
 const substituted = [];
+const commentStripSkipped = [];
 for (const src of kept) {
   const buf = readFileSync(join(ROOT, src));
   const dst = projectPath(src);
@@ -215,8 +448,36 @@ for (const src of kept) {
   let subs = {};
   if (!binary) {
     const r = substitute(buf.toString('utf8'));
-    outBuf = Buffer.from(r.text, 'utf8');
+    let text = r.text;
     subs = r.counts;
+    let ext = extname(src).toLowerCase();
+    // An extensionless executable with a shebang (git hooks) is a shell file for comment purposes.
+    if (!ext && text.startsWith('#!')) ext = '.sh';
+    if (PROFILE) {
+      const jt = transformJson(src, text);
+      if (jt !== null) { text = jt; subs.json_transform = 1; }
+      else if (stripExt.has(ext) && /\.(m?js|cjs)$/.test(src)) {
+        const s = stripDiaryJs(text);
+        if (s.removed) {
+          const check = nodeParses(s.text);
+          if (check.ok || !nodeParses(text).ok) { text = s.text; subs.diary_comments = s.removed; }
+          else { commentStripSkipped.push({ path: dst, why: check.err }); }
+        }
+      } else if (stripExt.has(ext) && ext === '.sql') {
+        const s = stripDiaryLines(text, '--'); if (s.removed) { text = s.text; subs.diary_comments = s.removed; }
+      } else if (stripExt.has(ext)) {
+        const s = stripDiaryLines(text, '#'); if (s.removed) { text = s.text; subs.diary_comments = s.removed; }
+      } else if (ext === '.md' && diaryMdRe) {
+        const s = filterMarkdown(text); if (s.removed) { text = s.text; subs.diary_paragraphs = s.removed; }
+      }
+      // Narrative markers that live inside strings and values, in every text file.
+      if (phraseRules.length) {
+        let n = 0;
+        for (const [re, rep] of phraseRules) text = text.replace(re, () => { n += 1; return rep; });
+        if (n) subs.diary_phrases = n;
+      }
+    }
+    outBuf = Buffer.from(text, 'utf8');
     if (Object.keys(subs).length) substituted.push({ path: dst, substitutions: subs });
   }
   const full = join(OUT, dst);
@@ -224,6 +485,34 @@ for (const src of kept) {
   writeFileSync(full, outBuf);
   totalBytes += outBuf.length;
   files.push({ src, dst, bytes: outBuf.length, binary });
+}
+
+// Stubs are written after the real files so a stub can never overwrite a kept module.
+for (const [target, source] of stubs) {
+  const dst = projectPath(target);
+  const full = join(OUT, dst);
+  mkdirSync(dirname(full), { recursive: true });
+  writeFileSync(full, source);
+  const bytes = Buffer.byteLength(source);
+  totalBytes += bytes;
+  files.push({ src: target, dst, bytes, binary: false, stub: true });
+}
+
+// gates.manifest.json names every gate script; the profile may have dropped some. Prune the manifest
+// to the scripts that exist in the projection so ship.mjs and check-gates-wired.mjs agree.
+let prunedGates = [];
+if (PROFILE && JSON_T['scripts/gates.manifest.json'] === 'prune_missing_gates') {
+  const mp = join(OUT, 'scripts', 'gates.manifest.json');
+  if (existsSync(mp)) {
+    const j = JSON.parse(readFileSync(mp, 'utf8'));
+    for (const name of Object.keys(j.gates || {})) {
+      if (!existsSync(join(OUT, 'scripts', name))) { prunedGates.push(name); delete j.gates[name]; }
+    }
+    const text = JSON.stringify(j, null, 2) + '\n';
+    writeFileSync(mp, text);
+    const f = files.find((x) => x.dst === 'scripts/gates.manifest.json');
+    if (f) { totalBytes += Buffer.byteLength(text) - f.bytes; f.bytes = Buffer.byteLength(text); }
+  }
 }
 
 // ───────────────────────────── 4. gates on the output ─────────────────────────────
@@ -326,6 +615,36 @@ function contextOf(text, idx, len) {
   gate('size', files.length, hits);
 }
 
+// 4d2. syntax — every JavaScript file in the projection, stubs and stripped files included, must
+// parse as an ES module. A primitive that does not parse is not a primitive.
+if (PROFILE?.gates?.syntax) {
+  const hits = [];
+  let examined = 0;
+  for (const f of files) {
+    if (!/\.(m?js|cjs)$/.test(f.dst) || f.binary) continue;
+    examined += 1;
+    const r = nodeParses(readFileSync(join(OUT, f.dst), 'utf8'));
+    if (!r.ok) hits.push(`${f.dst}: ${r.err.slice(0, 160)}`);
+  }
+  gate('syntax', examined, hits, `${stubs.size} stubs included`);
+}
+
+// 4d3. diary — after comment removal nothing may still say who ordered what. Strings are scanned
+// too: a narrative that survived inside a string literal is still narrative.
+if (PROFILE?.gates?.diary_re) {
+  const re = new RegExp(PROFILE.gates.diary_re, (PROFILE.gates.flags || 'i') + 'g');
+  const hits = [];
+  let examined = 0;
+  for (const f of files) {
+    if (f.binary) continue;
+    examined += 1;
+    const text = readFileSync(join(OUT, f.dst), 'utf8');
+    re.lastIndex = 0; let m;
+    while ((m = re.exec(text))) { hits.push(`${f.dst}:${lineOf(text, m.index)} :: ${contextOf(text, m.index, m[0].length)}`); if (m.index === re.lastIndex) re.lastIndex += 1; }
+  }
+  gate('diary', examined, hits);
+}
+
 // 4e. gitleaks over the projection directory, when available. Its ruleset is independent of ours,
 // which is the point: two detectors written by different people. Known non-secrets it flags (an
 // IndexNow key, which the protocol publishes; a redaction test fixture; an auth spec that names an
@@ -373,6 +692,22 @@ const manifest = {
   dropped: Object.fromEntries([...droppedByReason.entries()].sort((a, b) => b[1] - a[1])),
   substituted_files: substituted.length,
   substitutions: substituted.sort((a, b) => a.path.localeCompare(b.path)),
+  profile: PROFILE ? {
+    name: PROFILE.name,
+    what: PROFILE._what,
+    dropped_by_profile: Object.fromEntries([...droppedByProfile.values()].reduce((m, why) => m.set(why, (m.get(why) || 0) + 1), new Map())),
+    dropped_paths: [...droppedByProfile.keys()].sort(),
+    stubbed_modules: [...stubs.keys()].sort(),
+    comments_removed: substituted.reduce((n, s) => n + (s.substitutions.diary_comments || 0), 0),
+    markdown_blocks_removed: substituted.reduce((n, s) => n + (s.substitutions.diary_paragraphs || 0), 0),
+    narrative_phrases_removed: substituted.reduce((n, s) => n + (s.substitutions.diary_phrases || 0), 0),
+    // Residue the mechanical pass cannot judge: strings that still carry a date. Reported, not gated,
+    // because a date in a string is often data (a default, a fixture, a version) rather than narrative.
+    dated_strings_remaining: files.filter((f) => !f.binary && !/\.sql$/.test(f.dst)).reduce((n, f) => n + (readFileSync(join(OUT, f.dst), 'utf8').match(/\b20[0-9]{2}-[0-9]{2}-[0-9]{2}\b/g) || []).length, 0),
+    comment_strip_skipped: commentStripSkipped,
+    gates_pruned_from_manifest: prunedGates,
+  } : null,
+  stubbed_modules_count: stubs.size,
   gates,
   all_gates_ok: gates.every((g) => g.ok),
   content_hash: null,
@@ -479,6 +814,7 @@ const summary = {
   files: files.length,
   bytes: totalBytes,
   dropped: manifest.dropped,
+  profile: PROFILE ? { name: PROFILE.name, dropped: droppedByProfile.size, stubs: stubs.size, comments_removed: manifest.profile.comments_removed, markdown_blocks_removed: manifest.profile.markdown_blocks_removed, strip_skipped: commentStripSkipped.length, gates_pruned: prunedGates.length } : null,
   substituted_files: substituted.length,
   gates: gates.map((g) => `${g.name}: ${g.ok ? 'ok' : 'FAIL'} (examined ${g.examined}${g.skipped ? ', skipped: ' + g.skipped : ''})`),
   content_hash: manifest.content_hash,

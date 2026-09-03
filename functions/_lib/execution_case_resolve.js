@@ -1,23 +1,3 @@
-// CANONICAL RESOLUTION — one decision per firm (Table Web cold audit, WT-0090).
-//
-// Discovery ran ~70 queries; the same firm surfaced by many of them, so the raw table held the
-// identical organization included in one row and excluded in another, and a garbage email under a
-// non-existent TLD stamped "verified_public". Three defects, one shared cause: the passes were never
-// reconciled against each other. This resolves them deterministically without deleting the raw
-// history (every discovery decision stays; the losers are marked canonical=0):
-//
-//   1. Group rows into firms by union-find: two rows are the same firm if they share a registrable
-//      domain OR a normalized name. (Domain alone missed "Intel Capital" across domain variants;
-//      name alone missed "GV" vs "Google Ventures" under the same gv.com.)
-//   2. Per firm, an inclusion is valid only when its qualifying quote is on the firm's OWN site
-//      (registrable(source) === registrable(official)) — the same bar exclusions already meet.
-//   3. The canonical row is the best valid inclusion (prefer one with a syntactically valid public
-//      contact, then the longest quote); if none, the firm is excluded, with a reason that says so.
-//   4. verified_public requires a contact whose TLD actually exists (isPlausiblePublicEmail); an
-//      included firm whose only address is garbage is contact_invalid, never verified.
-//
-// planResolution is pure and tested; resolveCanonical drives it against D1 so the endpoint and any
-// re-run reproduce the exact same assignment from the raw rows.
 import { isPlausiblePublicEmail, registrableDomain } from './valid_tld.js';
 
 const THIRD_PARTY = /(?:^|\.)(linkedin\.com|crunchbase\.com|wikipedia\.org|facebook\.com|x\.com|twitter\.com)$/i;

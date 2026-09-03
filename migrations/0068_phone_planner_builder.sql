@@ -1,5 +1,3 @@
--- Phone surface + planner threads + builder queue + approvals.
--- 2026-06-12. All tables on the main D1 (binding `DB`), not on LEDGER.
 
 CREATE TABLE IF NOT EXISTS phone_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

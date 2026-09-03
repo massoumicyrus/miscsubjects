@@ -1,6 +1,3 @@
--- 0091_cc_turns.sql — per-turn Claude Code session log (fed by the Stop hook ~/.claude/cc-turn-log.js).
--- One row per finished turn: the owner's input + the tools/commands I ran + files I changed.
--- Revert: DROP TABLE cc_turns;
 CREATE TABLE IF NOT EXISTS cc_turns (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
   ts               TEXT,

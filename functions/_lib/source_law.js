@@ -1,26 +1,3 @@
-// THE SOURCE LAW — one shared contract for every source entry, held at the write path.
-//
-// FAILURE CLASS THIS REMOVES. The owner reported, repeatedly, that source cards on the site show
-// no quote: study cards carried a descriptor we had written instead of the study's own words, and
-// social cards (X, Reddit) showed a paraphrase where the post itself belonged. Each time, the fix
-// applied was to the article that exposed it.
-//
-// THE LAYER THAT PERMITTED IT. Not the renderer. functions/_lib/widgets/rail-platform.js has always
-// printed `s.quote` inside the card and falls through to `s.summary` only when `quote` is empty. The
-// two canonical source write paths — chainSources() in functions/api/articles/[[path]].js and
-// POST /api/protocol/sources — accepted an entry with no quote at all, and even stamped it
-// `quote_status: "na"` as though absence were a legitimate state. They also accepted entries that
-// were not objects: bare strings sitting in meta.sources, which render as empty fallback cards.
-//
-// THE INVARIANT NOW ENFORCED. A source entry is an object, it has a URL, and it carries the
-// source's own verbatim words in `quote`. The words in `quote` are never our words: they may not
-// equal the title, the summary, or the plain-language gloss. A card can therefore never render
-// without the quote the reader came for, because a quote-less source can no longer be stored.
-//
-// WHERE IT IS ENFORCED: both write paths call assertSourcesLawful() and refuse the whole write.
-// WHAT KEEPS IT ENFORCED: scripts/check-source-quotes.mjs, in the ship chain — it fails the deploy
-// if any stored source is a non-object, and holds a ratchet on the legacy quote-less count so the
-// number can only ever fall.
 
 export const SOURCE_LAW = Object.freeze({
   key: 'SOURCE_QUOTE_LAW',

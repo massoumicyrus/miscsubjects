@@ -120,9 +120,7 @@ function lastReplyOf(s) {
   last = last.replace(/\[([A-Z_][A-Z0-9_]*)\]([\s\S]*?)\[\/\1\]/g, (_, k, body) => `${k}(${String(body || '').trim()})`);
   // Malformed spaced tags like "[ WORLD_MAP ]" must never reach the user.
   last = last.replace(/\[\s*([A-Z][A-Z0-9_]*)\s*\]/g, '');
-  // 6) Kill any leaked numbered reasoning lines (the "1. What the owner said / 2. Which clause /
-  //    Why this KEY / cite the ID / DECISION:" scaffolding some agent prompts still emit).
-  last = last.replace(/(^|\s)\d+\.\s*(What the owner said|Which clause|Why this KEY|Expected return|Tool to call|Fallback|cite the)[^\n]*/gi, ' ');
+  last = last.replace(/(^|\s)\d+\.\s*(What it was stated|Which clause|Why this KEY|Expected return|Tool to call|Fallback|cite the)[^\n]*/gi, ' ');
   last = last.replace(/DECISION:\s*[A-Z]+/g, ' ');
   // INVARIANT: the build never delivers a BARE tool-call tag as its answer (a leaked call like
   // "[DIR_LIST]"). A reply MAY legitimately mention a tag in prose ("use [ARTICLE_PUT] to add one"),
@@ -177,9 +175,6 @@ async function collectTraceMedia(env, trace) {
   } catch { return []; }
 }
 
-// ─── Per-CHAT conversation memory (so the agent remembers prior turns). Keyed by the
-// chat id, not the sender: groups get their own thread, and synthetic test chats
-// (selftest-q) never pollute the owner's real 1:1 memory. ──────
 const CONVO_MAX_DEFAULT = 14;       // turns kept (editable: KV 'convo_max'). Set to 0 to disable history.
 function chatSlug(chat) { return String(chat || '').replace(/[^A-Za-z0-9@._+-]/g, ''); }
 function convoKey(chat) { return 'convo:' + chatSlug(chat); }
@@ -490,27 +485,11 @@ export async function processTurn(env, m, send) {
     }
   }
 
-  // The AGENT sheet takes the turn when the sender is listed in its allow_from cell. That cell
-  // is empty by default, so this path is inert until the owner opts a number in — and opting
-  // back out is the same one-cell edit. Everything about that agent (system prompt, the REST
-  // envelope sent to the model, loop cap) lives in cells on that sheet, not in this file.
-  // The sheet's turn does not run here. Blooio redelivers a webhook whose response arrives
-  // after its ack window, and a turn with tool calls regularly takes 20s+ — so phase A only
-  // asks whether the sheet claims this sender, then hands the work to a fresh invocation the
-  // same way a routed agent is handed off below.
   let claimed = false;
   try { claimed = await sheetClaims(env, from); }
   catch (e) { claimed = false; console.log('agent-sheet claim check failed: ' + (e && e.message || e)); }
 
   if (claimed) {
-    // Stamp first, hand off second. The row — timestamp, raw payload, parsed message, sender —
-    // exists before the model is asked anything, so the grid shows the message arriving rather
-    // than showing nothing until a turn finishes. Many messages can then be in flight at once,
-    // each finishing on its own row whenever it is ready.
-    // Claim the message id before stamping. The turn's own dedup guard used to run after this
-    // point, so a redelivery was given a row and then abandoned by the duplicate check — rows
-    // 51, 52, 56, 57, 58 and 59 sat at 'received' for that reason. Losing the race means the
-    // first delivery already owns a row and is answering; there is nothing to add.
     const inMsgId = (m && (m.messageId || m.message_id || m.id)) || '';
     if (!(await claimMessage(env, inMsgId, new Date().toISOString()))) {
       await log(env, new Date().toISOString(), 'OUT', JSON.stringify({ router: true, phase: 'route', routed: 'AGENT_SHEET', duplicate: true, message_id: inMsgId, chat, trace, from, turn }), 'agent-sheet', trace, channel);
@@ -544,7 +523,7 @@ export async function processTurn(env, m, send) {
     if (['REPLY', 'DONE', 'SELF', 'REASONING'].includes(tm[1])) continue;
     const row = await env.DB.prepare("SELECT key FROM directory WHERE key = ? AND type = 'agent'").bind(tm[1]).first();
     if (row) {
-      // PEPPER = ad-lead ebook funnel only — never for the owner (he says "Pepper" as the build's name).
+      // PEPPER = ad-lead ebook funnel only — never for Owner (he says "Pepper" as the build's name).
       if (tm[1] === 'PEPPER' && isOwnerPhone(from)) continue;
       routed = tm[1]; break;
     }
@@ -594,9 +573,6 @@ export async function processTurn(env, m, send) {
 async function sheetPhase(env, m, sender) {
   let res = '';
   try {
-    // The send is triggered the moment a reply exists, not after the row is finished writing.
-    // A turn's own bookkeeping used to sit in front of the person: the reply waited on an
-    // eleven-cell write plus a second invocation hop. Now the write happens after the send.
     let handedOff = false;
     const out = await runSheetInbound(env, {
       text: m.sheetInput || m.turn || '',
@@ -714,8 +690,6 @@ export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);
 
-  // OWNER PRIVACY BAR: this page and its JSON branches expose inbound iMessage payloads (the owner's
-  // texts to the build — his phone, his words) and the ROUTER system prompt. Admin/owner token only.
   if (!(await isBuildAuthed(request, env))) {
     return new Response(JSON.stringify({ error: 'unauthorized', note: 'owner or admin token required' }), {
       status: 401,

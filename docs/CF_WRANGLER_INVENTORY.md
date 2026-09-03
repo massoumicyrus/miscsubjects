@@ -117,8 +117,6 @@ You said the secret already lives in your Cloudflare Secret Store. The remaining
 
 16. The `BINDINGS` map in `functions/admin/bind-secrets.js` now includes `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. From your Mac: `curl -sS -X POST https://miscsubjects.com/admin/bind-secrets`. The response shows `"sent_bindings"` ending in those two names. This makes Step B redundant for future provisioning — `bind-secrets.js` is the single source of truth.
 
-## Cloudflare repos and agent skills available in this session
-
 | Skill / repo | What it covers | Recommended use here |
 |---|---|---|
 | `cloudflare` skill | Workers, Pages, KV, D1, R2, Workers AI, Vectorize, Tunnel, Spectrum, WAF, Terraform/Pulumi | General reference when wiring new CF surfaces |
@@ -129,8 +127,6 @@ You said the secret already lives in your Cloudflare Secret Store. The remaining
 | `sandbox-sdk` skill | Sandboxed code execution | Not used |
 | `cloudflare-email-service` skill | Email Sending + Email Routing | Not used |
 | `vercel:*` skills | Vercel platform — irrelevant; this build is Cloudflare Pages | Ignore |
-
-There is no Cloudflare CLI MCP wired into this session. `npx wrangler` from the Mac bridge is the only path. The Cloudflare REST API (`api.cloudflare.com/client/v4/...`) is reachable from any handler via `fetch` with a token in `env.CLOUDFLARE_API_TOKEN`, but no such token is referenced in the repo today.
 
 ## Wrangler config gaps relative to what's used
 

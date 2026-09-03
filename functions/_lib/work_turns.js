@@ -6,8 +6,6 @@
 // write path. The chain (sha256 of prev + canonical payload) lets any reader prove the transcript
 // was not edited after publication; it does not, and cannot, expose a way to write.
 
-// Order matters: value-bearing shapes and owner emails/domains are redacted BEFORE the bare-name
-// pass, so replacing "the owner" -> "the operator" can never strand an owner email or domain behind it.
 const SECRET_PATTERNS = [
   // NAME=VALUE / NAME: VALUE for any credential-looking key — kills the value, keeps the name visible.
   [/\b([A-Z][A-Z0-9_]*(?:TOKEN|SECRET|KEY|PASSWORD|PWD|AUTH|CREDENTIAL)[A-Z0-9_]*)\s*[:=]\s*["']?[A-Za-z0-9._%+\/-]{6,}["']?/g, '$1=[redacted-secret]'],

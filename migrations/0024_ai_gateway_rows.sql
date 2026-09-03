@@ -1,10 +1,3 @@
--- 0024: Cloudflare AI Gateway (compat endpoint) + Workers AI binding rows.
--- gw:<provider>/<model> targets route through
--- https://gateway.ai.cloudflare.com/v1/$CF_ACCOUNT_ID/default/compat/chat/completions
--- (kernel providerEndpoint, kind=openai_compat). Gateway auth is ON -> rows carry
--- bearer:AIG_TOKEN (a Cloudflare API token with AI Gateway Run permission;
--- CLOUDFLARE_API_TOKEN and the wrangler OAuth both return 401 on this endpoint —
--- verified live 2026-06-09).
 
 INSERT OR REPLACE INTO directory (key, type, target, auth, content, category, updated_at)
 VALUES

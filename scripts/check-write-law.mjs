@@ -10,10 +10,6 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
-// The owner's identities. The GitHub noreply address is the repository's own configured
-// user.email, so a commit made with the repo as it ships was being refused as if a stranger
-// had made it — which pushed every agent toward WRITE_LAW_BYPASS. The owner's GitHub identity
-// is the owner.
 const OWNER_EMAILS = [
   '[OWNER_EMAIL]',
   '[REDACTED_EMAIL]',
@@ -43,9 +39,6 @@ function gitConfig(key) {
 }
 
 function isOwnerCommit() {
-  // Owner status follows the COMMIT, not the machine. In CI the runner's git config is a bot,
-  // but the pushed commit is authored by the owner — that is what authorizes it. Check both the
-  // configured identity (local pre-commit) and the HEAD commit author + committer (CI).
   const candidates = [
     gitConfig('user.email'),
     git(['log', '-1', '--format=%ae']),

@@ -1,9 +1,3 @@
-// GET /verify — the public send ledger, as a page a person reads.
-//
-// Owner law 2026-08-11: the site carries a ledger of who it has emailed — not a template, a
-// ledger. Every outbound email is one hash-chained row minted BEFORE the message leaves, its body
-// carries the row's /verify/snd_… receipt, and any recipient or AI agent lands here to check it.
-// The machine projection is /api/verify; this page is the same record with a chair pulled up.
 
 import { designSystemHeader, designSystemFooter, designSystemStyles } from './_lib/design_system.js';
 import { verifyChain } from './_lib/send_proof.js';

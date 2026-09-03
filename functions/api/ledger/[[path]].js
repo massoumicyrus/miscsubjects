@@ -397,17 +397,10 @@ export async function onRequestGet(context) {
   const pathParts = Array.isArray(params.path) ? params.path : (params.path ? [params.path] : []);
   const last = pathParts[pathParts.length - 1] || '';
 
-  // PUBLIC EXCEPTION (outside-model audit 2026-08-04): /api/ledger/head is the URL a stranger
-  // guesses for the anchored chain head, and it used to serve the admin login page — a direct
-  // contradiction of "a door any stranger can open". The public, keyless head lives at
-  // /api/chain/head; this route now sends the guesser there instead of to a login wall.
   if (last === 'head') {
     return Response.redirect(new URL('/api/chain/head' + url.search, url.origin).toString(), 302);
   }
 
-  // OWNER PRIVACY BAR: the ledger holds the owner's private CLI turns (verbatim inputs, cwd, name,
-  // session). Every machine-readable branch of this route is owner/admin token only. The HTML path
-  // falls through to redirectToAdminLedger, which is itself gated.
   const authed = await isBuildAuthed(request, env);
   if (!authed) {
     const wantsMachine =

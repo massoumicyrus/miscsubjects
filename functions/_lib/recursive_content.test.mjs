@@ -253,7 +253,6 @@ function sqliteD1() {
   db.exec(readFileSync(new URL('../../migrations/0350_recursive_content.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../../migrations/0351_content_block_verdicts.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../../migrations/0352_content_block_proposals.sql', import.meta.url), 'utf8'));
-  // Virtual OIP articles live here, not in `articles` — WF-0004 fallback resolves them.
   db.exec(`CREATE TABLE oip_articles (
     id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT, version INTEGER, title TEXT, body TEXT,
     author_model TEXT, source TEXT, review_event_id TEXT, created_at TEXT
@@ -298,7 +297,6 @@ test('WF-0004: a virtual OIP article with no articles row wraps and graphs throu
   const DB = sqliteD1();
   const body = 'The token manual opens here.\n\nMinting a credential is one GET to /start.\n\nScope is pfx:BLOCK_ and cannot name MCP.';
   DB.seedOip('oip-manual-probe', body, 'Manual probe');
-  // Deliberately NO DB.seed(...) — there is no articles row, which is exactly what used to 404.
   const env = { DB };
   const wrapped = await ensureArticleWrapped(env, 'oip-manual-probe', 'test');
   assert.equal(wrapped.ok, true, 'virtual OIP article must wrap without an articles row');

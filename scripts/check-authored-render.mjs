@@ -1,11 +1,4 @@
 #!/usr/bin/env node
-/**
- * AUTHORED_RENDER_LAW (owner, 2026-08-02): the rendered /a/ page of an authored article must
- * contain the article's own body — never a composed claims digest ("System notes").
- * Checks the 15 newest published articles: the first heading line of each stored body must
- * appear in the rendered HTML, and "System notes" must not, unless the body itself carries it.
- * Exit 1 on any failure. Run standalone or from ship.mjs.
- */
 const BASE = process.env.CHECK_BASE || "https://miscsubjects.com";
 const list = await (await fetch(`${BASE}/api/articles?limit=8&slim=1`)).json();
 const slugs = (list.articles || []).map((a) => a.slug);

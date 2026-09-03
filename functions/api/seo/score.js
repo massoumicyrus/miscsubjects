@@ -1,14 +1,3 @@
-// GET /api/seo/score — the site grades itself against its own published perception of
-// search and distribution best practices, live, on every call (owner order 2026-08-06:
-// "the site's meta level of intelligence whereby it scores itself against best practices
-// ... fully auditable ... so visiting models can critique it").
-//
-// Nothing here is asserted from memory: every check fetches the live surface it judges and
-// returns the evidence with the verdict, so a visiting model can re-run any line of this
-// audit itself. The checklist definition lives in one place — the skill at
-// /skills/seo-distribution-law — and this endpoint is its mechanical enforcement. Gaps the
-// site knows about and has not closed are DECLARED, not hidden: an honest score includes
-// what fails.
 
 const INDEXNOW_KEY = "1bb4a4b345e9c5923297801efb87e3dc";
 const SAMPLE_ARTICLE = "/a/oip";

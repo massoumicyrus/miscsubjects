@@ -1,29 +1,4 @@
 #!/usr/bin/env node
-// SOURCE_QUOTE_LAW deploy blocker.
-//
-// THE VISIBLE FAILURE. Source cards on the site showed no quote. Study cards carried a sentence we
-// had written about the study; X and Reddit cards carried a paraphrase where the post belonged. The
-// owner reported it more than once, and each time the article that exposed it was the thing repaired.
-//
-// THE SHARED MECHANISM. functions/_lib/widgets/rail-platform.js prints `s.quote` inside every card
-// and only falls back to `s.summary` when `quote` is empty — so the renderer was never the defect.
-// The two source write paths accepted an entry with no quote, and accepted entries that were not
-// objects at all. Both now call checkSources() from functions/_lib/source_law.js and refuse.
-//
-// WHAT THIS GATE ADDS. A refusal at the write path stops new violations. It does nothing about the
-// ones already stored, and nothing stops a future change from quietly removing the refusal. This
-// gate reads the live corpus and fails the deploy when either is true:
-//
-//   1. ANY stored source entry is not an object. Hard zero. These render as empty cards and there is
-//      no legitimate reason for one to exist.
-//   2. The count of quote-less source entries is HIGHER than the recorded ceiling. Existing debt is
-//      named in .source-quote-ceiling.json and may only ever fall. A deploy that adds one
-//      quote-less source fails; a deploy that repairs some lowers the ceiling automatically.
-//
-// It also verifies at RUNTIME, not just in the data: it fetches published pages and asserts that a
-// card carrying a stored quote actually renders that quote inside the card.
-//
-// Usage: node scripts/check-source-quotes.mjs [--update-ceiling]
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -41,13 +16,6 @@ const MIN_QUOTE_CHARS = 40;
 // sample — every window is scanned and the totals are summed.
 const WINDOW = 200;
 
-// D1 resets an isolate that exceeds its memory limit (code 7429) and returns an error for that one
-// query. That is transient and says nothing about the corpus, so it is retried. Everything else is
-// reported. A gate that treats any error as "skip" is a bypass wearing a gate's clothes: the only
-// condition that may skip is the absence of credentials, which is CI and the owner's other machines.
-// Same query, different transport: dispatch D1_QUERY runs it inside the Worker against the
-// content database. Returns null when the build is unreachable or has nothing to say, so the
-// caller falls through to reporting the original CLI error.
 function d1ViaBuild(sql) {
   const token = process.env.TERMINAL_KEY || readVaultTerminalKey();
   if (!token) return null;
@@ -82,8 +50,6 @@ function d1(sql, attempt = 0) {
   const out = String(r.stdout || '');
   const all = String(r.stderr || '') + out;
   if (r.status !== 0 || !out.trim().startsWith('[')) {
-    // Retrying with no pause is the same request into the same queue, and that is what four
-    // failed attempts looked like on 2026-09-02. Wait for the queue to drain before re-asking.
     if (isBackpressure(all) && attempt < 6) {
       const waitMs = backoffFor(attempt + 1, all);
       console.error(`SOURCE_QUOTE_LAW: read ${attempt + 1}/6 hit backpressure — waiting ${Math.round(waitMs / 1000)}s`);

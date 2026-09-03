@@ -1,10 +1,3 @@
-// GET /start — THE ROOT TOKEN DROP (owner order 2026-08-03: models sent to the root must
-// use OIP and the ledger; observed failure was friction — placeholder URLs a summarizing
-// model never assembles). This is the fix: ONE bare URL with no parameters. Fetching it
-// mints the caller a live bounded credential server-side and returns every next step as a
-// COMPLETE, ready-to-fetch URL with the token already substituted. No editing, no
-// assembly: each response contains the next concrete action. Tokens travel only in this
-// JSON (never in served HTML — the egress secret guard stays intact).
 import { verifyShareTokenValue } from './_lib/admin_session.js';
 
 function json(body, status = 200) {
@@ -30,9 +23,6 @@ export async function onRequestGet({ request, env }) {
   const mintUrl = new URL('/api/dispatch', origin);
   mintUrl.searchParams.set('self_scope', '1');
   mintUrl.searchParams.set('keys', 'ARTICLE_INSPECT,OBJECTION_LOG,OIP_ARTICLE_REVIEW,MODEL_CHAT_INTAKE,PROOF_PING,NOW');
-  // 7 days, not 24h (2026-08-08: OpenAI's fetch proxy served a cached copy of this page
-  // whose credential had already expired — the response is no-store, but an upstream
-  // proxy cached it anyway; a week of validity keeps proxy-stale copies usable).
   mintUrl.searchParams.set('ttl', '604800');
   mintUrl.searchParams.set('uses', '50');
   mintUrl.searchParams.set('purpose', 'root-drop:/start');

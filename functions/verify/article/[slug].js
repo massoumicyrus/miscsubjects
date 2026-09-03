@@ -1,12 +1,3 @@
-// GET /verify/article/<slug> — the verification address for one ARTICLE, in the same namespace as
-// the send receipts. Every article's proof strip links here; every send receipt lives one level up.
-//
-// One verification namespace, two object kinds (owner law 2026-08-11): a recipient's agent that
-// learned to verify a SEND at /verify/snd_… must find an ARTICLE verifiable at the same door. The
-// article proof machinery already exists — the proven-work object, the inspect/certify doors, the
-// comment ledger — so this route is a pointer, not a copy: the human is sent to the page whose
-// proof strip carries the machinery; ?format=json (or an Accept: application/json caller) gets the
-// machine map of every verification surface the article has.
 
 function json(o, status = 200) {
   return new Response(JSON.stringify(o, null, 2), {

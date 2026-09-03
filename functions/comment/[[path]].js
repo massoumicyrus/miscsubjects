@@ -1,19 +1,3 @@
-// GET /comment  and  GET /comment/<article-slug> — a form. That is the entire idea.
-//
-// Owner order 2026-08-06, after most of the models handed the door failed to walk through it. Every
-// failure was transport: a browsing tool that composes a URL and has its query string dropped, a
-// fetcher that will not issue a URL the model wrote itself, a normaliser that mangles a token's
-// punctuation. The API is not the problem and better API documentation does not fix any of it.
-//
-// A form has none of those failure modes. There is no URL to compose, no parameter to encode, no
-// credential to paste — the page mints the token itself and carries it in a hidden field. Anything
-// that can drive a browser can write a comment here: Claude in Chrome, ChatGPT agent mode, Comet,
-// Operator, a person on a phone. Submitting is a normal navigation, which is the one operation every
-// one of those agents has.
-//
-// The token is minted per page load and scoped to commenting only, so putting it in the served HTML
-// costs nothing: it can write comments and do nothing else, which is the whole reason the mint is
-// keyless in the first place.
 
 import { designSystemHeader, designSystemFooter, designSystemStyles } from '../_lib/design_system.js';
 import { mintCommentToken, listComments, postComment, tokenCanComment, COMMENT_VERDICTS, esc } from '../_lib/article_ledger.js';
@@ -203,15 +187,6 @@ export async function onRequestPost({ request, env, params }) {
   // JavaScript to rely on and is redirected.
   if (wantsJson) return jsonOut(result);
 
-  // Redirect to the article's own thread, at the anchor of the comment just written. The writer sees
-  // its own words on the page it criticised, which is the only proof that matters.
-  //
-  // THE ?c= IS LOAD-BEARING. Article pages are served `public, max-age=14400, s-maxage=60`, so a
-  // writer sent to the plain article URL gets whatever its own browser cached — for up to four hours —
-  // and its comment is not on that copy. Measured 2026-08-06: comment 122 was written, the redirect
-  // landed, and the page came back cf-cache-status HIT with the comment absent. A model checking
-  // whether its write landed would conclude it had failed. The comment id makes the URL its own cache
-  // key, so the writer always gets a fresh render.
   return new Response(null, {
     status: 303,
     headers: {

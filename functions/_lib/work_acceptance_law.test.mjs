@@ -1,16 +1,3 @@
-// A TASK WITH NO ACCEPTANCE TESTS CANNOT BE COMPLETED.
-//
-// Built from the exact failure of 2026-08-05: WF-0001 was created by recordFailure with
-// acceptance '[]' (no caller has ever passed failure.acceptance), and runAcceptance refuses
-// whenever results.length === 0. A complete, correct, deployed repair submitted five required
-// evidence fields and got back:
-//
-//     { accepted: false, tests_declared: 0, tests_passed: 0, results: [], missing_evidence: [] }
-//
-// A verdict that names nothing wrong and still refuses. The task sat at priority 1 because of it.
-//
-// These tests pin both halves of the repair. Weakening either one lets a task be born unable to
-// pass, or lets a refusal go back to saying nothing.
 
 // node:test, not vitest. Every gate in ship.mjs invoked `npx --no-install vitest`, and this repo
 // has never had vitest installed — so npx refused to fetch it and each of these regression tests

@@ -1,5 +1,3 @@
-// GET /api/handoff — unified owner-only content+backend handoff.
-// Same role as /api/articles/{slug}/bundle but for the whole build.
 import { isBuildAuthed } from "../_lib/admin_session.js";
 import {
   buildUnifiedHandoffJson,
@@ -12,8 +10,6 @@ export async function onRequestGet(context) {
 
   const url = new URL(request.url);
   const origin = url.origin;
-  // Never reflect an owner credential into generated URLs or handoff text. The caller's
-  // existing cookie/header authorizes this response; links carry no secret material.
   const token = "";
   const fmt = String(url.searchParams.get("format") || "json").toLowerCase();
 

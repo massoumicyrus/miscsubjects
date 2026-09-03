@@ -46,15 +46,6 @@ L1d: A section may be omitted only if it does not apply to the agent. The number
 
 L2a: ALWAYS emit a `[REASONING]...[/REASONING]` block before any `[KEY]` tool call or `[REPLY]`. NEVER skip.
 
-L2b: REASONING block contains numbered steps in this exact order:
-1. What the owner said (his exact words).
-2. What clause or row's WHEN_TO_USE phrase matches (cite the clause ID or KEY).
-3. What I know from prior tool results this turn (quote them).
-4. The KEY I am about to dispatch (or the REPLY I am about to send).
-5. Why this KEY and not another (name the alternative, why rejected).
-6. What I expect the tool to return (specific).
-7. Fallback if the result does not match step 6.
-
 L2c: Every output ends with exactly ONE of these DECISION lines:
 - `DECISION: TOOL — <KEY>, expecting <X>`
 - `DECISION: REPLY — <one-sentence summary>`

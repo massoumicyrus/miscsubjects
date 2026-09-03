@@ -5,14 +5,6 @@ description: Use when the owner restates a rule, correction, or constraint, or w
 
 # Shared Rule Capture — turn repetition into enforced memory
 
-## Overview
-When the owner has to say the same thing more than once, the build has failed to remember. This skill captures repeated owner rules as skills, laws, or code gates in the same turn so future agents load them automatically and cannot violate them.
-
-## When to Use
-- The owner says "I already told you...", "always...", "never...", "do X before Y", or repeats a constraint.
-- You notice yourself about to restate a rule the owner already stated this session.
-- A governor or audit report shows high `owner_restatement` counts.
-
 ## Core Pattern
 
 1. **Detect repetition.** Note when a rule-like statement appears from the owner.
@@ -20,8 +12,6 @@ When the owner has to say the same thing more than once, the build has failed to
 3. **Write it immediately.** Do not ask for approval. Place it in the correct skill directory and update `AGENTS.md` if project-specific.
 4. **Add a mechanical gate** wherever possible (pre-commit hook, protected-feature check, governor detector, watch rule) so the rule enforces itself.
 5. **Run the original task under the new rule**, then verify the rule is loaded next time.
-
-## PLACEMENT LAW (owner, 2026-08-03, after a catastrophic miss — read before capturing anything)
 
 A rule captured in an agent-private surface DOES NOT EXIST for the build. Banned as the primary
 (or only) capture location: `~/.claude/projects/*/memory/`, any per-agent memory store, any chat

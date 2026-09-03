@@ -1,21 +1,3 @@
--- 0358 — COMPARISONS: the experiment object (SPEC_SKILL_EVIDENCE_GRAPH.md, execution-case layer).
---
--- THE DEFECT THIS CURES. A single successful execution is testimony about one run, not knowledge
--- about a method. Without a comparison object, "skill v1.2 wrote the ad and CTR went up" collapses
--- observation into causation — the exact epistemic shortcut the owner named: one lucky ad must
--- never silently become "prompt like this." A comparison records A vs B on one metric, in one
--- window, under a DECLARED design, and its claim grade is computed by the infrastructure from
--- that design — never self-declared, never higher than the design supports:
---
---   design 'randomized'              → CONTROLLED_COMPARISON
---   design 'matched' / 'sequential'  → ASSOCIATION_OBSERVED
---   design 'unknown'                 → OUTCOME_OBSERVED
---   REPLICATED                       → computed at read: an independent comparison row that names
---                                      this one in `replicates` and agrees in direction
---   GENERALIZED                      → never stored; a projection over ≥3 replications in
---                                      materially different contexts
---
--- Append-only: a wrong comparison is superseded by a new row naming it, never edited.
 CREATE TABLE IF NOT EXISTS comparisons (
   id              TEXT PRIMARY KEY,             -- CMP-0001
   created_at      TEXT NOT NULL,

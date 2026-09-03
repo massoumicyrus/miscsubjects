@@ -1,20 +1,3 @@
-// CURRENT MODEL RANKINGS — one module, one computation, shown with its formula.
-//
-// The footer used to print pre-computed scores ("MiMo-V2.5-Pro 1,119 … Claude Fable 5 12")
-// with three-digit precision and no published formula — a credibility hole on a site that
-// enforces tier honesty everywhere else. The scores WERE real (they reproduce exactly from
-// /api/model-index observations), but the reader had no way to know that. Now the module
-// stores the INPUTS and computes the scores at render time, and the rendered block carries
-// the formula and each row's own arithmetic — generated from this same code, so the copy
-// cannot drift from the computation.
-//
-// Inputs are the current /api/model-index observations (source: Artificial Analysis,
-// read 2026-08-04; every figure carries its source URL and read date there):
-//   index     — aa_intelligence_index (their composite capability index, in points)
-//   obedience — aa_ifbench (Ai2 IFBench, % of machine-checkable output constraints met)
-//   cost      — cost_per_task_usd (measured cost of one task on their suite, USD)
-// Score: OCE = (index × obedience) ÷ cost. No other weights. Higher is better.
-// When the index refreshes, update the inputs here from /api/model-index — never the scores.
 export const MODEL_RANKINGS = {
   read_at: "4 August 2026",
   source_name: "Artificial Analysis",
@@ -36,10 +19,6 @@ export function oceScore(row) {
   return Math.round((row.index * (row.obedience / 100)) / row.cost);
 }
 
-// The footer block, shared verbatim by functions/_lib/design_system.js and
-// functions/_lib/design/compositions/navigation-hub.js (they used to hold twin hand-edited
-// copies). The formula lines and each row's arithmetic are generated from MODEL_RANKINGS,
-// adjacent to the leaderboard and always visible — never a tooltip.
 export function modelRankingsFooter() {
   const ranked = MODEL_RANKINGS.inputs
     .map((r) => ({ ...r, oce: oceScore(r) }))

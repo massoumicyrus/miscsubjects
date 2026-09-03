@@ -12,13 +12,6 @@ export const ui = {
   rule: (w = 60) => (ON ? `\x1b[38;5;238m${'─'.repeat(w)}\x1b[0m` : '-'.repeat(w)),
 };
 
-// Cloudflare's published Workers AI rate card, per million tokens, read from
-// https://developers.cloudflare.com/workers-ai/platform/pricing/ on 2026-07-26.
-// Only models with a published price appear here; anything else reports tokens only,
-// because a guessed rate is worse than no rate.
-// Published per-million prices, cheapest first when the picker sorts. Partner models
-// billed through Unified Billing pass through provider rates; where Cloudflare does not
-// publish one, the entry is absent and the picker says so rather than inventing a number.
 export const RATES = {
   '@cf/moonshotai/kimi-k2.7-code': { in: 0.95, cached: 0.19, out: 4.00 },
   '@cf/moonshotai/kimi-k2.6': { in: 0.95, cached: 0.16, out: 4.00 },
@@ -52,11 +45,6 @@ export function turnCost(modelId, usage) {
 }
 
 
-// Secrets never reach the screen. On 2026-08-05 a `read` of ~/.misc/config.json printed the
-// live gateway token into the transcript, where it was then copied out of the terminal along
-// with everything else on it. The model still receives the file; only the operator-facing
-// rendering is masked, because the screen is the surface that gets photographed, pasted and
-// published.
 const SECRETS = [
   /\baig_[A-Za-z0-9_-]{12,}/g,
   /\bsk-[A-Za-z0-9_-]{16,}/g,
@@ -81,11 +69,6 @@ export function fmt(n) {
   return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
 }
 
-// The footer: what model, what it has cost this session, what it has cost today, and the
-// burn rate. Today's total persists across sessions in ~/.misc/spend.json.
-// Context meter. The window comes from the model's own catalogue name when it states one
-// ("…, 262k"), otherwise a conservative default, because overstating the window is worse
-// than understating it.
 export function contextWindow(displayName) {
   const m = String(displayName || '').match(/(\d+)\s*k\b/i);
   return m ? Number(m[1]) * 1000 : 128000;

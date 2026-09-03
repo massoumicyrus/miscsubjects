@@ -1,18 +1,3 @@
-// ONE CANONICAL CORPUS COUNT (defect fixed 2026-08-08): the homepage feed block said
-// "1,015 articles" (its own filtered feed length — meta.home != 0) while the identity
-// block on the SAME page said "1,173 articles" (llms.txt's own query), and the claims
-// counts split the same way (10,479 vs 10,903). Two queries, two truths, one page.
-//
-// A raw COUNT(*) of the `articles` table is also wrong (~2,344): that table holds
-// non-article registers — source_ledger, source, audit — so any published number must
-// name its register set or it will be read as a contradiction by the next cold model.
-//
-// This is the ONE query every displayed number comes from:
-//   published = 1, register NOT IN ('source_ledger','source','audit')
-// i.e. published articles across all reader registers. Surfaces may still FILTER what
-// they list (the homepage feed hides meta.home = 0 cards), but the NUMBERS they display
-// come from here. Computed fresh per request — never cached across requests, so the
-// figure is live at render, the same guarantee llms.txt already made.
 
 export const CORPUS_EXCLUDED_REGISTERS = ["source_ledger", "source", "audit"];
 

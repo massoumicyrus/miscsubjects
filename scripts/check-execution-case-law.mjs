@@ -1,14 +1,4 @@
 #!/usr/bin/env node
-// EXECUTION_CASE_LAW GATE (WF-0006 repair, 2026-08-28). WT-0089 was accepted on counts that were
-// never task-bound, decisions that vanished into skip counts, and receipts nothing resolved. The
-// shared-layer invariant now lives in code; this gate makes the deploy fail if any of it regresses:
-//
-//   1. The execution-case test suites pass (decision completeness, task-scoped counts, redaction,
-//      invocation binding, task-scoped enrichment, review/send gating).
-//   2. The invocation-ledger seam still binds task-bound candidate rows to their receipt
-//      (logInvocation → bindCandidatesToInvocation), so discovery can never again write
-//      candidates that resolve to nothing.
-//   3. The send lane still refuses provider_status='accepted' without a proof id.
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 

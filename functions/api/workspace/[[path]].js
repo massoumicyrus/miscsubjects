@@ -1,8 +1,3 @@
-// THE WORKSPACE DOOR (owner order 2026-08-03: ship the shared-work primitive end to end).
-// A workspace is an article carrying a meta.extra.workspace declaration; this route is its
-// operational surface: the projection any stranger's AI reads to enter, the role-scoped
-// pool-token mint, and the mutation-request lane whose APPROVED and DENIED decisions are
-// both receipts. No second architecture: same articles, same signed tokens, same ledger.
 import { isBuildAuthed, verifyTokenAnyTransport } from '../../_lib/admin_session.js';
 import { loadWorkspace, roleGrant, evaluateMutation, appendMutation, resolvePoolToken, MUTATION_OPS } from '../../_lib/workspace_object.js';
 
@@ -35,10 +30,6 @@ async function ledgerWorkspaceEvent(env, { slug, action, actor, request, respons
 export async function onRequestGet({ request, env, params }) {
   const parts = pathParts(params);
   if (!parts.length) {
-    // THE SPEC (owner order 2026-08-03): this index is the complete, self-contained contract
-    // of the workspace primitive. A model reading only this response can create nothing it
-    // is not granted, but can fully understand, enter, operate, and verify a workspace —
-    // and can check every claim below against the live instance it names.
     return json({
       schema: 'oip/workspace-spec/1',
       name: 'Workspace — a shared work object for humans and their AIs',
@@ -95,10 +86,6 @@ export async function onRequestGet({ request, env, params }) {
       },
     });
   }
-  // GET FORMS OF THE DOORS (outside-AI finding, 2026-08-03: a browsing model — ChatGPT's
-  // web tool — can only GET, and the POST-only entry failed the decisive interoperability
-  // test). GET /enter?role=…&actor=… and GET /claim?code=… run the same lanes as their
-  // POST twins: same validation, same mint, same receipts. One door, both verbs.
   if (parts.length === 2 && ['enter', 'claim', 'mutate'].includes(String(parts[1] || '').toLowerCase())) {
     const q = new URL(request.url).searchParams;
     const laneName = String(parts[1]).toLowerCase();
@@ -191,10 +178,6 @@ export async function onRequestPost({ request, env, params }) {
   let body = {};
   try { body = await request.json(); } catch { return json({ error: 'body_must_be_json' }, 400); }
 
-  // INVITE — the team flow (owner order 2026-08-03: "how can I send this to my team?").
-  // The workspace owner creates one link per seat; the link is sendable to a person with
-  // ZERO prior context. Opening it explains the workspace in plain words; claiming it hands
-  // over that seat's live credential and the one block they paste into whatever AI they use.
   if (lane === 'invite') {
     if (!(await isBuildAuthed(request, env))) return json({ error: 'owner_only', note: 'Creating a seat is the workspace owner’s act. POST with the owner key.' }, 403);
     const role = String(body.role || '').toLowerCase();
@@ -292,8 +275,6 @@ export async function onRequestPost({ request, env, params }) {
     if (!grant) return json({ error: 'role_not_declared', declared: Object.keys(ws.roles || {}) }, 422);
     const ownerAuthed = await isBuildAuthed(request, env);
     if (!grant.public && !ownerAuthed) {
-      // The refusal is honest and receipted: privileged authority is minted by the
-      // workspace owner, never self-served by an arriving stranger.
       await ledgerWorkspaceEvent(env, {
         slug, action: 'enter_denied', actor,
         request: { role, public: false }, response: { denied: true, reason: 'privileged_role_requires_owner_mint' }, status: 403,

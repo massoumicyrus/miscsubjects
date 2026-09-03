@@ -1,26 +1,3 @@
-// CODE_LEASE_REGISTRY_LAW — the registry's head for a path must be content that exists.
-//
-// The coding-law registry records "the newest committed hash" per path, and every lease is
-// checked against it. Nothing verified that the recorded hash was ever real. It can fail to be:
-// a protected path makes .githooks/pre-commit refuse the git commit, the agent's coding-law
-// commit call goes through anyway, and the registry now names content that landed nowhere.
-// Every later lease on that path reports stale, so agents learn to ignore staleness — which is
-// the one signal that stops two of them overwriting each other.
-//
-// Two paths were found in that state on 2026-09-02 (functions/_lib/agent_sheet.js and
-// scripts/ship.mjs), both registered by the same agent, both reconciled by hand. This gate is
-// the reason a third one cannot sit there unnoticed.
-//
-// A registered hash is accepted when it matches the file at origin/main, at local HEAD, or in
-// the worktree. HEAD and worktree count because the normal flow registers the commit moments
-// before the push lands, and that race is not a defect.
-//
-// Matching none of those three splits into two different things, and calling them the same
-// would repeat the misnaming this gate exists to stop:
-//   BEHIND  — the hash matches an older commit of that path. The content was real; a later
-//             commit simply did not register. Reported, and does not fail a ship.
-//   PHANTOM — the hash matches no commit of that path at all. Nothing was ever written that
-//             hashes to it, so the head is a fiction. This fails.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';

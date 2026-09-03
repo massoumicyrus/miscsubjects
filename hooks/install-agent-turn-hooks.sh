@@ -2,8 +2,8 @@
 # Install agent turn capture: Gemini AfterAgent hook + launchd backfill (codex/kimi/grok history).
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-PLIST_SRC="$REPO/bridge/launchd/com.the owner.agent-turn-backfill.plist"
-PLIST_DST="$HOME/Library/LaunchAgents/com.the owner.agent-turn-backfill.plist"
+PLIST_SRC="$REPO/bridge/launchd/com.owner.agent-turn-backfill.plist"
+PLIST_DST="$HOME/Library/LaunchAgents/com.owner.agent-turn-backfill.plist"
 
 echo "== Gemini hooks (project) =="
 if command -v gemini >/dev/null 2>&1; then
@@ -76,9 +76,9 @@ cp "$REPO/.grok/hooks/agent-turn-log.json" "$REPO/.grok/hooks/agent-turn-log.jso
 echo "== Backfill launchd (every 5 min) =="
 mkdir -p "$HOME/Library/LaunchAgents" "$HOME/.miscsubjects"
 cp "$PLIST_SRC" "$PLIST_DST"
-launchctl bootout "gui/$(id -u)/com.the owner.agent-turn-backfill" 2>/dev/null || true
+launchctl bootout "gui/$(id -u)/com.owner.agent-turn-backfill" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST_DST"
-launchctl enable "gui/$(id -u)/com.the owner.agent-turn-backfill"
+launchctl enable "gui/$(id -u)/com.owner.agent-turn-backfill"
 echo "  loaded $PLIST_DST"
 
 echo "== Initial backfill =="

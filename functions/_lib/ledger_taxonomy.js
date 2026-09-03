@@ -1,10 +1,4 @@
-// Ledger taxonomy — derive a parent (group) + category + actor for any ledger event,
-// at query time, from its source/key/directory-type. No schema change, no backfill.
-// The query axes the owner asked for: tool · content · function · http · file · article ·
-// page · Router(agent) · LLM (grok / cloudflare-ai / kimi / openai / anthropic / google) ·
-// Wrangler CLI · any CLI · API · channel · github · claude-code.
 
-// Parent group -> the categories under it. Used to render tabs + the ?categories=1 tree.
 export const TAXONOMY = {
   agents:   ['agent'],
   models:   ['llm'],
@@ -22,8 +16,6 @@ const GROUP_OF = (() => {
   return m;
 })();
 
-// One vivid colour per category — used to colour the ledger tabs + card type-chips,
-// the same way /admin/map colours its service nodes. Distinct, readable on black text.
 export const CAT_COLOR = {
   agent:        '#74d7ff',
   llm:          '#ff7bd1',
@@ -58,8 +50,6 @@ export const GROUP_COLOR = {
 export function catColor(c)   { return CAT_COLOR[c]   || '#dedede'; }
 export function groupColor(g) { return GROUP_COLOR[g] || '#cccccc'; }
 
-// Stable short content fingerprint for a state card (djb2). Gives every card a hashed
-// id alongside its trace id — the integrity handle the owner asked for.
 export function cardHash(seed) {
   let h = 5381;
   const s = String(seed || '');

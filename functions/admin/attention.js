@@ -1,11 +1,3 @@
-/**
- * /admin/attention — the unified inbox/outbox + outstanding-work surface (owner order
- * 2026-07-30). First-class: everything needing attention in one place — email inbound +
- * outbox (with open/click engagement), Blooio/WhatsApp chats with unread counts, open
- * tasks, open GitHub issues — plus manual send (email / iMessage / WhatsApp) from here.
- * Data comes from /api/attention; the header bubbles across all admin pages poll the
- * same endpoint.
- */
 import { shellHtml } from './_layout.js';
 
 export async function onRequestGet(context) {

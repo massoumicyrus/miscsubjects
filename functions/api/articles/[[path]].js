@@ -83,9 +83,6 @@ import { seoWriteIssues } from '../../_lib/seo_gate.js';
 import { notifyArticleChanged } from '../../_lib/seo_distribution.js';
 
 function json(o, status = 200) { return new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } }); }
-// ONE TOKEN (owner law, 2026-07-29): an act-scope share token — presented as ?share=,
-// Bearer, or x-write-token — authorizes article mutations exactly like the owner key.
-// One credential searches the directory, reads the article, and edits it.
 async function authed(request, env) {
   if (await isBuildAuthed(request, env)) return true;
   const t = await verifyTokenAnyTransport(request, env);
@@ -147,17 +144,6 @@ function srcBody(e) { return [e.prev, e.accessed_at, e.type, e.url, e.title, e.q
 // Give every source entry its place in the chain: prev points at the previous entry's
 // hash, hash covers this entry's content. Entries that already carry a correct hash keep
 // it, so re-saving an article does not rewrite history.
-/**
- * SOURCE_QUOTE_LAW at the canonical write path.
- *
- * This used to chain whatever it was handed. An entry with no quote got a hash and a place in the
- * ledger, and the card rendered our description of the source where the source's own words belong.
- * A bare string got chained too, and rendered as an empty fallback card. Both are refused here, at
- * the one function every article source write already went through — not in each caller, and not in
- * an instruction telling the next agent to be careful.
- *
- * @throws {SourceLawError} carrying the full violation list, which the PUT handler turns into 422.
- */
 class SourceLawError extends Error {
   constructor(result) {
     super('source_quote_law');
@@ -284,9 +270,6 @@ async function metaFrom(b, existing) {
   if (b.widgets != null) meta.widgets = b.widgets;     // optional [ {type,...} ] — JSON series of in-article widgets (imessage|quote|note|stat|gallery)
   if (b.home != null) meta.home = (b.home === true || b.home === 'true' || b.home === 1); // homepage link flag (true = shown, absent/false = hidden)
   if (b.claims != null) meta.claims = b.claims;        // [{id,text,section,tier,source_ids|source_status,why_material,extra}] — atomized claims (the primary object)
-  // Bulk writes used to store sources with no prev/hash, which left the ledger reporting
-  // "chain valid: no · prev mismatch" on a page whose whole argument is receipts. Three
-  // independent models flagged it on 2026-07-26. Chain them on the way in.
   if (b.sources != null) meta.sources = await chainSources(b.sources);     // hash-chained source ledger [{id,type,url,title,quote,summary,claim_ids,prev,hash,link_status,quote_status}]
   if (b.reviews != null) meta.reviews = b.reviews;     // [{role,model,rationale,checks,contributions,...}] — neutral/adversary/endorsement passes
   if (b.register != null) meta.register = String(b.register); // language tier: accessible|standard|technical|source_ledger|essay|...
@@ -504,44 +487,14 @@ function provEnergy(list) {
   return { passes: l.length, tokens_in: ti, tokens_out: to, tokens_total: ti + to, cost_usd: Math.round(cost * 1e6) / 1e6, models, head: l.length ? l[l.length - 1].hash : 'genesis' };
 }
 
-// Edge convergence after a write: invalidate both the rendered edge response and the
-// last-good snapshots for this article. Retaining the old snapshot made the first reader
-// after a write re-cache the previous title and hero, so D1 could be correct while the
-// public page remained visibly stale. The next read now performs one fresh render and
-// immediately records that render as the new last-good page.
-// The purge goes through _lib/edge_cache.js because the edge stores pages under a VERSIONED
-// key (?__edge_v=…): the old inline delete here hit the plain URL and therefore deleted
-// nothing — D1 was fresh while the public page stayed stale for the full TTL (2026-08-08).
 async function purgeArticleEdgeCache(env, slug) {
   await purgeArticlePageCache(env, slug, { indexes: true });
 }
 
-// REGISTER GATE (owner law, 2026-07-24). On 2026-07-24 Kimi k1.5 published four joke
-// listicles to the live site: it introduced itself as "I'm Kimi, an AI made by Moonshot AI",
-// wrote comedy copy with fabricated claims stated as fact, and appropriated the name of a
-// real sourced scholarly article ("Morgh" — the Persian Sīmorgh study at
-// /a/the-canonical-morgh-index) for a joke taxonomy. All five were removed. The failure class
-// dies here: a write that carries these markers is refused at the API, not caught later by a
-// reviewer. Names of real sourced works are reserved to their own slug.
 const RESERVED_WORK_NAMES = [
   { pattern: /\bmorgh\b/i, slug: 'the-canonical-morgh-index', what: 'the Persian Sīmorgh study (12 claims, scholarly sources)' },
 ];
 
-// TEST/PLACEHOLDER CONTENT IS BANNED FROM THE LIVE SITE (owner law, 2026-07-24).
-// "Kimi Test Article" reached the top of the homepage journal. A model that wants to test
-// the write path uses draft mode: POST with "draft": true → published=0, reachable only
-// with the owner key at /api/articles/<slug>, never on /latest, /content, or the journal.
-// A test-shaped title can NEVER be published, with or without content.
-//
-// "test" ALONE IS NOT THE SIGNAL. The original pattern was /\btest(?:ing)?\b/i, which banned an
-// ordinary English word from a site about health. It refused "Spinal stenosis: the shopping trolley
-// test" — a correct clinical title naming a real bedside test — and would equally refuse a blood
-// test, nerve conduction testing, or the straight leg raise test. A guard that fires on legitimate
-// work teaches agents to rename around it, which is how a guard stops being enforcement.
-//
-// The thing actually being caught is a title shaped like a PLACEHOLDER PAGE: the word sitting next
-// to a page noun ("Test Article", "test page"), or standing on its own with nothing but a number or
-// a model name beside it. Those shapes are below; prose that merely contains the word is not.
 const TEST_TITLE_PATTERNS = [
   // "Kimi Test Article", "test post", "testing page", "my test entry" — test + a page noun.
   /\btest(?:ing)?[\s-]+(?:article|page|post|entry|doc|document|draft|content|item|upload|write|record)\b/i,
@@ -580,9 +533,6 @@ function testShapedTitle(slug, title) {
 }
 
 function registerViolation({ slug, title, body }) {
-  // SUBJECT BOUNDARY — the article about BPC-157 is about BPC-157. Owner, 2026-08-07, ten words
-  // into /a/bpc-157: "What does an article about BPC have to do with discs?" W47 and W56 already
-  // forbade it and the page shipped anyway, so the prohibition is a refusal now and not a clause.
   {
     const off = checkSubjectBoundary(slug, title, body);
     if (off) return { code: off.code, fix: off.message };
@@ -620,9 +570,6 @@ function registerViolation({ slug, title, body }) {
   return null;
 }
 
-// NO MODEL SIGNATURE IN AN ARTICLE BODY (owner law 2026-08-04, catastrophic repeat class):
-// the signature belongs on X posts and ledger contributions, never in published prose. This is
-// enforced at the publish gate, server-side, so it can never depend on a model remembering.
 const BODY_SIGNATURE_RE = /—\s*(?:Fable|Opus|Sonnet|Haiku|Claude|Grok|Kimi|Gemini|GLM|Llama|GPT)[\w.\s-]*\((?:Claude Code|CLI|via[^)]*|[^)]*)\)/i;
 
 function editorialWriteIssues(existing, b, title, meta) {
@@ -694,19 +641,12 @@ async function upsertArticle(env, b, request) {
       return json({ error: 'register_refused: ' + bad.code, slug, how_to_fix: bad.fix, state_changed: false }, 422);
     }
   }
-  // Publish gate (slug/title sanity only — body may live in slots, so no length floor here).
-  // Blocks the pipeline-artifact class that reached the live sitemap on 2026-07-02:
-  // slug 'slug' / title 'title', and raw-args slugs like mode-write-... / slug-bpc-157-....
   if (slug === 'slug' || /^(mode-|slug-)/.test(slug) || /-test-\d/.test(slug) || slug.length > 80) {
     return json({ error: 'publish_gate: slug is a pipeline artifact, not an article slug: ' + slug }, 422);
   }
   if (title === 'title' || title.length < 4) {
     return json({ error: 'publish_gate: title too thin: "' + title + '"' }, 422);
   }
-  // CORPUS FREEZE — owner circuit breaker after the 2026-07-04 swarm pass overwrote
-  // canonical corpus pages with cross-matched content. While KV corpus_freeze=1, corpus
-  // slugs reject body/title rewrites; claims/sources/objections/thread-updates stay open.
-  // Owner lifts by setting KV corpus_freeze=0 (no deploy needed).
   const CORPUS_RE = /^(grain-|udst-|systems-design-|unified-philosophy-|convergence-encyclopedia-|oip-(axiom|convergence|disconfirming|v2|v3|pattern|sog|invariant|node|catalogue|appendix)-|oip-c07-feedback-cybernetics$)/;
   if (CORPUS_RE.test(slug) && String(b.freeze_override || '') !== 'the owner-restore') {
     const frozen = await env.KV.get('corpus_freeze');
@@ -724,10 +664,6 @@ async function upsertArticle(env, b, request) {
   }
   const existing = await getRow(env, slug);
   const isNew = !existing;
-  // Body intake: `body` is canonical; `content` is an accepted alias — the OIP seeding
-  // scripts and swarm writers POST it, and until 2026-07-04 it was silently dropped, so a
-  // 200 response published an empty husk. A POST carrying NEITHER field keeps the existing
-  // body: an upsert never wipes content it was not given.
   const bodyProvided = b.body != null || b.content != null;
   const body = bodyProvided ? String(b.body != null ? b.body : b.content) : String(existing?.body || '');
   // SHRINK GUARD — a swarm writer may not destroy an established body. A replace that cuts a
@@ -754,11 +690,6 @@ async function upsertArticle(env, b, request) {
     if (e instanceof SourceLawError) return json({ slug, ...e.refusal }, 422);
     throw e;
   }
-  // CLAIM_LAW (owner, 2026-08-05): every article is the same object, and claims are what make it one.
-  // They become the addressable DIVs, the proof-of-work object a certifier signs, the surface a token
-  // is scoped to, and the regions an outsider can challenge. /a/tesofensine and /a/slu-pp-332 shipped
-  // reading "0 claims" because nothing in five existing write-path laws said an article must have any.
-  // See functions/_lib/claim_law.js. Refused here, at the one path every article write goes through.
   {
     // existing_claim_count makes the count check a ratchet rather than a toll gate: a write that
     // leaves the claim count alone is not blocked for a shortfall it did not create. See claim_law.js.
@@ -797,11 +728,6 @@ async function upsertArticle(env, b, request) {
       }, 428);
     }
   }
-  // WRITING-LAW CLAUSES — W51 framing, W52 pre-argued detractors, W63 hedges, W87 outcome verbs and
-  // tier labels, W111 study-inventory openings, W118 absence-as-frame, W21 opening, W13 jargon.
-  // law_enforcement.js declared several of these enforced here from the day they were written;
-  // until 2026-08-08 this path never called them. Ratcheted, so a write is refused only for a
-  // violation it introduces (see newWritingLawViolation).
   if (bodyProvided) {
     const clause = newWritingLawViolation({
       slug,
@@ -846,10 +772,6 @@ async function upsertArticle(env, b, request) {
       title,
     }, 422);
   }
-  // DRAFT MODE (owner law, 2026-07-24). "draft": true stores the row unpublished — the
-  // sanctioned place for a model to exercise the write path or park unfinished work. It never
-  // appears on /latest, /content, the journal, the sitemap, or the feed; it is readable at
-  // /api/articles/<slug> with the owner key. "draft": false on a later write publishes it.
   const draftRequested = b.draft === true || b.draft === 1 || b.draft === 'true';
   const published = draftRequested
     ? 0
@@ -941,15 +863,6 @@ async function syncLinksQuietly(env, slug, body, meta) {
   }
 }
 
-// WRITE_GATE — prose writes need a token that only a caller who read the live writing law can hold.
-// Scope is deliberate: body and title only. Sources, claims, reviews, status and every other
-// metadata append stay open, because those are not prose and gating them would stall the ledger.
-// TASK LINKAGE ON EVERY ARTICLE WRITE (spec Phase 0.4). The work object's own bypass register
-// named it: content could change with no task object recording why. Every mutate now records its
-// linkage — a declared task_id (verified against the task's live lease when one exists), or a
-// declared no_task reason, or 'undeclared'. Recording, not refusal: blocking would break the
-// owner's own flows, and an unlinked write on the ledger is findable, which is the point. The
-// linkage event is best-effort and never fails the write.
 async function recordArticleTaskLinkage(env, slug, b, method) {
   try {
     let linkage = { kind: 'undeclared' };
@@ -977,12 +890,7 @@ async function recordArticleTaskLinkage(env, slug, b, method) {
 async function writeGateRefusal(request, env, b, slug) {
   const touchesProse = b?.body != null || b?.content != null || b?.title != null || typeof b?.find === 'string';
   if (!touchesProse) return null;
-  // The owner's terminal key is as authoritative as the signed browser session. The
-  // previous omission contradicted the documented curl contract and made owner-key tests
-  // fail at 428 before article logic ran.
   if (await isBuildAuthed(request, env)) return null;
-  // The owner's signed browser session IS the credential: the write gate exists to force
-  // models to read the live law, not to make the owner answer clause quizzes in his own editor.
   if (await verifyAdminCookie(request, env)) return null;
   // ONE TOKEN: an act-scope share token is read+write everywhere — it satisfies the write
   // gate too. The quiz path stays for models holding nothing (reading the law earns entry).
@@ -1005,11 +913,6 @@ async function patchArticle(env, slug, b) {
   if (b.expected_hash != null && String(b.expected_hash) !== oldHash) {
     return json({ ok: false, error: 'hash_mismatch', matched: 0, current_hash: oldHash, current_body: oldBody }, 409);
   }
-  // Whole-body replacement REQUIRES the session hash (owner order, 2026-08-03, after
-  // concurrent agents overwrote each other's shipped edits). The flow: GET the article,
-  // keep its body_hash, send it back as expected_hash; on hash_mismatch re-read and
-  // re-derive against the current body. find/replace stays exempt — a stale find string
-  // already fails loudly as find_not_present/find_ambiguous.
   const wholeBodyWrite = (b.body != null || b.content != null) && !(typeof b.find === 'string' && b.find.length > 0);
   if (wholeBodyWrite && b.expected_hash == null && oldBody.length > 0) {
     return json({
@@ -1275,10 +1178,6 @@ async function handle(request, env) {
     });
   }
 
-  // OPEN INTAKE — the objection ledger accepts objections from ANY model or reader, no auth:
-  // that is the point (Book X: the attack protocol is the document's intake). Every post is
-  // ledgered with its actor. ANSWERS require the owner. Relitigation of settled ground is
-  // detected — never silently rejected, always visible.
   if (method === 'POST' && slug && parts[3] === 'objections' && !parts[4]) {
     const b = await request.json().catch(() => ({}));
     const isOwner = await authed(request, env);
@@ -1373,10 +1272,6 @@ async function handle(request, env) {
     return json({ ok: true, id: oid, slug, status, ledger: 'https://miscsubjects.com/api/articles/' + slug + '/objections' });
   }
 
-  // THE MIRROR LAYER — claim-level recursion, same law as the objection intake: the layer
-  // accepts TYPED contributions (question|objection|source|repair|compression|contradiction|audit)
-  // from ANY model or reader, no auth — reading leaves a trace, the trace is ledgered with a
-  // receipt, and the trace never rewrites the article. RESOLUTION requires the owner.
   if (slug && parts[3] === 'mirror' && !parts[4] && method === 'GET') {
     const { getMirrorFeed } = await import('../../_lib/mirror.js');
     return json(await getMirrorFeed(env, slug, url.searchParams.get('limit')));
@@ -1402,11 +1297,6 @@ async function handle(request, env) {
 
   if (mutates && !(await authed(request, env))) return json({ error: 'unauthorized' }, 401);
 
-  // Virtual OIP articles: public article-shaped docs generated from live directory rows.
-  // An oip-* slug with NO machine-plane version falls through to the generic articles
-  // table instead of 404ing — corpus rows posted via /api/articles (Kimi's waves) were
-  // shadowed by this prefix routing until 2026-07-04: /a/ rendered them while the JSON
-  // plane answered "not found".
   const oipArticle = (method === 'GET' && slug && isOipArticleSlug(slug)) ? await buildOipArticle(env, slug) : null;
   if (oipArticle) {
     const leaf = parts[3] || '';
@@ -1961,8 +1851,6 @@ async function handle(request, env) {
     }
     // DIV plane: recompute every chain from genesis + check body↔divs identity — never trusted.
     const verification = await vxVerifyAll(meta, a.body);
-    // WAYFINDING (owner order 2026-07-16): any page tells you exactly where you are —
-    // plane, siblings, master entry, and every door out. Same block, human and machine.
     const fam = slug === 'philosophy' ? 'grain' : slug.split('-')[0];
     let sibs = [];
     try {
@@ -2036,10 +1924,6 @@ async function handle(request, env) {
         hint: 'omit slug and pass all=1 to export the whole library on purpose',
       }, 404);
     }
-    // The scope is selected in SQL, never by reading everything and filtering in
-    // JS. A tag export used to SELECT body for all 2,317 published articles —
-    // ~90 MB into one isolate — and threw, which is the only reason the last-good
-    // fallback was answering these requests at all.
     const NON_ART = NON_ARTICLE_REGISTERS.map((r) => `'${r}'`).join(',');
     const PUBLISHED = "published = 1 AND COALESCE(json_extract(meta,'$.register'),'standard') NOT IN (" + NON_ART + ')';
     const COLS = 'SELECT slug, title, body, meta, created_at, updated_at FROM articles WHERE ';
@@ -2279,10 +2163,6 @@ async function handle(request, env) {
     const a = await getRow(env, slug);
     if (!a) return json({ error: 'not found' }, 404);
     const like = '%' + slug + '%';
-    // OWNER PRIVACY BAR: the events ledger also holds the owner's private CLI turns (his verbatim
-    // keystrokes, cwd, session, name). This is a PUBLIC endpoint — those rows must never leave it.
-    // Excluded in SQL (source/action/key/route), then again at egress (isPrivateEvent), then every
-    // surviving field is scrubbed of any owner PII (name/path/home/session/phone/email).
     const rows = await env.LEDGER.prepare(
       `SELECT id, ts, source, key, route, actor, action, direction, status, trace_id, step, request_preview, response_preview, request_size, response_size
        FROM events

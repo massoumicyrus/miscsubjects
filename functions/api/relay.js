@@ -575,7 +575,6 @@ export async function onRequestGet(context) {
       planes,
       models: {
         endpoints: modelEndpoints,
-        // OWNER PRIVACY BAR: drop the owner's private CLI turn streams (source=claude-code etc.).
         observed_turn_streams: (agentRowsResult.results || []).filter((r) => !isPrivateEvent(r)),
         note: "Observed means a live turn row exists; endpoint PASS additionally requires a material invocation receipt.",
       },

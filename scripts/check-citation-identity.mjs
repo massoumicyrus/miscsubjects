@@ -26,9 +26,6 @@ const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const DB = 'loop-content-spine';
 const LIMIT = Number((process.argv.find((a) => a.startsWith('--limit=')) || '').split('=')[1] || 400);
 const ALL = process.argv.includes('--all');
-// Below this share of shared meaningful words, the stored title and the real title are not the
-// same paper. Set from the observed cases: real title variants sit well above it, the Selank/AGA
-// mismatch sits near zero.
 const MATCH_FLOOR = 0.34;
 
 function d1(sql, attempt = 0) {

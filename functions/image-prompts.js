@@ -1,15 +1,3 @@
-// /image-prompts — every generated image on this build beside the exact prompt that made it,
-// the engine, the reference images it was given, and the article that uses it.
-//
-// WHY THIS EXISTS. The owner asked to review the image briefs so the design law could be written
-// from evidence rather than from taste: "if I looked at all of the image prompts I would be able
-// to figure out what the failures are and what the successes are". At that moment 259 generated
-// images were on file and 9 carried a prompt, because arcadsGenerate sent the prompt to the
-// vendor and filed nothing. The prompt now lands in `assets` at generate time (see
-// IMAGE PROMPT LAW in functions/_lib/fn_runners.js) and this page reads it back.
-//
-// A render with no recorded prompt is shown as such rather than hidden, because the gap is the
-// finding: it names exactly which images cannot be learned from.
 
 import { designSystemHeader, designSystemFooter, designSystemStyles } from './_lib/design_system.js';
 

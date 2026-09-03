@@ -15,10 +15,6 @@ export const TAG_RE = /\[([A-Z_][A-Z0-9_]*)\]([\s\S]*?)\[\/\1\](?:\s+as\s+(\w+))
 
 export const META_TAGS = new Set([
   'DONE', 'SELF', 'LOOP', 'REASONING', 'TOOL_CHOICE', 'DECISION', 'BATCH', 'REPLY', 'AUDIO',
-  // A model is allowed to decide that nothing needs saying. [NOREPLY] ends the turn with the
-  // row fully written and no message sent — which is different from failing to produce a reply,
-  // and the two used to be indistinguishable: an empty turn sent "I finished but did not form a
-  // reply" to the person (2026-09-02).
   'NOREPLY',
 ]);
 

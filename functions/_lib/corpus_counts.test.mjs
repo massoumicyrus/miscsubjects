@@ -1,14 +1,3 @@
-// ONE CANONICAL CORPUS COUNT — the numbers on every surface come from one query.
-//
-// Built from the exact failure of 2026-08-08: the homepage feed block rendered
-// "1,015 articles" (its own filtered feed length) while the identity block on the SAME
-// page rendered "1,173 articles" (llms.txt's own SQL), and the claims counts split the
-// same way (10,479 vs 10,903). Two local queries, two truths, one page. A raw COUNT(*)
-// of `articles` (~2,344) is a third wrong number — the table holds source_ledger/source/
-// audit registers that are not articles.
-//
-// These tests pin: (1) both display surfaces import the one canonical function instead
-// of carrying their own SQL, and (2) the canonical query names its register set.
 
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";

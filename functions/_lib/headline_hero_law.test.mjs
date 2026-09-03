@@ -1,22 +1,3 @@
-// REGRESSION TEST BUILT FROM THE EXACT HEADLINES AND IMAGES THE OWNER REJECTED, 2026-08-04.
-//
-// Three failure classes, all of which shipped live:
-//
-//   1. THE EVIDENCE STATE IN THE HEADLINE. /a/bdnf-p21 published as "BDNF-P21: the compound is P021,
-//      and every result is a mouse fed it in its diet". Owner: "the peptide is the peptide. If there
-//      are human studies, there are human studies. If there's rat studies, there's rat studies. The
-//      fact that you put it in the headline shows that you have zero understanding of what I am
-//      wanting to represent."
-//
-//   2. THE WITHHELD REVEAL. /a/tirzepatide published as "Tirzepatide: 20.9% of body weight at 72
-//      weeks, and what happens when the injections stop". Owner: "it's almost like it's a clickbait
-//      headline… This is not the daily mail."
-//
-//   3. THE RESEARCH METHOD AS THE IMAGE. /a/bdnf-p21 shipped a photograph of a laboratory mouse.
-//      Owner: "a mouse has nothing to do with the peptide."
-//
-// The model he gave for a correct headline: name the thing and say what it is. "Here's tirzepatide,
-// it's a dual agonist." "Here's retatrutide, the triple agonist."
 
 // node:test, not vitest. Every gate in ship.mjs invoked `npx --no-install vitest`, and this repo
 // has never had vitest installed — so npx refused to fetch it and each of these regression tests

@@ -6,9 +6,6 @@ import {
 import { SKILL_LAW_OBJECT } from "./_lib/skill_law_object.js";
 import { KNOWLEDGE_ACTION_FACETS } from "./_lib/knowledge_action_object.js";
 import { getActiveProfile, cssVarOverride } from "./_lib/design/tokens/runtime.js";
-// EVERY PAGE A READER CALLS AN ARTICLE CARRIES THE THREAD (owner order 2026-08-05). The law pages
-// are read as articles and are linked from the footer as articles, so exempting them would have made
-// "every article" mean "every article except the ones stating the rules".
 import { renderLedgerThread, listComments } from "./_lib/article_ledger.js";
 
 export async function onRequestGet(context) {

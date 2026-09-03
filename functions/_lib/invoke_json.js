@@ -1,28 +1,3 @@
-// invokeJSON — the one primitive for calling a model.
-//
-// LAW (2026-07-30, owner): a system prompt is a DIRECTORY ROW, never a string embedded in
-// JavaScript. A model call is ONE request/response with a hard timeout — never a poll loop,
-// never a background job the caller waits on. Everything here exists to make that the only
-// path that is easier than the wrong one.
-//
-// One call object (the "full REST JSON object") is the entire contract:
-//
-//   { key?, model?, system?, memory?, includes?, input?, messages?,
-//     temperature?, max_tokens?, json?, timeout_ms?, n?, label?, vars? }
-//
-//   key       directory row (type=agent) that supplies system prompt + model. Optional:
-//             a call with a literal `system` needs no row.
-//   model     overrides the row's target. Aliases below, or any gateway model id.
-//   system    literal system prompt; overrides the row's content.
-//   memory    extra block appended to the system prompt under a MEMORY header. This is
-//             the "append memory" knob — per call, no row edit, nothing persisted.
-//   includes  csv of prompt_block keys composed ahead of the system prompt.
-//   input     the user message. `messages` (full array) wins if both are given.
-//   n         run this same call n times in parallel (prompt-version / sampling sweeps).
-//   vars      {NAME: value} substituted for {{NAME}} in system + input.
-//
-// Batches fan out with Promise.all: 100 calls cost one round trip, not 100 waits. That is
-// what makes Google Sheets → 100 replies in about a second work.
 
 const GATEWAY = 'default';
 
@@ -291,11 +266,6 @@ export async function callOne(env, spec, row, blocks) {
       r = await send(body);
     }
 
-    // A provider that names the parameter it refuses is telling us how to retry. Two say so:
-    // OpenAI's reasoning models want max_completion_tokens instead of max_tokens, and several
-    // models (anthropic/*, moonshotai/kimi-k3) accept no temperature at all. Both are answered by
-    // reshaping the call and sending it again to the same endpoint, so the owner sees the model's
-    // answer instead of a parameter argument he never made.
     if (r.status === 400) {
       const first = await r.clone().text();
       if (/max_completion_tokens/.test(first)) {

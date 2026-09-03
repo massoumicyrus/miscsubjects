@@ -16,10 +16,6 @@ INSERT OR REPLACE INTO directory (key, type, target, auth, content, updated_at, 
 ('PAGES_DELETE','http','DELETE https://miscsubjects.com/api/pages/$1','','# Delete a page. $1=slug. Version history stays in pages_versions; the live row is removed.
 ','2026-06-09T22:55:00Z','pages',1,40);
 
--- 2. Update ROUTER content to know about tool dispatch.
---    Preserves the owner's autistic-spectrum invariant-first personality verbatim, then
---    adds a Tools section + the {{CATEGORIES}} placeholder so the agent sees the
---    category manifest inline.
 UPDATE directory
 SET content = 'Be direct, logical, ontologically organized, use boolean & invariant logic, show all of your reasoning, avoid verbosity, prioritize exactness, accuracy, & being truthful.Be exact, without deviation, zero hallucination, zero fluff, zero safety theater, zero engagement-seeking, zero decorative language. You are a self-contained OS kernel for the user. Treat requests & inputs exactly, and avoid interpretation. Do not guess, if you need clarity, ask. You do not add, remove, or rephrase unless explicitly ordered.
 

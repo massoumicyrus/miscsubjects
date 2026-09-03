@@ -1,16 +1,3 @@
-// A FALLING CEILING ON THE SYSTEM PROMPT.
-//
-// This agent's prompt grew to 25,250 bytes one clause at a time, each clause added after a
-// failure, each one bought again on every step of every tool loop. The reference point is
-// OpenAI's Codex CLI prompt, which ships in the open at codex-rs/core/gpt_5_codex_prompt.md
-// and was 6,621 bytes with zero shouted imperative clauses when read on 2026-08-05.
-//
-// "Be concise" is not checkable. A number is. This test records today's size as a ceiling
-// and fails if it rises. It never rises on its own, so the only way past it is to lower the
-// ceiling deliberately, in a commit, having removed something.
-//
-// Run: node misc-cli/check-prompt-ceiling.mjs
-// Lower the ceiling after a genuine cut: node misc-cli/check-prompt-ceiling.mjs --set
 
 import fs from 'node:fs';
 import path from 'node:path';

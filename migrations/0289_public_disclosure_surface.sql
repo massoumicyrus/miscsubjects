@@ -18,7 +18,7 @@ VALUES (
   'Give a cold lawyer the exact public files and machine ledger for the Kimi killbox defensive publication without exposing the swarm token.',
   'reply_ok',
   'DISCLOSURE_GET|disclosure|specification.md|docx|territory-ledger|manifest|never|token',
-  'owner order 2026-07-17: patent-strategy claims are public, explicit, downloadable and safe while raw swarm credentials remain private',
+  'patent-strategy claims are public, explicit, downloadable and safe while raw swarm credentials remain private',
   'Return the versioned /disclosure manifest, canonical Markdown, DOCX and territory-ledger JSON. Never expose the raw swarm capability, plan, transcript, or private archive.',
   8
 );

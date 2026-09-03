@@ -114,10 +114,6 @@ export async function runOipConformance(env, options = {}) {
       { invocation_id: nowInv, confirm: nowInv ? BASE + "/api/dispatch?confirm=" + nowInv : null }));
   } catch (e) { clauses.push(clause("C4", "Invocation envelope", "", false, null, String(e?.message || e))); }
 
-  // C4a/C4b — THE MATERIAL/ATTEMPT INVARIANT. Added 2026-07-30 after an external audit found a
-  // provider 503 receipted as "material result proven": the flag was derived from the dispatch
-  // completing, not from the provider's outcome. This is the one label the whole system rests on,
-  // so both directions are now tested, in-process, against the real classifier.
   try {
     const { providerFailed, providerStatusOf } = await import("./object_contract.js");
     const FAILS = [
@@ -145,10 +141,6 @@ export async function runOipConformance(env, options = {}) {
     clauses.push(clause("C4a", "Material/attempt invariant", "", false, null, String(e?.message || e)));
   }
 
-  // C4c — AN ADJUDICATOR MAY NOT NAME A MODEL IT IS NOT. Added 2026-07-30 after an audit found
-  // ADJUDICATE_GROK targeting a Kimi model and ADJUDICATE_MINIMAX targeting a GLM model, with
-  // signature strings naming models that never ran. Calibration is per-model, so a lying key
-  // would attribute a miss rate to a model that never executed and the whole run would be void.
   try {
     const rows = (await env.DB.prepare(
       "SELECT key, target, content FROM directory WHERE key LIKE 'ADJUDICATE%' AND enabled <> 0"
@@ -540,9 +532,6 @@ export async function runOipConformance(env, options = {}) {
       { alg: enc.alg, opened_ok: opened?.m === secret.m, wrong_key_denied: wrongFailed }));
   } catch (e) { clauses.push(clause('C28', 'A message body can be sealed to one recipient', '', false, null, String(e?.message || e))); }
 
-  // C29 — projection integrity (voxel DIV plane, ship-order 2026-07-16). Every divided
-  // article's chains recompute from genesis and the body is byte-equivalent to the ordered
-  // DIVs — the rendered page and the machine read draw from this same verified object.
   try {
     const vx = await getJson(BASE + "/api/articles/philosophy/voxels");
     const v = vx.body?.verification || {};
@@ -619,8 +608,6 @@ export async function runOipConformance(env, options = {}) {
       { absorbed: d5?.id, status: d5?.status, into: d5?.consolidated_into, chain_length: d5?.chain_length }));
   } catch (e) { clauses.push(clause("C33", "Consolidation lineage", "", false, null, String(e?.message || e))); }
 
-  // C34 — credential hygiene (regression for the 2026-07-16 leak fix). No response field of
-  // a real invocation may carry a full sh.* token.
   try {
     const r = await getJson(BASE + "/api/dispatch?key=NOW");
     const raw = JSON.stringify(r.body || {});

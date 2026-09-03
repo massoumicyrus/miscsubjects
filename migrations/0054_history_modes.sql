@@ -1,5 +1,5 @@
 -- Migration 0054 — editable memory depth + teach the agents the sticky modes.
--- HISTORY_GET/HISTORY_SET let the owner (or any agent) change how many past turns the build
+-- HISTORY_GET/HISTORY_SET let Owner (or any agent) change how many past turns the build
 -- remembers, in natural language ("remember the last 30 messages"). Terminal/audio modes
 -- are handled in the channel adapter (KV flags), but the agents are told they exist so
 -- they can explain them and so TERMINUS knows it is the terminal-mode brain.

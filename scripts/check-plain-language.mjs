@@ -1,16 +1,4 @@
 #!/usr/bin/env node
-// PLAIN_LANGUAGE_LAW — writing law clauses W57-W73.
-//
-// The owner read the peptide corpus after a rebuild and could not understand it. The prose
-// was correct and unreadable: encyclopedia register, technical vocabulary where plain words
-// existed, hedge phrases in place of rates, an audience named inside the page, and the same
-// section heading repeated across articles. A reader who has the condition got nothing.
-//
-// This fails the ship gate on those five defects. It is not a style preference. A page a
-// person with degenerative disc disease cannot read has failed its only job.
-//
-// Usage:  node scripts/check-plain-language.mjs [slug ...]
-//         node scripts/check-plain-language.mjs            (audits the peptide/condition corpus)
 
 const BASE = process.env.MISC_BASE || "https://miscsubjects.com";
 
@@ -82,10 +70,6 @@ const AUDIENCE = [
 ];
 
 
-// W61 + W64 + W65 (owner objection, 2026-08-04, filed at /a/writing-law#disc-obj-261):
-// "organise on what IS known" is indistinguishable, on its face, from the rule a seller would
-// write to bury weak evidence. It is legitimate only when three things travel with it. On a
-// substance page, all three are mandatory and checked here.
 const SUBSTANCE = /^(bpc-157|tb-500|ara-290|kpv|ghk-cu|dsip|thymosin-alpha-1|semax|selank|mots-c|nad-plus|epitalon|mk-677|ipamorelin|tesamorelin|cjc-1295|aod-9604|melanotan-ii|pt-141|retatrutide|wolverine-stack.*|glow-70.*|5-amino-1mq|kisspeptin|dihexa|slu-pp-332|atx-304|bdnf-p21|tesofensine)$/;
 function substanceChecks(slug, body, low) {
   const out = [];
@@ -115,34 +99,12 @@ const MODEL_TOKENS = /(fable|opus|sonnet|haiku|claude|gpt-?[45]|grok|gemini|kimi
 
 const args = process.argv.slice(2);
 
-// GATE MUST MEASURE THE OBJECT (owner, 2026-08-07, catastrophic). This gate was correct and
-// caught /a/vip-sciatica on the first try when pointed at it by hand. It had never been pointed
-// at it. Three defects, all in this function, all invisible because the gate printed ok:true:
-//   1. It fetched ONE page of 250 from a corpus of 1,194 published articles. No pagination. The
-//      other 944 were never audited and nothing said so.
-//   2. KEEP was unanchored, so /disc/ matched "DISConfirming Edge 5" and "DISClosure Doctrine".
-//      Of the 23 slugs that survived the filter, most were OIP philosophy pages. The gate spent
-//      its whole budget auditing essays about scale invariance while every peptide-condition
-//      article shipped unread.
-//   3. Nothing asserted a floor. A filter that silently matches almost nothing reads exactly
-//      like a corpus that is clean.
-// A gate that does not say how many objects it examined is not a gate. The count is printed on
-// success and the run is refused if the audited set collapses.
 const MIN_AUDITED = 60;
 
 async function corpus() {
   const list = [];
   for (let offset = 0; offset < 5000; offset += 250) {
     const url = `${BASE}/api/articles?limit=250&offset=${offset}&status=published`;
-    // An endpoint that answers with an error object used to land here as zero articles, and the
-    // floor below then blamed the selector for what was a failed read. A gate that misnames its
-    // own failure sends the next reader to rewrite prose that was never the problem.
-    // The whole gate suite reads D1 at once, so a page can come back rate-limited while the
-    // corpus is perfectly readable a second later: retry before calling it unreadable.
-    // The failing body carries the reason, so read it even on a non-2xx: this endpoint answers
-    // 500 with {"error":"...D1 DB is overloaded..."} while the corpus itself is perfectly fine
-    // a moment later. Overload gets a long backoff — four tries over 24s was not enough on
-    // 2026-09-02 and the ship was refused for prose that had never been read.
     let page = null;
     let why = '';
     const OVERLOAD = /overloaded|Requests queued for too long|7429/i;
@@ -267,14 +229,6 @@ for (const slug of slugs) {
     hits.push(`TIER-BARK ${JSON.stringify(m.trim())} — the tier is claim metadata, never a label in the prose; say "in people", "in rats", "one person reported"`);
   }
 
-  // PROSE IS NEVER EMITTED BY CODE (owner, 2026-08-07, catastrophic; writing law, invariant
-  // family). 411 article bodies were assembled by string templates in
-  // functions/_lib/article_prose.js and functions/_lib/enrichment_logic.js. No model wrote a
-  // sentence of them, so no clause of the writing law could reach them: a `.push()` call cannot
-  // read a law. The vocabulary checks above cannot catch this class, because a template can be
-  // built entirely from words that are individually allowed and still be unreadable — the defect
-  // is the sameness, not the words. These are the literal emitted strings, pinned so the class
-  // cannot return through a refactor.
   const CODE_TEMPLATE = [
     "therefore for you",
     "what keeps failing",

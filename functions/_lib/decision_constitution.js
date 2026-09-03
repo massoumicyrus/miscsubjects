@@ -1,14 +1,3 @@
-// The Decision Constitution — the versioned governing system prompt for every consequential
-// model call. Ported from the owner's original architecture (the June 2026 sheet-based build:
-// clause A1 "master law" + clause A2 "reasoning protocol"), generalized off its runtime and
-// preserved as the executable primitive it was designed to be. The ledger is its proof surface;
-// the multi-model gate is its adversarial extension. Specialized prompts stay small and inherit
-// this; they never recreate it.
-//
-// Lineage, exactly: in the original build every model turn ran under this law, the model's
-// numbered REASONING block was stripped from the user and written to audit columns (raw output,
-// raw tool call, tool result) — a proto-ledger in three spreadsheet columns. This object is that
-// law, versioned; the gateway payload objects are those columns, generalized.
 
 // Lineage: v1.0.0 (compressed, too soft) → v1.1.0 (invariant register restored) → v1.2.0
 // (exhaustive clause citation, C8) → v1.3.0 (C12: the machine-comparable CLAUSE_EVALUATIONS

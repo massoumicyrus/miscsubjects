@@ -1,18 +1,4 @@
 #!/usr/bin/env node
-// WALL_CLOCK_SCHEDULE_LAW — a job with a time of day fires at that time of day, in Pacific.
-//
-// Owner order 2026-08-09: "the automated email that goes out is supposed to go out at midnight,
-// not whenever you have it set for ... there is also a build rule that the time is always
-// pacific time."
-//
-// What happened: every scheduled automation was an interval measured from its own last run, so
-// the nightly Loop Bio Labs team report drifted across the clock — 04:42 one night, 20:46 the
-// next. "Every 1440 minutes" cannot hold a time of day, and no amount of resetting it will.
-//
-// This gate holds three things: the runner reads at_hour, its default zone is Pacific, and the
-// hour/date arithmetic behind the anchor is right on both sides of a daylight-saving change.
-// The arithmetic is checked by running it, not by reading it — the original bug in this area
-// was a formatter rendering midnight as hour "24" of the previous day, which no eye catches.
 import { readFileSync } from 'node:fs';
 
 let failed = 0;
@@ -39,10 +25,6 @@ const fnRunners = readFileSync(new URL('../functions/_lib/fn_runners.js', import
 const due = fnRunners.slice(fnRunners.indexOf('async automateRunDue('), fnRunners.indexOf('async automateRunDue(') + 900);
 check('the interval runner still takes only trigger=schedule rows', /trigger='schedule'/.test(due));
 
-// The arithmetic itself, run rather than read. hour and date are read by separate formatters
-// because asking one formatter for both renders midnight as "24" of the previous day on some
-// runtimes — which would put the once-per-day guard a day behind at exactly the hour that
-// matters, and midnight is the hour the owner asked for.
 const TZ = 'America/Los_Angeles';
 const hourIn = (d) => Number(new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: '2-digit', hour12: false, hourCycle: 'h23' }).format(d));
 const dayIn = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);

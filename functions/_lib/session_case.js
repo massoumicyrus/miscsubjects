@@ -1,18 +1,3 @@
-// SESSION CASES — the ledger turned inside out (migration 0360, owner directive 2026-08-28).
-//
-// One session or loop run as one public object: the owner's input, the model's recorded output,
-// every tool call, every raw payload reference — everything the internal ledger already holds,
-// published under a CLASSIFICATION POLICY that is code. What cannot be published still publishes
-// its SHA-256 COMMITMENT, so a reader can authenticate information without reading it: the
-// per-turn input/output hashes were computed AT INGEST over the original text (agent_turn_log.js
-// stores user_input_sha256 / assistant_sha256), the case's own manifest_hash is written to the
-// event ledger at store time, and that ledger is chained, Merkle-checkpointed, ES256-signed,
-// externally witnessed, and drand/Bitcoin-anchored. Reveal-later verification: hand someone the
-// private original, they hash it, it matches a commitment that predates the dispute.
-//
-// HONESTY BOUNDARY, stated where a reader will see it: "the model's thoughts" here means what the
-// ledger recorded — the assistant text, tool calls, and commands per turn. Interior
-// chain-of-thought that was never logged is not in the record and the case never pretends it is.
 
 import { buildNowIso } from './build_time.js';
 import { logEvent } from './event_log.js';
@@ -63,11 +48,6 @@ export async function nextCaseId(env) {
   return 'SC-' + String(n).padStart(4, '0');
 }
 
-/**
- * Assemble one session case from the records the run already left behind.
- * Selector: {session} or {trace_id} or {turn_keys:[…]}; hash_only_turns / omit list per-item
- * owner overrides (business_private), each requiring a reason.
- */
 export async function assembleSessionCase(env, {
   session, trace_id, turn_keys, title, objective, actor,
   hash_only_turns = [], omit_turns = [], omit_reason = null,

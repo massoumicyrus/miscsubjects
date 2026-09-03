@@ -1,5 +1,3 @@
--- Owner correction 2026-07-21: the formal audit must expose the capability mass
--- accumulated beneath the visible link/token surface and thousands of coding turns.
 
 INSERT OR REPLACE INTO directory
   (key,type,target,auth,content,updated_at,category,allowed_categories,seq,enabled,planner_visible,planner_rank,input_schema,examples,sensitive,runner,includes)
@@ -16,7 +14,7 @@ VALUES (
 );
 
 DELETE FROM directory_tests
-WHERE kind='e2e' AND note='owner correction 2026-07-21: audit capability interior, not only link surface';
+WHERE kind='e2e' AND note='audit capability interior, not only link surface';
 
 INSERT INTO directory_tests (key,kind,args,expect_kind,expect_value,note,expected_text,tier)
 VALUES (
@@ -24,7 +22,7 @@ VALUES (
   'The link protocol is only a tiny visible facet. Show an outside auditor the vast ability accumulated under the surface across directory capabilities and thousands of coding-agent turns without pretending every registered row is proven working.',
   'reply_ok',
   'CAPABILITY_ATLAS|capability atlas|registered|invoked|tested|coding-agent turns|domains|evidence',
-  'owner correction 2026-07-21: audit capability interior, not only link surface',
+  'audit capability interior, not only link surface',
   'Use CAPABILITY_ATLAS. Report current capability contracts by domain, recorded invocation evidence, registered/passed tests, and aggregate coding-agent turn/file-change sediment. Keep registered, invoked, tested and disabled states distinct; do not expose private prompts or call row count proof of working ability.',
   8
 );

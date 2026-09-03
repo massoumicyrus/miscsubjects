@@ -1,8 +1,3 @@
--- 0012_directory_category.sql
--- Add `category` (free-text label, used for color-coding + filtering in the admin UI)
--- and `allowed_categories` (only meaningful on agent rows: comma-separated list of categories
---   this agent's {{TOOLS}} listing is restricted to, or '*' for all).
--- Add `seq` (manual ordinal — only used to pin specific rows to specific positions like ROUTER=1).
 
 ALTER TABLE directory ADD COLUMN category TEXT;
 ALTER TABLE directory ADD COLUMN allowed_categories TEXT;
@@ -28,5 +23,4 @@ UPDATE directory SET category = 'stripe'   WHERE key LIKE 'STRIPE_%';
 UPDATE directory SET category = 'flow'     WHERE key = 'SEND_INVOICE_VIA_BLOOIO';
 UPDATE directory SET category = 'util'     WHERE key IN ('NOW','UPPER','LOWER','SHA256_LOWER','DEDUP_INSERT','REGEX_PARSE');
 
--- ROUTER defaults to seeing every tool. the owner can restrict via /admin/directory/ROUTER edit.
 UPDATE directory SET allowed_categories = '*' WHERE type = 'agent';

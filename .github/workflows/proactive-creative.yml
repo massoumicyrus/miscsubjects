@@ -1,5 +1,3 @@
-# Wakes the ARCADS creative agent every 4 hours for the creative-deck standing mission.
-# The agent decides whether to message the owner or stay silent (rules in its prompt).
 name: proactive-creative
 on:
   # Disabled to stop GitHub notification noise. Re-enable by restoring the schedule block.

@@ -1,25 +1,3 @@
-// A WRITE IS NOT DONE BECAUSE THE SERVER SAID 200.
-//
-// THE VISIBLE FAILURE (2026-08-04). LEADS_SHEET_SYNC reported success and the LEADS_ENRICHED tab
-// did not exist. The Apps Script had answered:
-//
-//     HTTP 200:{"ok":true,"msg":"airunner up","ts":"2026-08-05T03:50:37.061Z"}
-//
-// That is the web app's health response. It carries ok:true, so every layer above treated it as a
-// successful write. The two small tabs in the same flow returned {"ok":true,"tab":"...","rows":7}
-// and really were written; the large one silently was not, at 5,000 rows, then 2,000, then 400.
-//
-// THE LAYER THAT PERMITTED IT. Nothing anywhere stated what a successful sheet write looks like.
-// The caller checked the HTTP status and the presence of `ok`, both of which a health probe also
-// satisfies. A response that answers a question nobody asked was indistinguishable from a receipt.
-//
-// THE INVARIANT. A write action must be answered by a response that NAMES WHAT IT WROTE. For a
-// sheet write that is the tab and the row count. Anything else — a health payload, an empty body,
-// an ok with no subject — is a failure, and is reported as one.
-//
-// Why this matters beyond one tab: a silent pass is worse than an error. An error gets fixed; a
-// silent pass gets believed, and in this case it would have been reported to the owner's team as
-// data they could go and read.
 
 /** Actions that change something. Each must come back naming what it changed. */
 const WRITE_ACTIONS = new Set([
@@ -50,15 +28,6 @@ export function checkAirunnerResponse(action, body) {
   const text = String(body == null ? '' : body);
   if (!WRITE_ACTIONS.has(act)) return { ok: true };
 
-  // WHY THIS ONE IS RETRYABLE AND THE OTHERS ARE NOT.
-  //
-  // Traced 2026-08-05. A POST to the /exec URL is answered 302 → script.googleusercontent.com/macros/echo,
-  // which serves the stored output of the execution that already ran and accepts GET only (POST to it
-  // is 405). Intermittently the body never reaches doPost: the script's doGet runs instead and answers
-  // the health payload. On the same run, `sheets_add_rows` came back with a clean unknown_action while
-  // `sheets_append_rows` — a real, larger action in the same script — came back as health. Nothing was
-  // wrong with the action; the transport dropped it. So this verdict means "send it again", not
-  // "the write is impossible". The caller retries, and the contract still decides.
   if (looksLikeHealthResponse(text)) {
     return {
       ok: false,

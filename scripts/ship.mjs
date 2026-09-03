@@ -16,18 +16,6 @@ delete env.CLOUDFLARE_API_TOKEN;
 delete env.CF_API_TOKEN;
 delete env.CF_TOKEN;
 
-// THE LAST GATE OF EVERY DEPLOY WAS FAILING FOR WANT OF A KEY, WHICH IS THE SAME AS NOT EXISTING.
-//
-// 2026-08-05: every ship ended "CLAIM_LAW FAILED — the number of published articles with no claims
-// rose", and the line above it said why: "no TERMINAL_KEY in this environment, so the corpus cannot
-// be counted." The gate was right to refuse — refusing to guess is exactly what it should do — but
-// it had never once run, so the deploy's final line was a failure on every single deploy. A gate
-// that always fails teaches the operator to stop reading gate output, which costs more than the gate
-// was ever worth. Run with the key, it passes: 1,501 articles carry claims, 147 do not, ceiling held.
-//
-// Only TERMINAL_KEY is taken, and deliberately so. Sourcing the whole vault puts CLOUDFLARE_API_TOKEN
-// back into the environment three lines after it was removed, and that token makes the D1-reading
-// gates fail with Cloudflare auth error 10000 — observed the same day, on this same file's run.
 if (!env.TERMINAL_KEY) {
   try {
     const vault = readFileSync(join(process.env.HOME || '', '.build-vault.env'), 'utf8');
@@ -55,13 +43,6 @@ function runCapture(cmd, args, cwd = ROOT) {
   };
 }
 
-// EVERY GATE RUNS, BECAUSE THE MANIFEST IS WHAT INVOKES IT.
-//
-// 2026-08-05: an audit found 20 of 31 scripts/check-*.mjs were never invoked here or in CI —
-// check-owner-bcc.mjs among them, which is why a commit could claim "the gate asserts the new list and
-// passes" about a gate that had never run. Hand-wiring each gate is what allowed the drift, so the gates
-// are now read from scripts/gates.manifest.json and run by phase. Listing a gate is what runs it.
-// scripts/check-gates-wired.mjs fails the deploy if any gate file on disk is missing from the manifest.
 function gateManifest() {
   return JSON.parse(readFileSync(join(ROOT, 'scripts', 'gates.manifest.json'), 'utf8')).gates || {};
 }
@@ -184,14 +165,6 @@ function sqlViaBuild(sqlText) {
       }
     };
     ({ ok, why } = r.ok ? verdict(r.stdout) : { ok: false, why: String(r.stderr || '').slice(0, 240) });
-    // One retry: both transports faulting at the same instant is transient, and a generic
-    // "failed on both" told me nothing when it happened (2026-09-02). The reason is now carried.
-    // "D1 DB is overloaded" is the real cause behind today's run of refusals, and it clears on
-    // its own. Back off and try again rather than failing a deploy on load.
-    // "unparseable" means the body was not JSON at all — an edge error page, a 502, a bare
-    // "render error". A response the runner could not read is never evidence that the statement
-    // failed: migration 0372 was refused on exactly that while its ALTER had already applied,
-    // and re-asking returned the plain duplicate-column message this function treats as success.
     for (let attempt = 0; !ok && attempt < 4 && /overload|Network connection lost|internal error|7500|fetch failed|unparseable|render error|Requests queued|\b(429|502|503|504)\b/i.test(why); attempt++) {
       const waitMs = 3000 * (attempt + 1);
       spawnSync(process.execPath, ['-e', `setTimeout(()=>{}, ${waitMs})`], { env });
@@ -253,9 +226,6 @@ async function acquireDeployLease() {
   const nonce = now.toString(36) + '-' + Math.random().toString(36).slice(2, 10);
   const lease = {
     nonce,
-    // Anonymous stable holder id — never the local username/hostname: deploy-lease events
-    // land on the shared ledger and the raw string re-inserted the owner's identity on
-    // every deploy (failure vault: owner-identity-scrubbed-at-ledger-ingest).
     owner: 'deployer-' + createHash('sha256').update(`${process.env.USER || 'unknown'}@${hostname()}`).digest('hex').slice(0, 10),
     pid: process.pid,
     created_at: new Date(now).toISOString(),
@@ -432,13 +402,6 @@ try {
   reportStrandedWork();
   if (!skipLock) deployLease = await acquireDeployLease();
   if (!skipMigrations) {
-    // Bootstrap foundational tables on a fresh database before applying incremental migrations.
-    // This prevents immediate state-query failures for tables (e.g. agents) introduced in older
-    // migrations that ship.mjs no longer applies individually.
-    // --file posts to D1's import endpoint, which this session is refused on (auth 10000)
-    // while the query endpoint accepts the same statements. schema.sql is small and its
-    // statements are idempotent CREATE IF NOT EXISTS, so sending them as one command is
-    // equivalent — same database, same statements, same result.
     const schemaSql = readFileSync(join(ROOT, 'schema.sql'), 'utf8');
     const schemaCli = runCapture('wrangler',
       ['d1', 'execute', 'loop-content-spine', '--remote', '--command=' + schemaSql]);
@@ -500,22 +463,11 @@ try {
     if (!prodOk) {
       throw new Error('PRODUCTION SMOKE FAILED after promotion — a page is 500ing with real bindings. Articles on /a/ are still served from last-good cache by the middleware, but investigate now: check `wrangler pages deployment tail` and roll back via the Pages dashboard if needed.');
     }
-    // 5) AUTHORED_RENDER_LAW (owner, 2026-08-02): the newest articles' rendered pages must
-    //    contain their stored bodies — never the composed claims digest. A digest render is a
-    //    shipped failure even when the page 200s, so it gates here, loudly, post-promotion.
     run(process.execPath, ['scripts/check-authored-render.mjs']);
-    // 6) OWNER ANONYMITY (owner, 2026-08-03, catastrophic-failure class): with the new code
-    //    live, probe the exact surfaces that leaked identity plus the machine views models
-    //    read. Any identity token in public egress fails the ship, loudly, post-promotion.
     {
       const r = spawnSync(process.execPath, ['scripts/check-owner-name-leak.mjs'], { cwd: ROOT, env: { ...env, NAME_LAW_EGRESS: '1' }, stdio: 'inherit' });
       if (r.status !== 0) throw new Error('OWNER IDENTITY IN PUBLIC EGRESS after promotion — the redaction layer failed. Fix before anything else ships.');
     }
-    // 7) PLAIN_LANGUAGE_LAW (owner, 2026-08-04): the owner read the peptide corpus after a
-    //    rebuild and could not understand it — technical vocabulary where plain words exist,
-    //    hedges in place of rates, an audience named inside the page, and one section heading
-    //    repeated across articles. A page a person with the condition cannot read has failed
-    //    its only job, so W57-W64 gate here.
     {
       // Exit 2 means the gate could not READ the corpus (the articles endpoint answers 500 while
       // D1 is overloaded). Printing the verdict below for that sent this deploy hunting prose
@@ -525,22 +477,10 @@ try {
       if (r.status === 2) throw new Error('PLAIN_LANGUAGE_LAW could not read the corpus — see its own message above. Nothing was audited and no article has been judged. Re-run when the read succeeds; do not weaken the gate.');
       if (r.status !== 0) throw new Error('PLAIN_LANGUAGE_LAW FAILED — an article is written in encyclopedia register, hedges instead of rates, names an audience, or repeats another page\'s heading. Rewrite it; do not weaken the gate.');
     }
-    // 7z) CODING_LAW (model comment ledger, 2026-08-06). The law shipped with a gate written and
-    //    never wired: scripts/check-coding-law.mjs existed, imported the scope array, printed a
-    //    correct refusal — and was not in this list, so no deploy was ever refused for an unleased
-    //    edit. Four separate model comments probed the scope, the skills trees and the multi-file
-    //    case looking for a sampling gap; the defect was one layer below all of them, which is the
-    //    shape of every gate that is authored and not executed. The law is felt here or nowhere.
     {
       const r = spawnSync(process.execPath, ['scripts/check-coding-law.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
       if (r.status !== 0) throw new Error('CODING_LAW FAILED — a changed file in the executable surface is not covered by a committed lease matching its current contents. Open a lease on what you read and close it with what you are leaving; do not edit the gate.');
     }
-    // 8) ONE_OBJECT_LAW (owner, 2026-08-04, catastrophic): /a/tirzepatide shipped headlined
-    //    "…and nothing measured about a painful back" — a single-compound page carrying a
-    //    condition it is not about. The write path now refuses that class server-side
-    //    (functions/_lib/one_object_guard.js, enforced on PUT and PATCH); this sweep proves no
-    //    live single-object page carries a foreign object's frame, and the unit test below pins
-    //    the exact headline that failed so the class cannot come back through a refactor.
     {
       const r = spawnSync(process.execPath, ['scripts/check-one-object.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
       if (r.status !== 0) throw new Error('ONE_OBJECT_LAW FAILED — a single-object article carries another object\'s frame. Rewrite the page about its own subject; cross-object writing belongs in the combination article whose slug names both.');
@@ -552,14 +492,6 @@ try {
       const r = spawnSync(process.execPath, ['--test', 'functions/_lib/one_object_guard.test.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
       if (r.status !== 0) throw new Error('ONE_OBJECT_LAW regression test FAILED — the guard no longer refuses the 2026-08-04 tirzepatide headline. Restore the refusal before shipping.');
     }
-    // 8b) SOURCE_QUOTE_LAW (owner, reported repeatedly): a source card must show the source's own
-    //    words. Three card builders computed their body as `summary || quote`, so whenever a source
-    //    carried both, our description won and the quotation stored beside it never reached the
-    //    page — the FDA card on /a/bpc-157 is the exhibit. Two more card types rendered no quote at
-    //    all. The write path now refuses a quote-less or non-object source
-    //    (functions/_lib/source_law.js, on PUT/PATCH and POST /api/protocol/sources), the renderer
-    //    puts the quote before the summary everywhere, the unit test pins the exact FDA card, and
-    //    the corpus check below holds the legacy count so it can only fall.
     {
       const r = spawnSync(process.execPath, ['--test', 'functions/_lib/source_quote_law.test.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
       if (r.status !== 0) throw new Error('SOURCE_QUOTE_LAW regression test FAILED — a source card no longer renders the source\'s own words, or the write path no longer refuses a quote-less source. Restore both before shipping.');
@@ -573,14 +505,6 @@ try {
       if (r.status === 2) throw new Error('SOURCE_QUOTE_LAW could not read the corpus — see its own message above. Nothing was audited and no source has been judged. Re-run when the read succeeds; do not weaken the gate.');
       if (r.status !== 0) throw new Error('SOURCE_QUOTE_LAW FAILED — either a stored source is not an object, the quote-less count rose above the recorded ceiling, or a live card rendered without the quote its source carries. Repair the data; do not raise the ceiling.');
     }
-    // 8i) CLAIM_LAW (owner, 2026-08-05). /a/tesofensine and /a/slu-pp-332 published reading
-    //    "7 sources · 0 claims · 3303w". Owner: "some articles have claims, some articles dont… I dont
-    //    want some to have divs, others not to have divs, some to have proof of work, some not, they
-    //    all should have a standardized format." Claims are the article's addressable surface — they
-    //    become the voxel DIVs, the proof-of-work object a certifier signs, the surface a token is
-    //    scoped to, and the regions an outsider can challenge. The write path enforced five laws and
-    //    accepted claims:[] in silence, so the standard lived in the renderer and in nobody's
-    //    contract. Now refused at the write path, with the corpus backlog held as a falling ceiling.
     {
       const r = spawnSync(process.execPath, ['--test', 'functions/_lib/claim_law.test.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
       if (r.status !== 0) throw new Error('CLAIM_LAW regression test FAILED — a claim-less article can publish again, which makes it a different kind of object from the rest of the corpus. Restore the refusal.');
@@ -589,13 +513,6 @@ try {
       const r = spawnSync(process.execPath, ['scripts/check-article-claims.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
       if (r.status !== 0) throw new Error('CLAIM_LAW FAILED — the number of published articles with no claims rose. Add claims to whatever shipped without them; do not raise the ceiling.');
     }
-    // 8f) WORK_ACCEPTANCE_LAW (2026-08-05). recordFailure created every failure task with
-    //    acceptance '[]', and runAcceptance refuses any submission where zero tests ran — so every
-    //    WF task was unsatisfiable at birth, and its refusal named nothing: no failing test, no
-    //    missing evidence, just accepted:false. WF-0001 held priority 1 through a finished, correct,
-    //    deployed repair for that reason alone. The child now inherits the tests that caught the
-    //    failure, rows already written as '[]' inherit at evaluation time, the refusal states why,
-    //    and this gate fails the ship if any live task has no test that could ever close it.
     {
       const r = spawnSync(process.execPath, ['--test', 'functions/_lib/work_acceptance_law.test.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
       if (r.status !== 0) throw new Error('WORK_ACCEPTANCE_LAW regression test FAILED — a task can be born unable to pass again, or a refusal has gone back to naming nothing. Restore both halves before shipping.');
@@ -604,13 +521,6 @@ try {
       const r = spawnSync(process.execPath, ['scripts/check-work-acceptance.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
       if (r.status !== 0) throw new Error('WORK_ACCEPTANCE_LAW FAILED — a live task has no acceptance test that could close it. Give it tests that measure the object; do not relax the runner and do not delete the task.');
     }
-    // 8h) GOVERNED_TABLE_LAW (WT-0039, 2026-08-05). D1_EXEC accepted any write to the content
-    //    database, so `UPDATE work_tasks SET state='completed'` closed a task with no acceptance test
-    //    run and no audit row appended — the one thing the work object exists to prevent — and a write
-    //    to work_actions could edit the hash chain that proves nothing was edited. The guard refuses
-    //    those four tables and names the path that does the work; D1_REPAIR keeps repair possible and
-    //    puts it on the chain. The unit test pins the statements; the live probe proves the deployed
-    //    lane refuses them, because a guard that only exists in a test is not deployed.
     {
       const r = spawnSync(process.execPath, ['--test', 'functions/_lib/governed_tables.test.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
       if (r.status !== 0) throw new Error('GOVERNED_TABLE_LAW regression test FAILED — a raw write to work_tasks, work_actions, articles or article_slots is accepted again. Restore the guard; do not route around it.');
@@ -626,18 +536,10 @@ try {
       const r = spawnSync(process.execPath, ['--test', 'functions/_lib/airunner_contract.test.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
       if (r.status !== 0) throw new Error('AIRUNNER_WRITE_CONTRACT test FAILED — a write response that names nothing is being accepted as a receipt again. A silent pass is worse than an error.');
     }
-    // 8e) HEADLINE AND HERO LAW (owner, 2026-08-04). /a/bdnf-p21 published as "…and every result is
-    //    a mouse fed it in its diet" with a photograph of a laboratory mouse, and /a/tirzepatide as
-    //    "20.9% of body weight at 72 weeks, and what happens when the injections stop". The peptide
-    //    is the peptide: the evidence state belongs in the body under its own tier, never in the
-    //    headline, and never as the picture. Ten articles also shipped with no hero at all because
-    //    nothing required one. This pins all of it, in both directions.
     {
       const r = spawnSync(process.execPath, ['--test', 'functions/_lib/headline_hero_law.test.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
       if (r.status !== 0) throw new Error('HEADLINE_HERO_LAW test FAILED — the guard either stopped refusing evidence-state headlines, clickbait reveals, lab-animal heroes and missing featured images, or started refusing headlines that correctly name their subject. Fix the guard, not the test.');
     }
-    // 8f) POSTED vs UPDATED (owner, 2026-08-04). The homepage printed a calendar date with no time
-    //    and no way to tell a first posting from a revision. Pacific, to the minute, labelled.
     {
       const r = spawnSync(process.execPath, ['--test', 'functions/_lib/publish_time.test.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
       if (r.status !== 0) throw new Error('PUBLISH_TIME test FAILED — the homepage stamp or the posted/updated distinction regressed. The card must say which fact it is showing, in Pacific time, to the minute.');
@@ -662,11 +564,6 @@ try {
       const r = spawnSync(process.execPath, ['--test', 'functions/_lib/test_title_guard.test.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
       if (r.status !== 0) throw new Error('PLACEHOLDER_TITLE_GUARD test FAILED — the guard either stopped refusing placeholder pages or started refusing legitimate clinical titles again. Fix the pattern, not the test.');
     }
-    // 9) POINTER_FILES_LAW (owner order, 2026-08-04): the project's operating authority is the
-    //    canonical work object, not CLAUDE.md / STATE.md / AGENTS.md. Those files are generated
-    //    projections. This regenerates them from the live object and then fails the ship if any of
-    //    them has grown back into carrying rules, task state, priorities or acceptance criteria —
-    //    which is exactly how the project drifted into depending on files no future agent reads.
     {
       run(process.execPath, ['scripts/sync_pointer_files.mjs']);
       const r = spawnSync(process.execPath, ['scripts/check-pointer-files.mjs'], { cwd: ROOT, env, stdio: 'inherit' });

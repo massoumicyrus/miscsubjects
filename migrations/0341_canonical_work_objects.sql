@@ -1,19 +1,3 @@
--- CANONICAL WORK OBJECTS (owner order, 2026-08-04).
---
--- Before this migration the project's operational intelligence lived in files no agent other than
--- the running one could read: CLAUDE.md carried the rules, STATE.md carried what remained
--- unfinished, AGENTS.md carried agent instructions, and a supervising Claude session carried
--- priority, dependency resolution, assignment and the decision that work was done. A fresh agent
--- could not enter the project. A different model could not continue it. Nothing was auditable.
---
--- The invariant this schema exists to hold: every operational fact is a row here, no operational
--- fact exists only in a model's context, a transcript, a Markdown file or an agent's final report,
--- and no agent can move a task to a completed state by asserting that it did the work.
---
--- work_tasks   — the task objects. One row is one bounded unit of work with its own acceptance
---                tests and evidence requirements. Failures are child rows (kind='failure').
--- work_actions — append-only, hash-chained audit. Every lease, progress note, submission,
---                acceptance, refusal and repair is one row. Nothing is ever updated or deleted.
 
 CREATE TABLE IF NOT EXISTS work_tasks (
   id                TEXT PRIMARY KEY,

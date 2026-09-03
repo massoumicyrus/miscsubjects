@@ -7,8 +7,6 @@ export async function onRequest(context) {
   const path = url.pathname.replace('/api/forge', '').replace(/^\//, '');
   const segments = path.split('/').filter(Boolean);
 
-  // Every mutating forge call requires build auth. Before 2026-07-02 the publish flip
-  // (POST /api/forge/:id/publish → articles.published=1) was open to the internet.
   if (request.method !== 'GET' && !(await isBuildAuthed(request, env))) {
     return new Response(JSON.stringify({ error: 'unauthorized — x-terminal-key or admin session required' }), { status: 401, headers: { 'content-type': 'application/json' } });
   }

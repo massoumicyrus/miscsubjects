@@ -16,10 +16,6 @@ if (!/\.tab-row\{[^}]*flex-wrap:wrap/.test(html)) fail('BACKEND_NAV_DESKTOP_WRAP
 if (!html.includes('@media(max-width:760px)') || !html.includes('.tab-row{flex-wrap:wrap;overflow:visible')) fail('BACKEND_NAV_MOBILE_WRAP_MISSING');
 
 
-// FRONT<->BACK ROUND TRIP LOCK (owner order 2026-08-04 — "fix it once and for all and lock
-// it in"): every public topbar carries the auth flip (Sign in -> Admin + Sign out via the
-// ungated /api/session probe), and the admin shell carries "View site". Losing any of these
-// regresses the owner's ability to tab between the front and the back and fails the commit.
 import { readFileSync } from 'node:fs';
 const ROOT = new URL('..', import.meta.url).pathname;
 for (const [file, needles] of [
@@ -34,10 +30,6 @@ for (const [file, needles] of [
 }
 if (!html.includes('View site')) fail('BACKEND_NAV_VIEW_SITE_MISSING');
 
-// SIGN-OUT + INQUIRY LOCK (owner order 2026-08-04): /admin/logout must exist as a real route
-// (the Sign out href on every public topbar died as "Not found"), the gate must exempt it,
-// and every public topbar carries the Inquire entry to the inquiry loop (/inquire page +
-// /api/inquire endpoint). Losing any of these fails the commit.
 for (const [file, needles] of [
   ['functions/admin/logout.js', ['clearSessionCookie', "location: '/'"]],
   ['functions/_lib/admin_session.js', ["'/admin/logout'"]],

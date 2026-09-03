@@ -1,24 +1,13 @@
-/** Google Analytics 4 — settings-driven, default leoresearch property. */
-
-export const GA_DEFAULT_ID = 'G-TTCENZ3CJY';
-
-export async function getGaMeasurementId(env) {
-  try {
-    const row = await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind('ga_measurement_id').first();
-    const v = String(row?.value || '').trim();
-    if (/^G-[A-Z0-9]+$/i.test(v)) return v.toUpperCase();
-  } catch {}
-  return GA_DEFAULT_ID;
-}
-
-export function ga4HeadHtml(measurementId) {
-  const id = String(measurementId || '').trim();
-  if (!/^G-[A-Z0-9]+$/i.test(id)) return '';
-  const esc = id.replace(/"/g, '');
-  return `<script async src="https://www.googletagmanager.com/gtag/js?id=${esc}"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${esc}',{send_page_view:true});</script>`;
-}
-
-export async function ga4HeadForEnv(env) {
-  return ga4HeadHtml(await getGaMeasurementId(env));
-}
+// STUB. The module that lived here is a tenant integration of the operating repository and is not
+// part of the public primitive. The original (24 lines) exported the names below; each one
+// throws with this path when used, so the kernel keeps its shape and a caller sees exactly what
+// is absent. See docs/PUBLISHING.md, section "The primitive profile".
+const excluded = (name) => new Proxy(function excluded() {}, {
+  apply() { throw new Error('excluded from the public primitive: functions/_lib/ga4.js#' + name); },
+  construct() { throw new Error('excluded from the public primitive: functions/_lib/ga4.js#' + name); },
+  get(_t, p) { if (p === 'then' || p === Symbol.toPrimitive || p === Symbol.iterator || p === Symbol.toStringTag) return undefined; throw new Error('excluded from the public primitive: functions/_lib/ga4.js#' + name + '.' + String(p)); },
+});
+export const GA_DEFAULT_ID = excluded("GA_DEFAULT_ID");
+export const ga4HeadForEnv = excluded("ga4HeadForEnv");
+export const ga4HeadHtml = excluded("ga4HeadHtml");
+export const getGaMeasurementId = excluded("getGaMeasurementId");

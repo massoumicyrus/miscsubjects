@@ -1,5 +1,3 @@
--- 0129: Log observed failure modes into the Tasks API as a shared work ledger.
--- Status='logged' keeps them out of the runnable queue but queryable via GET /api/tasks?status=logged.
 INSERT INTO tasks (created_at, status, body, source, trace) VALUES
 (datetime('now'), 'logged', '{"role":"audit","category":"failure","description":"x-terminal-key auth mismatch returns 401 on /api/dispatch and mutating /api/tasks when key casing differs from env.TERMINAL_KEY.","impact":"blocks live DB mutations and cron runners","status":"observed"}', 'audit', 'functions/api/dispatch.js:2644'),
 (datetime('now'), 'logged', '{"role":"audit","category":"failure","description":"DONETASK directory row was missing; agents could not close tasks via dispatch.","impact":"task queue could not be drained by agents","status":"fixed by migration 0127"}', 'audit', 'functions/api/dispatch.js'),

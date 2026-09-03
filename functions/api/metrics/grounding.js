@@ -1,16 +1,7 @@
-// Grounding ratio — the anti-sealed-canon tripwire (owner brief 2026-07-24,
-// builder #39). Corpus-wide external-sources-per-claim plus the fraction of
-// claims carrying at least one source id. Public, cacheable, cheap to poll.
-// Constitutional floor: below GROUNDING_FLOOR the response says so plainly.
 const GROUNDING_FLOOR = 0.5;
 
 export async function onRequestGet(context) {
   const { env } = context;
-  // The published rows are not all articles: source ledgers, source records and audit
-  // records live in the same table under meta.register. This endpoint used to report the
-  // whole row count as "articles", which contradicted /latest and /audit by the site's own
-  // arithmetic (1015 + 1100 + 25 + 10 = 2150). Both figures are now reported under names
-  // that mean what they say.
   const totals = await env.DB.prepare(
     `SELECT COUNT(*) AS published_records,
             SUM(CASE WHEN COALESCE(json_extract(meta,'$.register'),'standard')

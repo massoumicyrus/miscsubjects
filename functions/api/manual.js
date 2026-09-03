@@ -1,14 +1,3 @@
-// GET /api/manual — the operator manual in one call. For EVERY capability it returns
-// the exact request to call it, the request to edit it, and how to test it. This is the
-// "I blink and the whole build explains + tests itself" endpoint the owner asked for.
-//
-//   GET /api/manual                  -> everything (fixed REST surfaces + every directory row)
-//   GET /api/manual?key=GROK_IMAGE   -> just that one capability, full detail
-//   GET /api/manual?type=agent       -> only rows of that type (agent|http|fn|flow)
-//   GET /api/manual?test=NOW         -> dry-run that row (shape only, fires nothing) and show the shaped request
-//   GET /api/manual?slim=1           -> fixed surfaces + counts only (skip the per-row list)
-//
-// Every capability is REST. Nothing here is a claim — ?test=<KEY> proves the shape live.
 
 import { DIR_SCHEMA, restFor } from '../_lib/dir_schema.js';
 import { dispatch } from './dispatch.js';

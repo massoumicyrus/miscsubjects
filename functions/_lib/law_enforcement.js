@@ -1,25 +1,3 @@
-// LAW_ENFORCEMENT — a clause with no enforcement is a suggestion.
-//
-// The owner directed that these are laws rather than guidance: a clause without enforcement is a
-// suggestion, and a suggestion becomes one more thing a model ignores. Every clause must therefore
-// declare whether it is enforceable, and by what.
-//
-// The occasion: a full session in which the writing law was fetched, quoted, and violated clause by
-// clause — W47 and W56 (the article about BPC-157 carried a disc as its frame), W51 (framing
-// language), and a length criterion invented outright that no clause contains. Every one of those
-// clauses was live and readable at the moment it was broken.
-//
-// scripts/check-gates-wired.mjs already closed this class one level up: no check-*.mjs may exist
-// without being declared in the manifest that invokes it. This is the same gate one level down.
-// There are 262 clauses across seven law objects and 42 deploy gates, and until now nothing
-// connected them, so "is this clause enforced?" had no answer at all — which is the condition in
-// which a clause quietly becomes decoration.
-//
-// THE RULE. Every clause in every law object carries a declaration here: either the named check
-// that enforces it and where that check runs, or `unenforced` with a written reason. A clause with
-// neither fails the deploy. Adding a clause to any law therefore forces the author to say how it
-// binds — and the count of unenforced clauses becomes a published number that can only be argued
-// down with real checks.
 
 import { WRITING_LAW_OBJECT } from './writing_law_object.js';
 import { DESIGN_LAW_OBJECT } from './design_law_object.js';
@@ -83,26 +61,14 @@ export const DECLARATIONS = {
     { enforced_by: 'check-plain-language.mjs', surface: 'deploy' },
   'writing:The model is never the subject':
     { enforced_by: 'articles.BODY_SIGNATURE_RE', surface: 'write-path' },
-  // The six clauses added 2026-08-08. Only the half of W111 that its own text states as a NEVER is
-  // machine-testable; the ALWAYS half, and W113/W114 entirely, need a reader and stay uncounted.
-  // W115 and W116 govern how an agent answers the owner, not what an article contains, so no
-  // article surface can hold them and claiming one would be the same lie this file just carried.
   'writing:State the benefit in the first five sentences':
     { enforced_by: 'subject_gate.newWritingLawViolation (ratchet; runs the W111 study-inventory-opening test, the NEVER half only)', surface: 'write-path' },
-  // The four clauses added 2026-08-08 from the inverted paragraph on /a/bpc-157-vs-nsaids. W118's
-  // NEVER states its own test — an opening framed on something that never happened — so it gets a
-  // check. The other three each require reading a whole page against itself and are declared
-  // unenforced rather than given a regex that would pass the pages that break them.
   'writing:Never characterise a thing by what it has not claimed':
     { enforced_by: 'subject_gate.newWritingLawViolation (ratchet; runs the W118 absence-as-frame test on the page opening and each section opening)', surface: 'write-path' },
   'writing:One evidentiary standard across a comparison':
     { unenforced: 'The test is whether two sides of a comparison were held to the same standard, which needs both sides read against each other and weighed by length and placement. The nearest mechanical proxy — counting absence language per side — would pass a page stating one missing trial for each side at wildly different prominence, which is exactly the failure this clause exists for.' },
   'writing:Relief is never reported as repair':
     { unenforced: 'Requires knowing whether a named drug impairs the specific repair the page is about, which is a fact about the pharmacology and the tissue rather than a string in the body. A word-list check would fire on every page correctly reporting that a drug relieves pain, and stay silent on the one that omits the harm.' },
-  // The three clauses added later the same day. All three need a reader: each is about a relation
-  // between two statements on a page — a chain and its links, a speed claim and a structural
-  // measurement, a harm's conditions and a benefit's — and none is a string a body either does or
-  // does not contain.
   'writing:Follow the effect to the reader\'s problem':
     { unenforced: 'Requires knowing the causal chain from a measured endpoint to a condition — that lower body weight means lower joint load, that lower joint load reaches a degenerating disc. That is pharmacology and anatomy, not text. A check that demanded some minimum number of downstream conditions per page would be satisfied by listing them and saying nothing about any.' },
   'writing:Report the repaired tissue, not only the speed':
@@ -169,21 +135,6 @@ export function enforcementSummary() {
   };
 }
 
-// ── ANTI-REDUNDANCY, ANTI-SPRAWL ────────────────────────────────────────────────────────────────
-//
-// The owner directed anti-redundancy and anti-sprawl in the law itself, with a guard: several
-// clauses that could be one clause are merged, applied only where the enforcement of every merged
-// clause still holds.
-//
-// THE RULE. Where two or more clauses are enforced by one and the same check, they are one clause
-// wearing several titles and are merged into the shortest wording that still says everything.
-// THE GUARD. A merge happens only when every check covering either clause still covers the merged
-// clause. Where two clauses share a check but each also carries enforcement the other lacks, they
-// are not redundant and are left alone — losing an enforcement to save words is sprawl traded for
-// a hole, which is worse than the sprawl.
-//
-// A law that grows without this becomes long enough that nobody holds it, and a clause nobody holds
-// is the same as a clause nobody enforces.
 
 export const LAW_HYGIENE = {
   rule: 'Two clauses enforced by the same check are one clause; merge them into the shortest wording '

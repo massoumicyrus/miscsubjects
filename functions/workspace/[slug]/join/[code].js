@@ -1,8 +1,3 @@
-// THE SEAT PAGE (owner order 2026-08-03: "I have a team — how can I send this to them?").
-// This is the link a workspace owner sends a teammate who has NEVER heard of any of this.
-// It explains the workspace in plain words, shows exactly what their seat may and may not
-// do, and on claim hands over the one block they paste into whatever AI they already use.
-// The credential travels only in the claim's JSON response to the claimant — never in HTML.
 import { loadWorkspace, roleGrant } from '../../../_lib/workspace_object.js';
 
 function esc(s) {

@@ -1,5 +1,3 @@
--- Repair 2026-07-17: 0284's multiline # EX left its continuation outside the
--- documentation block, so stripDocs treated prose as the executable JSON template.
 
 UPDATE directory
 SET content=replace(

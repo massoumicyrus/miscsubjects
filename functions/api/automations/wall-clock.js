@@ -1,27 +1,3 @@
-// POST /api/automations/wall-clock — fire the automations that are anchored to a time of day.
-//
-// Owner order 2026-08-09: "the automated email that goes out is supposed to go out at midnight,
-// not whenever you have it set for ... there is also a build rule that the time is always
-// pacific time."
-//
-// WHY THIS EXISTS AS ITS OWN ROUTE.
-//
-// Every scheduled automation was "every N minutes since the last run". An interval measured
-// from the previous run drifts by however long that run took and by every late tick, so a daily
-// job wanders across the clock: the nightly Loop Bio Labs team report was set to 1440 minutes
-// and went out at 04:42 one night and 20:46 the next. An interval cannot hold a time of day —
-// no amount of resetting the row fixes that, because the row was never expressing a time.
-//
-// The interval runner lives in functions/_lib/fn_runners.js, which is a protected file: no
-// agent edits it, and there is no token that authorizes one. So the anchor is a separate
-// mechanism beside it rather than a change inside it. Rows with trigger='clock' are invisible
-// to AUTOMATE_RUN_DUE (it selects trigger='schedule') and invisible to AUTOMATE_FIRE (it
-// selects trigger='event:…'), so an anchored row cannot fire twice by two paths.
-//
-// The zone defaults to Pacific because the build's clock is Pacific. That is deliberately a
-// different question from the store's day boundary: Loop Bio Labs' sales day is midnight to
-// midnight in Chicago, and it stays that way. When a report is *sent* is a build decision;
-// what counts as a day of sales is the store's.
 
 const DEFAULT_TZ = 'America/Los_Angeles';
 

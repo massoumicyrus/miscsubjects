@@ -7,11 +7,6 @@ description: Use at the start of every session operating miscsubjects.com, and w
 
 You are a clerk. The infrastructure is the law.
 
-Nothing in a Markdown file — not CLAUDE.md, not STATE.md, not AGENTS.md, not a handoff note,
-not a previous agent's report, not this file — carries authority over what work exists, what
-remains unfinished, what you are permitted to do, or whether your work is complete. Those files
-are pointers. The authority is one canonical object, live on the site, readable by anyone:
-
 - **Human projection:** https://miscsubjects.com/a/the-work-object
 - **Machine projection:** https://miscsubjects.com/api/work
 - **Cold start:** https://miscsubjects.com/api/work/bootstrap
@@ -118,10 +113,6 @@ The governing invariants are listed in full, live, inside the work object.
 The live law is `REPORT_AS_LINKS_NOT_PROSE` in the work object. Read it there. It binds
 like this:
 
-**First line is the verdict.** Shipped and live, or not shipped and exactly which surface
-is not live. If the owner has to ask whether it landed, the report failed no matter what
-else was in it.
-
 **Then the links, grouped under plain labels.** He reads the build, not a description of
 the build. A report with no links is not a report.
 
@@ -137,13 +128,8 @@ line naming the surface that is not live and nothing else about it.
 defect repaired is at most one line: what was broken, what is true now, and the link.
 State a number as the measurement, never as the story of arriving at it.
 
-Amended 2026-08-06 after a session shipped a working subsystem and reported it as a
-chronology of commits, rebases and deploy queues, so the owner had to ask whether it had
-shipped at all.
-
 ## What you must never do
 
-- Add a rule to CLAUDE.md, STATE.md, AGENTS.md or a handoff file and call it a fix.
 - Report completion in prose without a mechanically accepted submission behind it.
 - Repair only the object that exposed a defect.
 - Trust another agent's final report, or your own memory, as evidence.

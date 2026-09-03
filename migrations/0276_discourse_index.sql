@@ -1,6 +1,3 @@
--- Discourse index (owner ship-order 2026-07-16, W12+W17 §5): the per-slug derivation of
--- OBJECTION_LOG / review / voxel-mutation receipts. Source of truth stays the ledger;
--- this table is the fold the widgets render from.
 CREATE TABLE IF NOT EXISTS discourse (
   id TEXT PRIMARY KEY,
   slug TEXT NOT NULL,

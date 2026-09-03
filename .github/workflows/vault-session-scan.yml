@@ -2,7 +2,6 @@
 # Limits are live at https://miscsubjects.com/api/vault/limits.
 name: vault-session-scan
 on:
-  # Disabled to stop GitHub notification noise (owner order 2026-08-04). Re-enable by restoring the schedule block.
   workflow_dispatch: {}
 
 jobs:

@@ -41,10 +41,6 @@ export async function onRequestGet(context) {
     return json({ protocol: "OIP", version: OIP_VERSION, schema: INVOCATION_EVENT_SCHEMA });
   }
   const caller = await callerScope(request, env);
-  // Outside-model audit 2026-08-04: a bare 404/401 here read as "the supposedly public
-  // ledger is closed" — a thesis contradiction. The per-actor list stays credentialed
-  // (it can include private turns), but the unauthenticated answer is now the map to the
-  // genuinely public record, not a dead end.
   if (!caller) {
     return json({
       what: 'Per-actor invocation lists require a credential (they can contain private operator turns). The PUBLIC record is open without one:',

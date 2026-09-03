@@ -1,6 +1,3 @@
-// Self-test API. The build tests itself the way the owner messages it: each question is run through
-// the ROUTER and scored (real solution vs leaked tag / error / empty). CRUD on questions, batched
-// runs (a full 25-question run exceeds one window), and a per-version scoreboard.
 import { dispatch } from './dispatch.js';
 import { reflexSelftestFailures } from '../_lib/issue_reflex.js';
 import { blooioTextField } from '../_lib/reply_chunks.js';
@@ -8,14 +5,12 @@ import { runGraphPopulate } from '../_lib/graph_selftest.js';
 import { isBuildAuthed } from '../_lib/admin_session.js';
 
 const OWNER = '[OWNER_PHONE]'; // mirror of webhook_intake.js isOwner — the build's only whitelisted sender
-const GROUP = 'grp_d21e1ea99f8a4ea0'; // audit group: ButterCup ([PHONE]) asks, Pepper ([BUILD_PHONE]) answers
+const GROUP = 'grp_d21e1ea99f8a4ea0';
 const BUTTERCUP_NUM = '[PHONE]';
 const PEPPER_NUM = '[BUILD_PHONE]';
 const BUTTERCUP_KEY = 'BLOOIO_API_KEY_BUTTERCUP'; // questions ONLY — never fall back to main Pepper key
 const PEPPER_KEY = 'BLOOIO_API_KEY_PEPPERUP'; // answers ONLY — never use ButterCup key for answers
 
-// Post into the group as a specific Blooio identity with explicit from_number so the group chat
-// never shows Pepper ([BUILD_PHONE]) asking TEST questions (identity law).
 async function sendAs(env, keyName, text, fromNumber) {
   const key = env[keyName];
   if (!key) return { status: 0, error: 'missing_' + keyName };
@@ -336,7 +331,6 @@ export async function onRequestPost(context) {
     try { const d = await dispatch(env, 'ROUTER', t.args, dispatchOpts); out = String(d.result == null ? '' : d.result); qcost = d.cost || 0; }
     catch (e) { out = 'ERR:' + (e?.message || String(e)); }
     const vis = (t.expect_kind === 'route_ok' ? out : visibleReply(out)).replace(/\s+/g, ' ').trim();
-    // 3) Answer from Pepper ([BUILD_PHONE]) via PEPPERUP key — the only outbound reply in the group.
     const aSend = await sendAnswer(env, (vis || '(no reply)').slice(0, 900));
     const aStatus = aSend.status;
     const delivered = qStatus > 0 && qStatus < 300 && aStatus > 0 && aStatus < 300 && !aSend.error;

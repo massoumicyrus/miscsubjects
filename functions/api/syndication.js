@@ -1,12 +1,3 @@
-// GET /api/syndication — the distribution inventory (owner order 2026-08-06: "inventory all
-// APIs which would be beneficial to install, so that posts automatically send out to various
-// networks").
-//
-// One self-describing object: every channel this site already publishes through, and every
-// network API worth installing next — each with exactly what credential it needs and what it
-// would do. "needs" is the honest gate: nothing on the available list can be wired without
-// the named credential, which only the owner can mint. Update this file when a channel is
-// installed; a channel may never sit on both lists.
 
 const SITE = "https://miscsubjects.com";
 

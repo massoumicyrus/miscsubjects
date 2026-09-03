@@ -1,12 +1,3 @@
-// Regression test for the exact failure that exposed the defect.
-//
-// 2026-08-04: /a/tirzepatide published as "Tirzepatide: 20.9% of body weight in 72 weeks, and
-// nothing measured about a painful back". A single-compound page carried a condition frame and a
-// denial of a claim the compound never made. The write path had no notion of article subject.
-//
-// These cases pin the refusal and, just as importantly, pin what must still be allowed: the
-// combination article whose slug names both objects, and a compound page whose prose mentions
-// its own biology (nerve growth factor) or a study endpoint.
 
 // node:test, not vitest. This file imported vitest and the repo has never had it installed, so
 // `npx --no-install vitest` failed on every ship and the regression below never actually ran —

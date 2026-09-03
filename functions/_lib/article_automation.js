@@ -56,9 +56,6 @@ export async function onArticleCreated(env, slug, meta = {}) {
   return { ok: true, trace_id: trace, slug, event_id: eventId, payload, automations: fired };
 }
 
-/**
- * Fires after a CLI turn lands (grok/cc/agent_log). Points the next model at unified handoff.
- */
 export async function onCliTurnComplete(env, rec = {}) {
   if (!env?.LEDGER) return { ok: false, reason: "no_ledger" };
   const agent = String(rec.agent || "cli");
@@ -88,14 +85,6 @@ export async function onCliTurnComplete(env, rec = {}) {
       "internal",
       200,
       trace,
-      // BOTH SIDES GET SCRUBBED, NOT JUST THE ONE WE COMPOSE. This INSERT goes straight to D1
-      // and never touches event_log.js, so it does not inherit that lane's redaction — the
-      // scrub has to be spelled out here, on every column that carries caller-supplied text.
-      // It was only on the response, which is the half this file builds itself; the request
-      // half echoed rec.turn_key verbatim, and a turn_key is a local filesystem path. A CLI
-      // run on 2026-08-05 wrote /Users/<name>/.gemini/tmp/... into request_preview and failed
-      // the post-promotion NAME_LAW gate, blocking every deploy until it was scrubbed. The
-      // response column on the same row was clean, which is what made the asymmetry obvious.
       scrubOwnerIdentity(JSON.stringify({ agent, turn_key: rec.turn_key || null })),
       scrubOwnerIdentity(JSON.stringify(payload))
     ).run();

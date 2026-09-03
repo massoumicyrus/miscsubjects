@@ -24,8 +24,6 @@ import { logEvent } from '../../_lib/event_log.js';
 
 const GATEWAY = 'default'; // the authenticated gateway; override with AIG_GATEWAY_ID
 
-// Short names the CLI can put in ANTHROPIC_MODEL. Every id verified live against this
-// account's catalogue on 2026-07-25.
 const ALIASES = {
   kimi: '@cf/moonshotai/kimi-k2.7-code',
   'kimi-k2.7-code': '@cf/moonshotai/kimi-k2.7-code',
@@ -368,10 +366,6 @@ function toOpenAIToolChoice(tc) {
   return undefined;
 }
 
-// OpenAI's reasoning models reject max_tokens outright: "Unsupported parameter:
-// 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."
-// Measured 2026-07-26 on openai/gpt-5.5, gpt-5.2 and every gpt-5.x that is not -batch.
-// They also reject a non-default temperature, so it is dropped rather than forwarded.
 function needsMaxCompletionTokens(model) {
   return /(^|\/)(?:openai\/)?(?:o[134]|gpt-5)/i.test(String(model || ''));
 }
@@ -488,9 +482,6 @@ function streamTranslate(upstream, model) {
               usage = {
                 input_tokens: chunk.usage.prompt_tokens || usage.input_tokens,
                 output_tokens: chunk.usage.completion_tokens || usage.output_tokens,
-                // Cached prompt tokens bill at a fraction of the fresh rate. Dropping them
-                // here made every client price a cached turn as if it were all fresh —
-                // roughly 5x over on a long session (owner-reported, 2026-07-26).
                 cache_read_input_tokens: chunk.usage.prompt_tokens_details?.cached_tokens
                   ?? chunk.usage.cached_tokens ?? usage.cache_read_input_tokens,
               };
@@ -868,10 +859,6 @@ export async function onRequest(context) {
   if (!upstream.ok) {
     const text = await upstream.text();
     ledger(upstream.status, text);
-    // The compat catalogue publishes ids the account cannot actually reach in chat shape.
-    // Three real upstream answers, measured 2026-07-26, each unreadable as raw provider
-    // JSON: say which of the three it is so the caller switches model instead of debugging
-    // its own request body.
     if (/Invalid value at input\b/.test(text)) {
       return apiError(`model ${model} is published on the gateway but only answers OpenAI's Responses API, which this translator does not speak — pick a chat-completions model`, 400, 'invalid_request_error');
     }

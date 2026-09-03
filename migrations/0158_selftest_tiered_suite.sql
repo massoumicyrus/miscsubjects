@@ -23,11 +23,9 @@ INSERT INTO directory_tests (key, kind, args, tier, expect_kind, expect_value, e
 ('ROUTER','e2e','how do I add an article with curl',4,'reply_ok','curl|post|/api/articles','Concrete curl POST to /api/articles.','t4 api add'),
 ('ROUTER','e2e','how do I change the router prompt',4,'reply_ok','router|set_row_content|directory|edit','Edit the ROUTER row (SET_ROW_CONTENT) and bust the snapshot.','t4 api router'),
 ('ROUTER','e2e','how do I deploy the build',4,'reply_ok','wrangler|deploy|pages','wrangler pages deploy from the repo dir.','t4 api deploy'),
--- TIER 5 — self-description / build philosophy (must answer AS the build, as the owner views it)
 ('ROUTER','e2e','what are you, exactly',5,'reply_ok','build|router|directory|os|kernel|tool','An accurate self-description: the miscsubjects build, not generic Grok.','t5 identity'),
 ('ROUTER','e2e','describe your architecture as an AI OS',5,'reply_ok','directory|tool|router|syscall|kernel|d1','The directory-as-syscall-table / router / Cloudflare OS model.','t5 architecture'),
 ('ROUTER','e2e','what is the directory and why does it exist',5,'reply_ok','tool|capabilit|registry|anti|sprawl|row','The directory = one registry of capabilities; anti-sprawl.','t5 philosophy'),
--- TIER 6 — page liveness (the build checks its own pages so the owner does not have to report breakage)
 ('ROUTER','e2e','open the tasks admin page and tell me if it actually renders',6,'reply_ok','render|load|200|works|broken|task','Fetch/screenshot /admin/tasks and report real render state.','t6 page liveness'),
 ('ROUTER','e2e','screenshot the homepage and tell me what is on it',6,'reply_ok','home|miscsubjects|peptide|content|image','A real screenshot + description of miscsubjects.com.','t6 homepage'),
 ('ROUTER','e2e','is the self-test page working right now',6,'reply_ok','self|test|render|works|200|broken','Real check of /admin/selftest.','t6 selftest page'),

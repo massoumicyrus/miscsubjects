@@ -1,10 +1,3 @@
-// The two verbatim clauses carried on every surface, human and machine (owner
-// brief 2026-07-25, §5; gauntlet clause amended 2026-07-27 to drop the
-// superlative framing the owner called unprofessional). These are CONSTANTS:
-// never model-generated, never paraphrased, never summarized. A unit test
-// (structure_clauses.test.mjs) asserts they render byte-for-byte equal to
-// these strings on the homepage, a sampled article page, and that article's
-// API/self payload.
 
 export const INTEGRITY_CLAUSE =
   "Every claim on this site is made exactly as written — no more, no less. " +
@@ -31,12 +24,6 @@ export const NOT_AWARE_CLAIM =
   "meta-governance, concurrent argument, representational breadth, and executable self-correction " +
   "combined. Show me one and this claim will update.";
 
-// THE AXIOM and its projections. The point the whole structure defends: writing
-// law, design law, outreach law, operational logic, philosophy, OIP, and
-// governance are not separate rulebooks — they are one rule refracted through
-// different media, so they cannot contradict. Stated in the owner's own words
-// (no invented category name); each projection names its version of the single
-// test and links to the surface where it lives, making the sameness auditable.
 export const AXIOM =
   "Suppressed order is theft; the burden is on the producer; every element earns its existence or is cut.";
 

@@ -644,7 +644,7 @@
         var orig = btn.querySelector('b'); if (orig){ orig.textContent = 'Copied!'; setTimeout(function(){ orig.textContent='Self explaining (copy for AI)'; }, 1800); }
       });
       // Auth state — signed out: "Sign in". Signed in: "Admin" (into the back end) plus
-      // "Sign out", so the owner can tab front<->back cleanly (owner order 2026-08-04).
+      // "Sign out", so the owner can tab front<->back cleanly.
       // /api/session is the ungated boolean probe; the old /admin/api/session path was
       // intercepted by the admin gate and the flip never fired.
       var ab = document.getElementById('authBtn');

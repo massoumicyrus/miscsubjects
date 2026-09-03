@@ -1,18 +1,3 @@
-// agent_sheet — one sheet is the whole agent.
-//
-// Columns A..R are the message log: one inbound message per row, walking left to right through
-// every stage of its life. Columns T/U are the settings, one per cell, and two of those cells
-// hold the things that used to live in code: the system prompt, and the full REST envelope that
-// is sent to the model. Changing either is a cell edit — there is no deploy between an edit and
-// the next message.
-//
-// The envelope is stored the way LLM_MATRIX stores one: a complete request object with the key
-// written as INJECTED_BY_WORKER. It is sent literally, so what the provider receives is what the
-// cell says, and a stored request stays publishable.
-//
-// The turn loop lives here rather than in the router because the prompt is a cell, not a
-// directory row. Tools still execute through dispatch(), so a tool called from this sheet is
-// the same call the production path makes, ledger and receipts included.
 
 import { dispatch, PRICING_PPM } from '../api/dispatch.js';
 import { readTurn, META_TAGS } from './tag_calls.js';
@@ -22,13 +7,9 @@ import { createSheet, getSheet, listSheets, setValues, colToLetter } from './she
 export const SHEET_TITLE = 'MiscOS';
 
 export const LOG_HEADERS = [
-  // Reading order, left to right, decided by the owner 2026-09-02: the time, what he said, what
-  // was said back, then the machine's own record of how it got there. Everything archival — the
-  // ISO stamp, the webhook envelope, the request and response payloads — sits to the right of the
-  // band a person scans, because it is evidence, not reading.
   'time',            // A  human clock, e.g. "12:16 AM"
   'you_said',        // B  his message only: no channel preamble, no pasted history
-  'model_replied',   // C  exactly what was sent to his phone
+  'model_replied',
   'raw_output',      // D  the model's full text, tags and all
   'reasoning',       // E  [REASONING]
   'tool_choice',     // F  what it chose to call
@@ -156,14 +137,6 @@ async function findSheet(env) {
   return hit ? getSheet(env, hit.id) : null;
 }
 
-// THE TURN'S LATENCY WAS NEVER THE MODEL.
-//
-// Measured 2026-09-02: the model answers in 129 ms and a whole turn took 4,900-10,000 ms. The
-// difference was six serial round trips before the first token — find the sheet (two D1 reads),
-// read the settings, sum the day's spend, claim a row, stamp it. Each crossing costs ~600 ms.
-// What follows removes four of them: the sheet is cached, the settings and spend are read
-// together instead of one after the other, the claim and the stamp are one call, and the day's
-// spend is a counter rather than a scan.
 const SHEET_CACHE_KEY = 'agent_sheet:sheet';
 const CFG_CACHE_KEY = 'agent_sheet:cfg';
 const CFG_TTL_SECONDS = 45;
@@ -201,15 +174,6 @@ export async function ensureSheet(env) {
   return getSheet(env, sheet.id);
 }
 
-// Sum of the cost column for rows whose timestamp falls on the same UTC day. Read from D1
-// rather than the object: the mirror is authoritative for every other reader too, and a cap
-// that disagrees with what the grid shows would be worse than no cap.
-// The day's spend, as a counter rather than a scan.
-//
-// This used to read every ts and cost cell in the sheet and add them up in the Worker — one D1
-// round trip that grows with the log, on the path a person is waiting on. The counter is
-// incremented when a turn's cost is known, so reading it is O(1). If it is missing (a new day, or
-// KV unavailable) it is rebuilt from the sheet once and then maintained.
 function spendKey(nowIso) {
   return 'agent_sheet:spend:' + String(nowIso || '').slice(0, 10);
 }
@@ -282,10 +246,6 @@ export async function readSettings(env, sheet, { fresh = false } = {}) {
     const k = String(byRow[r][SET_COL_KEY] || '').trim();
     if (k) { out[k] = String(byRow[r][SET_COL_VAL] == null ? '' : byRow[r][SET_COL_VAL]); seen.add(k); }
   }
-  // The panel was only ever written when the sheet was created, so a setting added to the schema
-  // afterwards existed in code and nowhere the owner could see or change it. Anything missing is
-  // written now, at its declared address, from the rows this read already fetched — so the panel
-  // and the schema cannot drift, and a normal turn pays nothing once they agree.
   const missing = SETTINGS_SCHEMA.filter((spec) => !seen.has(spec.key));
   if (missing.length) {
     try {
@@ -457,22 +417,8 @@ export async function callModel(env, envelope, vars) {
   };
 }
 
-// One inbound message, start to finish.
-// The cells that describe an arriving message, before anything has been asked of a model.
-// ts goes through the mirrored write path on purpose: the object's claim sets column A in its
-// own SQLite and never mirrors it, so rows read from D1 had no timestamp at all (2026-09-01).
-// The owner's own words, with the machinery taken back out.
-//
-// The router hands the model a prompt that carries a channel preamble and the conversation so
-// far. Useful to the model, unreadable to a person: his message column was showing
-// "[channel imessage 1:1 · from +…] Conversation so far (oldest…" before the thing he typed.
-// The full context is preserved in raw_payload; column B is only what he said.
 export function ownWords(prompt) {
   let t = String(prompt == null ? '' : prompt);
-  // The preamble can arrive with real newlines or with the two-character sequence backslash-n,
-  // depending on how the payload was serialised before it reached the cell. Row 40 stored the
-  // literal form, so a strip written only for real newlines left "Now: Hey." in his message
-  // column (2026-09-02). Normalise first, then strip.
   t = t.replace(/\\n/g, '\n');
   t = t.replace(/^\s*\[channel[^\]]*\]\s*/i, '');
   t = t.replace(/^\s*Conversation so far[\s\S]*?(?=\nNow:|$)/i, '');
@@ -505,15 +451,6 @@ function stampCells(ts, rawStr, prompt, from, channel) {
   ];
 }
 
-// Called by the webhook itself: claim a row and stamp what arrived, then return the row number
-// so the turn can continue on it. This is the whole latency story — the row appears while the
-// provider's request is still open, instead of after a handoff and a model call.
-// HOW MUCH OF THE PAST THE MODEL SEES, decided by a cell.
-//
-// The router renders the whole stored conversation into the prompt before this sheet is reached,
-// so a turn carried every earlier exchange whether or not it needed one: "what is 7 times 6"
-// arrived as 1,856 input tokens. memory_turns bounds it here, at the sheet that owns the turn,
-// so the setting governs regardless of what the caller passed. 0 means answer the message alone.
 export function boundedPrompt(prompt, memoryTurns) {
   let t = String(prompt == null ? '' : prompt).replace(/\\n/g, '\n');
   const n = Math.max(0, parseInt(memoryTurns, 10) || 0);
@@ -822,15 +759,6 @@ export async function runInbound(env, { text, from, channel, raw, row, resumeInp
   // Tools ran and nothing replied yet, and the cap is not spent: there is more turn to take.
   unfinished = !reply && !silent && payloads.length > 0 && (already + loops) < cap;
 
-  // The person waits for the reply, not for the bookkeeping. Handing it up here — before the
-  // eleven-cell result block is written — takes the write out of the path the sender is timing.
-  // Measured 2026-09-02: a trivial turn was 4,905 ms of which the model was 129 ms; a single
-  // cell write through the object costs ~620 ms, so the send was queued behind one.
-  // Start the send, do not wait on it. Awaiting it here put the fourteen-cell write behind the
-  // whole send round trip, and an invocation that ran out in between delivered the reply and
-  // left the row saying 'running' with nothing in it — row 63 was exactly that. The send is
-  // still awaited before this function returns, below, so the invocation cannot end underneath
-  // it; the bookkeeping just no longer queues behind it.
   const sending = reply && typeof onReply === 'function'
     ? Promise.resolve()
       .then(() => onReply({ reply, row: rowNum, sheet_id: sheet.id, reply_enabled: cfg.reply_enabled === '1' }))
@@ -874,17 +802,6 @@ export async function runInbound(env, { text, from, channel, raw, row, resumeInp
   };
 }
 
-// ── the settings gate ──────────────────────────────────────────────────────────────────────
-//
-// Settings are cells, so behaviour changes with no deploy. That is the point of the design and
-// also its sharp edge: on 2026-09-01 swapping the model to a non-reasoning variant produced a
-// CORRECT answer that was never sent, because the model wrote plain text instead of wrapping it
-// in [REPLY]…[/REPLY]. Nothing refused the change; the sheet just went quiet.
-//
-// So a candidate configuration is replayed against real messages already in the log before it is
-// allowed to take effect. What this checks is narrow and worth stating plainly: whether the
-// candidate still speaks the protocol the build requires — a [REPLY] block, or a tool tag on the
-// way to one. It is not a test of answer quality, and it cannot be.
 
 // Recent messages that actually carried a prompt — the replay corpus.
 export async function recentPrompts(env, sheet, limit = 3) {
@@ -981,9 +898,6 @@ export async function applySettings(env, set = {}, { force = false, samples = 3 
   const bad = Object.keys(set).filter((k) => !known.includes(k));
   if (bad.length) return { applied: false, error: 'unknown_setting', unknown: bad, known };
 
-  // Every value is checked against its declared range before anything is written. A refusal here
-  // is the whole reason the schema exists: "temperature 5" used to be accepted and then produce
-  // nonsense with no record of why.
   const coerced = {};
   const rejected = [];
   for (const [k, v] of Object.entries(set)) {
@@ -1030,12 +944,6 @@ export async function recordOutbound(env, rowNum, { outbound, delivery } = {}) {
   return { ok: true };
 }
 
-// Does the AGENT sheet claim this sender? Returns {claimed:false} — and never throws into the
-// caller — unless the sheet exists, is enabled, and lists the sender in allow_from. The default
-// empty cell means the production path is untouched until the owner opts a number in.
-// Does this sheet answer for this sender? Separated from running the turn so the webhook can
-// decide in milliseconds and hand the turn to a fresh invocation — a synchronous model turn
-// regularly outruns the provider's ack window, and the provider then redelivers.
 export async function sheetClaims(env, from) {
   let sheet;
   try { sheet = await findSheet(env); } catch { return false; }

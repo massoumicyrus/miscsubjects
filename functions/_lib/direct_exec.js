@@ -25,8 +25,6 @@ export function formatBridgeResult(result) {
   return out.length > MAX_REPLY ? out.slice(0, MAX_REPLY) + '\n…[truncated]' : out;
 }
 
-// Shared sniff: returns the matched prefix if this message is a direct-exec
-// shortcut from the owner's number, else null.
 const PREFIXES = ['/t ', '/exec ', '/terminal ', '/run ', '/help '];
 export function sniffPrefix(text, from) {
   const phone = String(from || '').replace(/\D/g, '');

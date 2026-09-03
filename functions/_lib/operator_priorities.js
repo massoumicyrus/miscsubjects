@@ -8,7 +8,6 @@ import { buildResume, resumeMarkdown } from './object_contract.js';
 
 const BASE = 'https://miscsubjects.com';
 
-// Machine queues — excluded from the owner's human backlog (AGENTS.md / STATE 2026-07-05).
 const MACHINE_TASK_SOURCES = new Set([
   'oip-review',
   'writer',

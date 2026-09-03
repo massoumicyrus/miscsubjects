@@ -1,24 +1,3 @@
-// PORTABLE IMMUTABILITY ANCHORS (owner order 2026-07-17).
-//
-// A model chooses to prove a packet is immutable WITHOUT publishing the data. It hashes the
-// packet (opaque commitment) and POSTs the hash here. The server binds that hash to public
-// surfaces it does not control and that could not be precomputed:
-//   - a drand randomness-beacon round (League of Entropy; Cloudflare runs a node) — a signed,
-//     public, unpredictable value produced on a fixed cadence by a distributed network.
-//   - the latest Bitcoin block (height + hash) — a public, unpredictable value at a known time.
-//   - this ledger's current chain head (the new anchor event becomes included at the next seal).
-//   - wall-clock.
-// anchor_id = sha256(canonical preimage). Because drand round R and Bitcoin block B cannot be
-// known before they exist, an anchor carrying them could not have been backdated. The anchor is
-// PORTABLE: post it to any other ledger; any holder recomputes anchor_id and re-checks the
-// public surfaces (drand round R is verifiable forever; BTC block B is public) to confirm it — or,
-// if the source data changed, packet_hash changes, anchor_id won't match, and tamper is proven.
-//
-// Routes:
-//   POST /api/anchor              → bind {packet_hash, label?, actor?, key?} to the surfaces
-//   GET  /api/anchor/<anchor_id>  → the stored anchor + verification recipe
-//   GET  /api/anchor?verify=1&canonical=<...>&anchor_id=<...> → recompute + confirm
-//   GET  /api/anchor              → overview + how-to
 import { verifyShareTokenValue, capFingerprint } from '../../_lib/admin_session.js';
 import { logEvent } from '../../_lib/event_log.js';
 
@@ -62,8 +41,6 @@ async function captureSurfaces(env) {
   }
   // bitcoin — latest block height + hash (public, unpredictable, timestamped by the network).
   const h = await fetchText('https://mempool.space/api/blocks/tip/height');
-  // Bind the hash to the height we actually observed. Reading tip height and tip hash through
-  // separate "latest" endpoints can straddle a newly mined block and create a false pair.
   const bh = h && /^\d+$/.test(h) ? await fetchText('https://mempool.space/api/block-height/' + h) : null;
   if (h && bh && /^\d+$/.test(h) && /^[0-9a-f]{64}$/.test(bh)) {
     surfaces.bitcoin = { height: Number(h), hash: bh, verify: 'https://mempool.space/api/block-height/' + h, note: 'a block hash cannot be known before the block is mined — proves the anchor is no older than this block' };
@@ -149,10 +126,6 @@ export async function onRequest(context) {
   }
 
   if (method === 'GET') {
-    // Outside-model audit 2026-08-04: the list showed anchors without their drand round /
-    // Bitcoin block, making the anchoring claim assertable but not checkable from this
-    // response. The bound public values were always stored (surfaces_json) — now they ship
-    // on every row with the verify URLs inline.
     const rows = (await env.LEDGER.prepare('SELECT anchor_id, packet_hash, label, anchored_at, actor_cap, actor, surfaces_json FROM anchors ORDER BY anchored_at DESC LIMIT 20').all()).results || [];
     const recent = rows.map((r) => {
       let surfaces = null;

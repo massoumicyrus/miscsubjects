@@ -5,9 +5,6 @@ description: Use when the owner reports a recurring failure, repeated fix, or sy
 
 # Failure → Skill — stop the same problem from recurring
 
-## Overview
-When the owner has to fix the same thing twice, the build has failed to learn. This skill turns every recurring failure into a durable skill/article plus a mechanical gate so the failure cannot happen again.
-
 ## When to Use
 - The owner says "this keeps happening", "I already fixed this", "same problem as last time", or expresses anger about repeated failures.
 - A governor/audit report shows the same error class, collision type, or owner-restatement count recurring.
@@ -20,7 +17,6 @@ Verify failure exists → Fix root cause → Add mechanical gate → Write skill
 ```
 
 1. **Verify the failure with fresh evidence.** Do not trust a summary that says "done". Run the governor, read the ledger, or reproduce the failure yourself.
-2. **Name the machinery that produced the wrong decision (owner law, 2026-08-03).** Before fixing
    anything, write one sentence answering: *which input, rule, affordance, or default made the
    wrong choice feel natural to the model that made it?* Not "I forgot" — the actual mechanism
    (a harness prompt nudging toward private memory; a doc that says the old thing; an API that
@@ -40,7 +36,6 @@ Verify failure exists → Fix root cause → Add mechanical gate → Write skill
 
 ## Rules
 
-- **Do not ask permission to fix a failure.** The owner asked you to fix it. Fix it.
 - **Do not bring new problems.** A fix that creates a new failure mode is not a fix.
 - **A skill without a gate is half-done.** Abstract advice does not stop recurrence; code does.
 - **Verify before declaring.** Run the governor, run the checks, look at the ledger. Numbers must move.

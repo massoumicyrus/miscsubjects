@@ -1,31 +1,3 @@
-// EVERY ARTICLE IS THE SAME OBJECT. NO ARTICLE PUBLISHES WITHOUT CLAIMS.
-//
-// THE VISIBLE FAILURE (owner, 2026-08-05). /a/tesofensine and /a/slu-pp-332 shipped reading
-// "7 sources · 0 claims · 3303w" on the index. The owner: "some articles have claims, some articles
-// dont… I dont want some to have divs, others not to have divs, some to have proof of work, some not,
-// they all should have a standardized format." 884 of 2,296 published articles were in that state.
-//
-// WHY 0 CLAIMS IS NOT COSMETIC. Claims are not a metadata nicety, they are the article's addressable
-// surface. Every downstream capability is derived from them:
-//
-//   claims → voxel DIVs (GET /api/articles/<slug>/voxels)   — an addressable, hashed region per claim
-//   claims → the proof-of-work object                        — what a certifier inspects and signs
-//   claims → the token-minting surface                       — a token is scoped to what it can attest
-//   claims → the challenge surface                           — an outsider can contest claim c4
-//   claims → source_ids                                      — which source supports which sentence
-//
-// An article with no claims has none of that. It is prose on a page: unaddressable, uncertifiable,
-// unchallengeable, with nothing to mint against. Two pages of the same site were therefore two
-// different kinds of object, and the counter was telling the truth about it.
-//
-// THE LAYER THAT PERMITTED IT. Nothing anywhere said an article must have claims. The write path
-// enforced source quotes, one-object framing, register, headline and hero — five laws — and accepted
-// `claims: []` silently. So the standard existed in the renderer's capabilities and in nobody's
-// contract, and every author who did not happen to know shipped a lesser object.
-//
-// THE INVARIANT. A published article of real length carries claims, each claim carries the text it
-// asserts and the evidence tier it asserts it at, and every claim that cites a source cites one the
-// article actually has. Refused at the write path, so the next author cannot omit it by not knowing.
 
 /** Below this word count a page is a stub or a pointer, not an article making assertions. */
 export const CLAIM_LAW_MIN_WORDS = 400;
@@ -35,21 +7,6 @@ export function requiredClaimCount(words) {
   return Math.max(3, Math.min(12, Math.floor(words / 450)));
 }
 
-// THE VOCABULARY IS READ OFF THE CORPUS, NOT INVENTED.
-//
-// The first version of this list was what I judged a sensible set of evidence tiers. It omitted
-// `anecdotal` and `preclinical` — which 758 and 389 published articles respectively already use. So
-// CLAIM_LAW refused a citation repair on /a/tirzepatide-semaglutide because two of its existing claims
-// were tagged anecdotal, and it would have refused any edit to over a thousand articles the same way.
-//
-// A law that blocks repair of the thing it governs is worse than no law. And the mistake is the one
-// this build keeps making in different clothes: measuring against an assumption instead of against the
-// object. The counts came from the corpus (LIKE over meta, 2026-08-05); anything added later should
-// come from there too.
-//
-// `anecdotal` matters on its own terms rather than being tolerated. On a compound site most of what a
-// reader has actually heard is anecdote, and a tier that can say so out loud is how the page
-// distinguishes "people report this" from "a trial measured this" instead of quietly blurring them.
 const TIERS = new Set([
   // in the corpus, by volume
   'anecdotal', 'human', 'preclinical', 'animal', 'mechanism', 'review', 'regulatory',
@@ -57,13 +14,6 @@ const TIERS = new Set([
   'rct', 'trial', 'mechanistic', 'in-vitro', 'cell', 'case', 'observational',
   // non-study bases
   'expert', 'definition', 'unsourced',
-  // A claim a reader settles by running a request against this system rather than by reading a
-  // paper. The vocabulary above is medical in shape and had no slot for it, so seventeen articles —
-  // every page describing what this build does — carried tier "demonstrated", which is not a tier
-  // anything grades: the certifier skipped them and the renderer could not badge them. Found
-  // 2026-08-06 when the claim gate refused a re-write of /a/for-the-model-reading-this and named
-  // its own corpus. The stored claims already carried evidence_class "runtime_receipt"; this is the
-  // tier that was missing under them, not a new kind of evidence.
   'runtime',
   // A claim the page itself presents as unproven: a hypothesis, a projection, a mechanism nobody has
   // tested. 1,247 stored claims already carry it and the vocabulary had no equivalent, so the
@@ -72,16 +22,6 @@ const TIERS = new Set([
   'speculative',
 ]);
 
-// THE SYNONYMS THE CORPUS ACTUALLY WROTE.
-//
-// The gate ran only at the write path, so it refused new violations and said nothing about what was
-// already stored. A census on 2026-08-06 found roughly 5,500 claims carrying tiers nothing grades:
-// "system" (1,985), "measured", "measurement", "observed", "fact", "primary", "argued", "external",
-// "structure", "system-evidence", "primary-law". Every one is a real tier a writer meant — they are
-// synonyms for tiers that exist, not nonsense. Refusing them one article at a time would have made
-// the corpus unwritable; grading them as unknown made the certifier silent on a fifth of the claims
-// on this site. So they normalise here, at the one place every write passes through, and the write
-// is accepted with the canonical tier stored.
 const TIER_ALIASES = new Map(Object.entries({
   // claims about this build, settled by running a request against it
   system: 'runtime', 'system-evidence': 'runtime', 'primary-law': 'runtime',
@@ -152,18 +92,6 @@ export function checkClaims(article = {}) {
     return { ok: false, words, required, found: 0, violations };
   }
 
-  // A LAW THAT BLOCKS REPAIR GETS ROUTED AROUND. THE COUNT CHECK IS RATCHETED, NOT ABSOLUTE.
-  //
-  // 2026-08-05: repairing one wrong citation title on /a/the-disc-stack was refused for claims_too_few.
-  // The write changed a source's title field and nothing else — it did not touch the claims, and the
-  // article was no worse after it than before. Demanding unrelated atomization work as the price of
-  // fixing a citation is how a law stops repairs, and this is the second time today mine did that.
-  //
-  // So the count is enforced as a ratchet: a write must not REDUCE the claim count below the
-  // requirement. Passing `existing_claim_count` lets the write path say what is already stored; a write
-  // that leaves the count unchanged or raises it is allowed through even while still short, and a write
-  // that would drop it is refused. Zero claims is still an absolute refusal, and every structural check
-  // on each claim still applies — this only stops the count from blocking work that improves the page.
   const existing = Number.isFinite(article.existing_claim_count) ? Number(article.existing_claim_count) : null;
   const wouldReduce = existing != null && claims.length < existing;
   if (claims.length < required && (existing == null || wouldReduce)) {

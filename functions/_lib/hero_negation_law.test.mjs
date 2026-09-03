@@ -1,15 +1,3 @@
-// A BRIEF IS JUDGED ON WHAT IT ASKS FOR, NOT ON WHAT IT FORBIDS.
-//
-// 2026-08-05. The tesofensine hero brief ended "…no people, no vials, no mice, no laboratory
-// equipment." The gate refused it for proposing mice as its subject. It was forbidding mice.
-//
-// Cause: positivePromptText() stripped negations from one fixed vocabulary (text, labels, people, UI,
-// logos) while the banned-subject checks ran over a different one (mice, vials, wax seals). Any brief
-// careful enough to exclude the banned things was refused for naming them. That is the same defect the
-// work object's acceptance runner had — a check whose outcome does not depend on what it measures.
-//
-// These tests pin both directions: the exclusion no longer trips the ban, and a brief that genuinely
-// proposes a banned subject is still refused.
 
 import { describe, it, expect } from 'vitest';
 import { checkHeroBrief, checkHeroSubjectFit } from './title_hero_gate.js';

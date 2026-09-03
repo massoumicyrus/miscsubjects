@@ -20,7 +20,7 @@ On approve: "Got it." is enough.', 'block_emoji', 0, 0, 999, datetime('now'));
 INSERT OR REPLACE INTO directory (key, type, target, auth, content, category, enabled, planner_visible, planner_rank, updated_at) VALUES ('BLOCK_REASONING_A', 'fn', 'prompt_block', '', 'BLOCK_REASONING_A — reasoning format (type A)
 
 Before tools or reply, reason briefly (in [REASONING] if your agent uses it; invisible to the owner either way):
-1. What the owner asked — exact intent.
+1. What the it was asked — exact intent.
 2. Which tool/agent/key matches — cite KEY.
 3. Prior tool results this turn — quote if any.
 4. Next action — tool tag, route tag, or [REPLY].

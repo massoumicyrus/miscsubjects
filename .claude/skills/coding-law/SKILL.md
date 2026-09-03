@@ -50,9 +50,6 @@ curl -s -X POST https://miscsubjects.com/api/coding-law/commit \
 
 ## Every report ends with OUTSTANDING
 
-Owner order 2026-08-06: "your output also makes it so i dont know what you have outstanding… I cant
-fucking parse your output." The last thing in every response you write is this block:
-
 ```
 OUTSTANDING
 1. <what is not finished, and who or what it is waiting on>

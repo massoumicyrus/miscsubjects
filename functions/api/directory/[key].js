@@ -156,9 +156,6 @@ export async function onRequestGet(context) {
   const { env, params, request } = context;
   const key = String(params.key);
   const fmt = new URL(request.url).searchParams.get('format');
-  // ARTICLE PROJECTION (owner law, 2026-07-29): article:<slug> is a directory object that
-  // RESOLVES to the canonical articles row — never a second copy of its content. One object,
-  // simultaneously an article and a directory row; one token edits it through the same verbs.
   if (key.startsWith('article:')) {
     const slug = key.slice(8).toLowerCase();
     const a = await env.DB.prepare('SELECT slug, title, updated_at, published FROM articles WHERE slug=?').bind(slug).first();

@@ -1,5 +1,3 @@
-// https://miscsubjects.com/robots.txt
-// Self-describing API (/api/handoff, /api/dispatch, /api/articles) must be fetchable by model web_fetch.
 
 export function onRequestGet() {
   const body = `# miscsubjects.com — open to search engines and AI models.

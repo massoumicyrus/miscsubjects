@@ -6,7 +6,7 @@ VALUES (
   'quadsyncRun',
   '',
   '# WHAT: Run the server half of QUADSYNC now — mirror new ledger events to GitHub (ledger-mirror/events-<day>.jsonl) and fold recent GitHub commits + [auto] issues back into the ledger/tasks. Returns both results plus all four corner health stamps.
-# WHEN_TO_USE: the owner says "sync", "sync everything", "run quadsync", "is everything synced" — or any model needs the corners current before reasoning about build state. Automatic every 10 min via dispatch traffic; local Mac + Google Drive corners run via launchd com.the owner.miscsubjects.quadsync.
+# WHEN_TO_USE: the owner says "sync", "sync everything", "run quadsync", "is everything synced" — or any model needs the corners current before reasoning about build state. Automatic every 10 min via dispatch traffic; local Mac + Google Drive corners run via launchd com.owner.miscsubjects.quadsync.
 # ARGS: none
 # EX: [QUADSYNC_RUN][/QUADSYNC_RUN]
 []',

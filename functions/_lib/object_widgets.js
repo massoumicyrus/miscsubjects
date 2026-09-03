@@ -1,8 +1,3 @@
-// Object projections (2026-07-28): the lead/asset object rendered at three zoom levels —
-// row, card, action surface — each a projection over existing tables (one query, one
-// renderer; the one route is functions/api/objects/[[path]].js). No new subsystem.
-// Used by the article body pipeline ([[object:...]] embeds render live at page load,
-// because the page function runs the query per request) and by the objects route.
 import { buildNowIso } from './build_time.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

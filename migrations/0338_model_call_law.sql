@@ -1,12 +1,3 @@
--- 0338: Model Call Law. Owner law, 2026-07-30.
---
--- Cause: prompts embedded in JavaScript forced a deploy per wording change, so every
--- prompt experiment cost a turn instead of a second. Measured on the run that triggered
--- this: 2m11s per call against a ~125s edge budget, 6 of 18 calls were Cloudflare error
--- pages recorded as model silence, ~40 minutes of polling for ~18 seconds of model time.
---
--- The law makes the fast path the only path: prompt in the directory, call as one JSON
--- object through /api/invoke, batch in parallel, hard timeout, errors named not silent.
 
 INSERT INTO laws (key, level, category, rule, rationale, binding_on, added_by, added_at, enabled)
 VALUES (

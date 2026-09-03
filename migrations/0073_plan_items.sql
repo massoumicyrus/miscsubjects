@@ -1,6 +1,3 @@
--- 0073_plan_items.sql — the planning board. One row per task, grouped by lane.
--- Read at /plan, driven by /api/plan, and injected into the council so the models
--- (incl. Grok) see the owner's live task list when he talks through planning in the group.
 CREATE TABLE IF NOT EXISTS plan_items (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   text        TEXT NOT NULL,

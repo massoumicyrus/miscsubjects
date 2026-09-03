@@ -1,23 +1,10 @@
 #!/usr/bin/env node
-// DEPLOY BLOCKER: the direct-SQL bypass must be refused by the running site, not only by a unit test.
-//
-// WT-0039. D1_EXEC accepted any write to the content database, so `UPDATE work_tasks SET
-// state='completed'` closed a task with no acceptance test run and no audit row appended, and a write
-// to work_actions could edit the hash chain that exists to prove nothing was edited.
-//
-// This fires the real statements at the live dispatch endpoint with the owner's key — the most
-// privileged caller there is — and requires each one to come back refused. A unit test proves the
-// function refuses; only this proves the deployed lane does. It also checks that a harmless write to
-// an ungoverned table still works, because a guard that refuses everything is not a guard, it is an
-// outage.
 
 import { spawnSync } from 'node:child_process';
 
 const BASE = process.env.WORK_BASE || 'https://miscsubjects.com';
 const KEY = process.env.TERMINAL_KEY || '';
 
-// Statements that used to succeed. None of them may run. Each is a no-op even if the guard is gone:
-// the WHERE clauses match nothing, so a regression is caught without damaging a row.
 const MUST_REFUSE = [
   ["UPDATE work_tasks SET state='completed' WHERE id='WT-GATE-NO-SUCH-TASK'", 'work_tasks'],
   ["DELETE FROM work_actions WHERE task_id='WT-GATE-NO-SUCH-TASK'", 'work_actions'],

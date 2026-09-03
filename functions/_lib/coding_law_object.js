@@ -1,22 +1,3 @@
-// THE CODING LAW — a hash when the work starts, a hash when the work commits.
-//
-// Owner order 2026-08-05, from an Anthropic DevCon talk describing how their agent platform binds
-// coding agents: the model takes a hash when it begins work and submits a hash when it commits.
-//
-// The failure this stops is specific and it has happened in this build repeatedly. Two agents read
-// the same file at the same version. Both edit from that version. The second one to commit erases
-// the first one's work, and nothing anywhere notices, because each commit is individually valid and
-// each agent's diff applied cleanly to the version it held. The loss is only discovered later, when
-// someone asks why a fix that was made is no longer there.
-//
-// Claiming a file cannot fix this on its own — a claim says "I am working here", it does not say
-// "here is the exact text I am working from". The version you read is the missing fact. Declare it
-// at the start, and at commit the server can answer the only question that matters: has anyone
-// committed this file since I read it? If yes, the write is refused and you re-read. A refusal is
-// the law working, not the law failing.
-//
-// This object is the canonical text. The page, the markdown, the Skill, the directory rows and the
-// enforcement endpoint are all projections of it.
 
 import {
   createKnowledgeActionObject,
@@ -218,7 +199,7 @@ export const CODING_LAW_OBJECT = createKnowledgeActionObject({
       {
         version: "1.1.0",
         change:
-          "Added the Concurrency family, from four separate destructions of one change in a single session: an automated pass stashing the whole working tree, pre-commit hooks reverting staged files so a commit carried a message its tree did not match, a rebase silently taking the other side of a conflict, and git add -A sweeping other sessions' in-flight work into unrelated commits. Each clause names the observation rather than the principle. Added the Reporting family on owner order the same day — he could not tell from a report what was still outstanding, so an OUTSTANDING block is now the last thing in every response and says none when it is none.",
+          "Added the Concurrency family, from four separate destructions of one change in a single session: an automated pass stashing the whole working tree, pre-commit hooks reverting staged files so a commit carried a message its tree did not match, a rebase silently taking the other side of a conflict, and git add -A sweeping other sessions' in-flight work into unrelated commits. Each clause names the observation rather than the principle. Added the Reporting family on rule the same day — he could not tell from a report what was still outstanding, so an OUTSTANDING block is now the last thing in every response and says none when it is none.",
       },
       {
         version: "1.0.0",
@@ -336,7 +317,7 @@ curl -s -X POST https://miscsubjects.com/api/coding-law/commit \\
 
 ## Every report ends with OUTSTANDING
 
-Owner order 2026-08-06: "your output also makes it so i dont know what you have outstanding… I cant
+"your output also makes it so i dont know what you have outstanding… I cant
 fucking parse your output." The last thing in every response you write is this block:
 
 \`\`\`

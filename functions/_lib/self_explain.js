@@ -521,10 +521,6 @@ export function selfMarkdown(widgetId, ctx = {}) {
   lines.push("- JSON: " + s.system_map);
   lines.push("- Markdown: " + s.system_map_markdown);
   lines.push("");
-  // §STRUCTURE / §INTEGRITY / §GAUNTLET — identical on every surface, human and
-  // machine (owner brief 2026-07-25). The two clauses are byte-verbatim
-  // constants. §STRUCTURE inlines live numbers when ctx.structure is supplied,
-  // else points at the live index — it never prints a guessed number.
   lines.push("### §STRUCTURE");
   lines.push(structureSelfBlock(ctx.structure && ctx.structure.metrics));
   lines.push("");

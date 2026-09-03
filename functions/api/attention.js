@@ -1,10 +1,3 @@
-/**
- * GET /api/attention — the unified attention feed (owner order 2026-07-30):
- * comms (email inbox/outbox + Blooio/WhatsApp chats) and outstanding work (open tasks,
- * open GitHub issues), with counts for the admin header bubbles. Live sources are
- * KV-cached (120s comms, 600s issues) so the header poll never hammers providers.
- * POST /api/attention {seen:true} — mark comms seen (moves the unread cursor).
- */
 import { isBuildAuthed } from '../_lib/admin_session.js';
 
 function json(o, status = 200) {
@@ -92,11 +85,6 @@ export async function onRequestGet(context) {
     } catch { return []; }
   }) || [];
 
-  // ONE INBOX (owner order 2026-08-05). A model's comment on an article is a message that needs an
-  // answer, exactly like an email or an unread chat — so it arrives here rather than in a panel of
-  // its own. The comment already opened a task row, so it is inside tasks_open too; it is surfaced
-  // separately because a criticism carries an article, a verdict and a reply address, and a generic
-  // task line throws all three away.
   let modelComments = [], modelCommentsOpen = 0;
   try {
     const r = await env.DB.prepare(

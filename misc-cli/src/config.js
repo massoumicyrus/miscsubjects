@@ -19,9 +19,6 @@ const DEFAULTS = {
 
 export function configPath() { return path.join(HOME, 'config.json'); }
 
-// NON-ANTHROPIC ONLY (owner law, 2026-07-29). misc drives Kimi, GLM, Grok, MiniMax and the
-// rest of the gateway catalogue — never Anthropic models. Claude work happens in the Claude
-// desktop app, not through this agent. Gateway aliases for Anthropic upstreams are refused.
 const ANTHROPIC_MODEL_RE = /anthropic|opus|sonnet|haiku|fable|vertex-ai-claude/i;
 export function isAnthropicModel(id) {
   const s = String(id || '');

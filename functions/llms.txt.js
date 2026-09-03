@@ -15,25 +15,13 @@ import { corpusCounts } from "./_lib/corpus_counts.js";
 
 const SITE = "https://miscsubjects.com";
 
-// The COMPLETE self-description of this site, one string. The root page embeds it verbatim
-// (owner order 2026-08-03: a model asked "what is miscsubjects.com" from the root domain
-// alone must come away 100% accurate — tokens, proof objects, workspace, ledger, offer).
 export async function buildLlmsTxtBody(env) {
-  // THE IDENTITY IS A SETTING, NOT COPY (owner order 2026-08-03: "the root explains the
-  // current site identity ALWAYS"). One D1 row — settings.site_identity_drop — is the
-  // single source of truth; it renders FIRST here and on the root page, so updating the
-  // setting updates what every landing model learns, with no deploy and no drift.
   let identityDrop = '';
   try {
     const row = await env.DB.prepare("SELECT value FROM settings WHERE key='site_identity_drop'").first();
     identityDrop = String(row?.value || '').trim();
   } catch {}
 
-  // LIVE COUNTS (outside-model finding 2026-08-03: llms.txt said 1,015 while /latest said
-  // 1,108 and the grounding endpoint 1,137 — canonical-state drift a cold model reads as
-  // contradiction; recurred 2026-08-08 when the homepage feed block grew its own count).
-  // The ONE canonical query now lives in _lib/corpus_counts.js and every surface that
-  // displays a number imports it — never a local variant of the same SQL.
   let liveCounts = { articles: 0, claims: 0, grounded_pct: null };
   try {
     liveCounts = await corpusCounts(env);

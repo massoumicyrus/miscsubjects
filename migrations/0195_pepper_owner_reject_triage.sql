@@ -1,4 +1,3 @@
--- 0195: Never route the owner to PEPPER lead agent; thumbs-down = immediate ledger triage.
 UPDATE directory SET content = REPLACE(content,
 'PEPTER SIGNUP ROUTING — when someone (not the owner) texts about peptides, the landing page, or seems to be a new signup from ads, route to PEPPER instead of handling yourself.
 When to route: [PEPPER]context[/PEPPER] — the user text about peptides or the landing page.

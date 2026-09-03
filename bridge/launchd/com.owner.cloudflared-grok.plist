@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.the owner.cloudflared-grok</string>
+  <string>com.owner.cloudflared-grok</string>
 
   <key>ProgramArguments</key>
   <array>

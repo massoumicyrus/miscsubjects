@@ -1,14 +1,3 @@
-// One place to decide whether a failed read was the infrastructure pushing back.
-//
-// Three gates independently reported D1 backpressure as a finding about the corpus on
-// 2026-09-02: PLAIN_LANGUAGE_LAW printed "an article is written in encyclopedia register" for
-// prose it never fetched, SOURCE_QUOTE_LAW printed "repair the data; do not raise the ceiling"
-// for a 7429, and the migration runner called an unparseable body a failed statement. Each one
-// sends the next reader to fix something that was never broken, which is worse than no gate.
-//
-// The rule this encodes: a gate that could not read its subject has not judged its subject.
-// It blocks the ship — silence is never a pass — but it says the read failed and exits 2, and
-// the caller is expected to treat 2 differently from a real violation.
 
 // D1 answers 7429 "requests queued for too long" under load, the account's REST endpoint
 // answers 7500 "internal error" in bursts, and the edge sometimes answers with a bare error

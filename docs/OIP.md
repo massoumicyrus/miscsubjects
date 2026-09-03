@@ -151,8 +151,6 @@ cd /Users/owner/miscsubjects-pages
 wrangler pages deploy public --project-name=loop-safe-miscsubjects
 ```
 
-GitHub: `[OWNER_HANDLE]/miscsubjects-pages` branch `main`.
-
 Commits: `18148f2` (OIP v0.1 core), `2a01792` (protocol logging + token yield).
 
 ---
@@ -324,14 +322,6 @@ protocol now answers them itself, on every surface a model reads, before it can 
 edge-to-metal, hash-chain, multi-tenant isolation), `product` (assemble-by-hand, "sent it",
 tokens-go-bad, "I can only read", thin receipts, key-guessing, duplicate sends, amnesia,
 describe-instead-of-act), `meta` (is-it-optimal, harden-multi-tenant-next).
-
-**Wired into every first-read surface** so the answer arrives before the complaint:
-- `?orient=1` → `before_you_critique` + `read_more.why`
-- `/api/handoff` (unified §HANDOFF) → START HERE "BEFORE YOU CRITIQUE THE DESIGN" + a LIVE ENTRY POINT
-- `?map=1` (OIP tree) → `root_documents.why`
-- `/oip?agent` (machine brief) → a "Before you critique the design — read §WHY" move
-- `?help=1` manifest → `endpoints.why`
-- `?ask=<critique>` → detects a design question and returns `design_rationale.open` pointing at `?why=1`
 
 **The rule it encodes** (matching the owner's standing order): do not volunteer security / risk /
 best-practice lectures; if something is genuinely patchable, offer the fix in one line then drop it;

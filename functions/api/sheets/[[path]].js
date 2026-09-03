@@ -1,50 +1,3 @@
-// /api/sheets — the Google-Sheets-shaped REST lane over stored grids (WT-0092).
-//
-// A sheet is a bounded grid of A1-addressable cells. Directory and Ledger render as sheets
-// in the workbook UI but live in their own tables with their own REST (documented in the
-// contract below); THIS namespace stores only user-created sheets.
-//
-//   GET    /api/sheets                          -> this contract (public) + your sheets (authed)
-//   POST   /api/sheets            {title}       -> create a sheet
-//   GET    /api/sheets/<id>                     -> meta: title, size, used range, col_meta, runs
-//   PATCH  /api/sheets/<id>       {title|col_meta|rows|cols}
-//   DELETE /api/sheets/<id>
-//   GET    /api/sheets/<id>/values/A1:C10       -> {range, values[][]}   (values.get)
-//   PUT    /api/sheets/<id>/values/A1 {values}  -> write anchored there  (values.update)
-//   POST   /api/sheets/<id>/values:append {values}                       (values.append)
-//   POST   /api/sheets/<id>/clear  {range}                               (values.clear)
-//   POST   /api/sheets/<id>/batch  {requests:[{op,at,n}|{op,from,to}]}   (batchUpdate: insert_rows,
-//                                   delete_rows, insert_cols, delete_cols, move_col, move_row)
-//   GET    /api/sheets/<id>/export.csv
-//   GET    /api/sheets/<id>/runs                -> saved model-run configs (versions)
-//   POST   /api/sheets/<id>/runs   {name, config}
-//   DELETE /api/sheets/<id>/runs/<rid>
-//   POST   /api/sheets/<id>/run-row {config|config_id, rows:[2,3], shape?} -> run ≤20 grid rows
-//          through POST /api/invoke's engine in one round trip; writes request/response/text cells
-//
-// FORMULAS. A written value beginning with = is an expression. The computed answer is stored in
-// the cell, so every reader sees a plain value; the expression is kept beside it and re-evaluated
-// whenever a cell it reads changes. Dependencies are read out of the text — filling a formula
-// down a column needs no wiring.
-//
-//   =BL2*3                                    arithmetic over references
-//   =SUM(M2:M400)                             ranges
-//   =IF(A2>100,"over","under")                only the taken branch is evaluated
-//   =DISPATCH("LEADS_ENRICH", A2)             call any of the 976 tools from a cell
-//   =D1QUERY("SELECT COUNT(*) FROM articles") a live figure instead of a stale one
-//   =SEARCH("durable objects", 5)             ranked hits across articles and the directory
-//   =SEARCHCOUNT(BP2)                         how many things match what is in BP2
-//
-// Also: COUNT COUNTA AVERAGE MIN MAX ROUND ABS AND OR NOT CONCAT JOIN LEN LEFT RIGHT MID UPPER
-// LOWER TRIM VALUE. Bounded on purpose — 8 levels of nesting, 500 cells recalculated per write,
-// 3 rounds of cascade. An error shows in the cell (#ERROR, #DIV/0, #NAME?) rather than failing
-// the write, the way a spreadsheet does.
-//
-// NOT here, deliberately: charts, pivots, conditional formatting, array spilling, volatile
-// functions. Those make a document pretty and do nothing for a model.
-//
-// Auth: reads and writes need an admin cookie or `authorization: Bearer <TERMINAL_KEY>`;
-// the bare GET contract is public so any model can learn the lane without a key.
 
 import { isBuildAuthed } from '../../_lib/admin_session.js';
 import { logEvent } from '../../_lib/event_log.js';
@@ -154,7 +107,7 @@ function contract(base) {
       files_hygiene: 'the Files kind lists build code only — machine artifacts (ledger-mirror/ event mirrors, .protected/ guardian snapshots) are excluded from the corpus feed.',
     },
     url_state: {
-      what: 'Every workbook view state is a link (owner order 2026-08-30). Kind tabs, filters, sorts and the active cell serialize into the URL and a pasted link restores the exact view; every populated cell is an addressable particle of its object.',
+      what: 'Every workbook view state is a link. Kind tabs, filters, sorts and the active cell serialize into the URL and a pasted link restores the exact view; every populated cell is an addressable particle of its object.',
       params: {
         tab: 'sheet id (user sheets, turns, forum)',
         kind: 'directory kind tab: agent | tool | flow | content | page | file | other | code',

@@ -1,8 +1,3 @@
----
-name: skill-law
-description: Apply the miscsubjects Laws of Skills when deciding whether something becomes a skill, before creating or editing any skill, when judging a skill edit, when a failure or owner correction repeats, or when importing an external skill.
----
-
 # Apply the Laws of Skills
 
 This Skill is the model-operating expression of [the human article](/a/skill-law). Read the canonical object at /api/articles/skill-law when exact clauses or provenance are needed.
@@ -21,7 +16,6 @@ A skill is the build's memory of a failure it refuses to repeat. Unwritten memor
 ## Operate
 
 1. Search both skill trees for the concern before writing anything new.
-2. Capture the failing exhibit: the ledger event, owner correction, or wrong output.
 3. If a mechanical gate can block the failure, build the gate; keep prose for judgment only.
 4. Write or edit the smallest clause that prevents the failure; one concern per skill.
 5. Sync the sibling tree in the same change; claim shared files before editing.

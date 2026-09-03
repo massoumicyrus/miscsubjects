@@ -37,21 +37,6 @@ export function extractBodyLinks(body) {
   return { wiki: [...wiki], typed: [...typed] };
 }
 
-// Full corpus link graph. Edge kinds: embed (meta.embeds), link (markdown /a/
-// links typed in the body), wikilink ([[slug]] typed in the body).
-//
-// EDGES ARE READ, NOT DERIVED. This function used to SELECT `body` for every
-// article and regex it here. At 2,317 published articles that moved ~90 MB into
-// the isolate and every caller — /api/articles/graph-links, graph-lint,
-// next-acts and obsidian-vault — answered "error code: 1102". The whole graph
-// layer was unreachable on the live corpus while still passing as built.
-//
-// Edges now come from article_links, written one article at a time at the write
-// path (functions/_lib/article_links.js, migrations/0349_article_links.sql).
-// Node facts are computed by D1 and returned as scalars, so a body is never
-// transferred. The per-claim counts lint needs are gathered in rowid windows —
-// a single json_each over the whole corpus trips D1's JSON expander on the
-// widest articles. Windows are paging, not sampling: every row is visited.
 const CLAIM_WINDOW = 400;
 
 async function claimFindings(env) {
@@ -85,8 +70,6 @@ async function claimFindings(env) {
       bump(x.slug, "open_challenges", x.challenged);
     }
     /* eslint-disable-next-line no-empty */
-    // Loop-law "The why travels with the write": provenance entries dated after
-    // the law (1.2.0, 2026-08-03) with no why are lint findings.
     const p = await env.DB.prepare(
       `SELECT a.slug AS slug, COUNT(*) AS missing_why
          FROM articles a, json_each(a.meta,'$.provenance') pv
@@ -120,14 +103,6 @@ export async function buildLinkGraph(env, opts = {}) {
   ).all();
   const articles = rows.results || [];
 
-  // A malformed shape inside one row must not take the graph down. json_each hands
-  // back a claims element as raw text when the element is a string rather than an
-  // object, and json_extract then tries to parse that text as JSON and raises
-  // "malformed JSON" for the whole statement — which is exactly how three published
-  // articles with prose in their claims array took graph-links, graph-lint,
-  // next-acts and obsidian-vault to a 500 on 2026-08-06. The element-type guards in
-  // claimFindings are the fix; this is the belt, so a shape nobody predicted costs
-  // the lint counts and not the graph.
   let findings = {};
   if (opts.enrich !== false) {
     try {
@@ -248,8 +223,6 @@ export async function graphLint(env, opts = {}) {
     unsourced_claims: unsourced.slice(0, 100),
     open_challenges: contested,
     stale,
-    // Loop-law "The why travels with the write" — consequential writes (post
-    // 2026-08-03) whose provenance entry has no why.
     missing_why: missing_why.sort((a, b) => b.missing_why - a.missing_why),
   };
 }

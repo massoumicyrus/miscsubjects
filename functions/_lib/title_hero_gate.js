@@ -15,20 +15,6 @@ const CONTEXT_DEPENDENT_TITLE = [
 const DECORATIVE_TITLE = /\b(revolutionary|game[- ]changing|category[- ]defining|frontier|substrate|ecosystem|paradigm|cutting[- ]edge|groundbreaking|unprecedented|remarkable|fascinating|profound|elegant|beautiful|powerful|robust|seamless|unlock|empower|transformative)\b/i;
 const OVERLOADED_TITLE_LENGTH = 115;
 
-// ─────────────────────────── THE HEADLINE NAMES ITS SUBJECT ───────────────────────────
-//
-// Owner, 2026-08-04, on "BDNF-P21: the compound is P021, and every result is a mouse fed it in its
-// diet": "the peptide is the peptide. If there are human studies, there are human studies. If
-// there's rat studies, there's rat studies. The fact that you put it in the headline shows that you
-// have zero understanding of what I am wanting to represent."
-//
-// And on "Tirzepatide: 20.9% of body weight at 72 weeks, and what happens when the injections stop":
-// "it's almost like it's a clickbait headline… This is not the daily mail. I'm not making headlines
-// that are designed to shock people. The idea is to deliver maximal value."
-//
-// The model he gave: name the thing and say what it IS. "Here's tirzepatide, it's a dual agonist."
-// "Here's retatrutide, the triple agonist." The headline identifies the object. Two things it is
-// therefore never allowed to carry:
 
 // 1. THE EVIDENCE STATE. What kind of evidence exists is a property of the evidence, reported in
 //    the body under its own tier. It is not a description of the compound and never the headline.
@@ -109,26 +95,6 @@ export function checkTitle(title) {
   return null;
 }
 
-// Negative instructions are intentionally removed before checking for banned rendered
-// surfaces. A prompt that says "no readable text" must not fail because it names text.
-// A BRIEF IS JUDGED ON WHAT IT ASKS FOR, NOT ON WHAT IT FORBIDS.
-//
-// This used to strip negations from a fixed vocabulary — text, labels, people, UI, logos — and the
-// banned-subject checks below run over a different vocabulary: mice, vials, wax seals. So a brief that
-// ended "no people, no vials, no mice, no laboratory equipment" was refused for proposing mice as its
-// subject. It was forbidding mice. The 2026-08-05 tesofensine brief was refused on exactly that.
-//
-// It is the same defect the work object's acceptance runner had: a test whose outcome does not depend
-// on what it means to measure. Here the needle was the author's own exclusion.
-//
-// So the stripper no longer enumerates nouns. It removes a negation cue plus the words it governs,
-// whatever they are, bounded to four words so a cue cannot swallow the positive brief that follows it.
-// The bound makes the failure direction safe: "no people, vials, mice" loses only "no people", and
-// "vials, mice" is still caught — the gate under-strips rather than going blind. Writing a cue before
-// each item ("no vials, no mice") is both what the stripper honours and the clearer way to write it.
-// The run stops at the first comma or full stop, so one cue governs one item and cannot reach across
-// a list to swallow the next. "no people, vials" strips only "no people" — "vials" is still judged,
-// because it was asked for. Write a cue before each item you mean to exclude.
 const NEG_ITEM = String.raw`(?:any\s+)?(?:readable\s+)?[A-Za-z-]+(?:\s+[A-Za-z-]+){0,3}`;
 const NEGATION_CUE = new RegExp(String.raw`\b(?:no|without|avoid|avoiding|never|excluding|omitting|omit|free of|absent)\s+` + NEG_ITEM, 'gi');
 const NEGATION_IMPERATIVE = new RegExp(String.raw`\b(?:do not|don't|must not|should not)\s+(?:show|include|render|use|depict|feature)\s+` + NEG_ITEM, 'gi');
@@ -142,11 +108,6 @@ function positivePromptText(brief) {
 const RENDERED_INTERFACE = /\b(dashboard|data table|spreadsheet|rows? and columns?|terminal window|command line|code editor|browser ui|app ui|ui collage|scorecard|infographic|flowchart|json panel|monospace layout|rendered article text|wall of text)\b/i;
 const GENERIC_AI = /\b(generic (?:ai|artificial intelligence)|glowing (?:robot|brain)|robot brain|circuit brain|neural[- ]network nodes?|humanoid robot|digital brain|abstract ai|ai face|blue technology background)\b/i;
 
-// ── THE IMAGE SHOWS THE SUBJECT, NOT THE METHOD THAT STUDIED IT (owner, 2026-08-04) ──
-//
-// /a/bdnf-p21 shipped a photograph of a laboratory mouse in a cage. Owner: "a mouse has nothing to
-// do with the peptide… you fundamentally misunderstand." The animal a study was run in is a fact
-// about the study, exactly as it is in a headline. It is not what the compound looks like.
 const LAB_ANIMAL_SUBJECT = /\b(mouse|mice|rat|rats|rodents?|cage|vivarium|lab animal|laboratory animal|guinea pig|zebrafish|petri dish|test tube rack|pipette)\b/i;
 
 // A vial, a tray, a loading dock: things that could illustrate any compound and therefore
@@ -273,11 +234,6 @@ export function auditEditorialArticle(article = {}) {
     }
   }
 
-  // A PUBLISHED ARTICLE HAS A FEATURED IMAGE (owner, 2026-08-04): "there's three recent articles
-  // that went up where there's no featured image… when you make a new article, you should put an
-  // image on it." It was ten, not three — every condition article published that day shipped with
-  // no hero, because nothing anywhere required one. The audit only ever asked whether an EXISTING
-  // hero was any good, which is silent about the article that has none.
   if (!String(article.hero || '').trim()) {
     issues.push(issue('hero_missing', 'the article is published with no featured image', {
       replacement: 'Generate a hero that shows this article\'s own subject, inspect it, and record the '

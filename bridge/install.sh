@@ -1,11 +1,4 @@
 #!/bin/bash
-# Phase C consolidated — one command to take the bridge from "code in repo" to
-# "running under launchd, tunnel up, smoke-test passing". Idempotent.
-#
-# Run on the owner's Mac, from anywhere:
-#   ~/miscsubjects-pages/bridge/install.sh
-#
-# Requires: brew + node + npm + npx + wrangler + jq + openssl on PATH.
 
 set -euo pipefail
 
@@ -44,15 +37,15 @@ pkill -f "node ${BRIDGE}/server.js"           2>/dev/null || true
 
 echo "[install] 5/7 copy + reload launchd plists"
 mkdir -p "$LAUNCHD"
-cp launchd/com.the owner.grok-bridge.plist     "$LAUNCHD/"
-cp launchd/com.the owner.cloudflared-grok.plist "$LAUNCHD/"
-launchctl unload "$LAUNCHD/com.the owner.grok-bridge.plist"     2>/dev/null || true
-launchctl unload "$LAUNCHD/com.the owner.cloudflared-grok.plist" 2>/dev/null || true
+cp launchd/com.owner.grok-bridge.plist     "$LAUNCHD/"
+cp launchd/com.owner.cloudflared-grok.plist "$LAUNCHD/"
+launchctl unload "$LAUNCHD/com.owner.grok-bridge.plist"     2>/dev/null || true
+launchctl unload "$LAUNCHD/com.owner.cloudflared-grok.plist" 2>/dev/null || true
 # kill bare cloudflared too, launchd takes over
 pkill -x cloudflared 2>/dev/null || true
 sleep 1
-launchctl load "$LAUNCHD/com.the owner.grok-bridge.plist"
-launchctl load "$LAUNCHD/com.the owner.cloudflared-grok.plist"
+launchctl load "$LAUNCHD/com.owner.grok-bridge.plist"
+launchctl load "$LAUNCHD/com.owner.cloudflared-grok.plist"
 
 echo "[install] 6/7 wait for bridge to come up"
 for i in 1 2 3 4 5 6 7 8 9 10; do
@@ -74,8 +67,8 @@ echo "[install]     /exec  → $(echo "$EXEC" | jq -c '{ok, exit, stdout: (.stdo
 cat <<EOF
 [install] done.
   env file:        $ENV_FILE
-  launchd bridge:  $LAUNCHD/com.the owner.grok-bridge.plist
-  launchd tunnel:  $LAUNCHD/com.the owner.cloudflared-grok.plist
+  launchd bridge:  $LAUNCHD/com.owner.grok-bridge.plist
+  launchd tunnel:  $LAUNCHD/com.owner.cloudflared-grok.plist
   Pages secret:    TERMINAL_KEY set on $PROJECT
 
 ONE manual macOS step remaining (the OS will pop dialogs on first call —

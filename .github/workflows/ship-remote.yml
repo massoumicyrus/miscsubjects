@@ -1,9 +1,3 @@
-# REMOTE SHIP for the Skill Evidence Graph branch work (2026-08-28). Dispatch-only.
-# Applies exactly the four new migrations to their correct databases, deploys Pages,
-# seals the transparency chain (which activates Merkle checkpoints + signatures), and
-# mints ONE bounded act-scope capability delivered as a private artifact — never echoed
-# to the log — so the dispatching session can run the demonstration loop with recorded,
-# expiring, budgeted authority instead of the owner's key.
 name: ship-remote
 on:
   workflow_dispatch: {}

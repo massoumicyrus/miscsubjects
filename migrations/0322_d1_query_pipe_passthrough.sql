@@ -1,9 +1,3 @@
--- Ledger audit 2026-07-22: the single largest systemic failure class was SQL truncated by the
--- dispatch pipe-split. D1_QUERY used the template ["$1"] — only the text before the first "|"
--- reached the database, so any SELECT containing "|" or "||" (concatenation, string literals,
--- bitwise) executed a truncated fragment and returned a D1 syntax error. Hundreds of failures.
--- Fix: pass the whole SQL through with ["$1+"] (args rejoined with "|"), matching how D1_EXEC and
--- the voxel rows already work. D1_QUERY takes no bind parameters, so full passthrough is correct.
 UPDATE directory
 SET content =
 '# WHAT: Run a SELECT query on the D1 database.

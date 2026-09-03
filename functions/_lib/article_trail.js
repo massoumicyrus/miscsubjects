@@ -1,21 +1,3 @@
-// The trail bar: where you are, and the folder you can take away from here.
-//
-// WHY IT EXISTS. Every download this renders already worked before 2026-08-06 —
-// article .md, article folder .zip, tag folder .zip, whole-site folder .zip. All
-// of it was reachable only by knowing the URL, or by three plain-text links in
-// the article footer below the sources. A capability nobody can find is
-// indistinguishable from one that was never built, which is why the owner asked
-// twice for downloads that already existed.
-//
-// TAXONOMY. The middle crumb is the article's primary tag, not meta.category:
-// 2,235 of 2,317 published articles have no category, and the handful that do
-// disagree with themselves ("Governance" and "governance", "system" and
-// "systems"). Tags cover 2,174 of 2,317, and listCollections() in
-// object_folder.js already buckets the corpus by tag — so the tag IS the folder,
-// and the breadcrumb names the same thing the download hands you.
-//
-// No JavaScript. The menu is <details>, so it works with scripting off and
-// cannot break the reading surface.
 
 function esc(s) {
   return String(s == null ? "" : s).replace(
@@ -34,9 +16,6 @@ export function primaryTag(meta) {
   return first ? String(first).toLowerCase() : null;
 }
 
-// One row per scope. Each names the scope, then every representation of it, so
-// the same gesture works at article, tag and site level — the folder-of-folders
-// the owner described.
 function scopeRow(label, note, links) {
   return (
     `<div class="trail-scope"><div class="trail-scope-head">${esc(label)}` +

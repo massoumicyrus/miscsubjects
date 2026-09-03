@@ -1,7 +1,3 @@
-// POST /api/inquire — the public inquiry loop. A visitor (human or an AI acting for one)
-// describes the work they want run; the inquiry lands in D1 and reaches the build's inbox
-// as one tracked email whose send carries the owner BCC mechanically (injectOwnerBcc).
-// GET describes the endpoint so a model reading the API can use the form path too.
 import { injectOwnerBcc } from './email/send.js';
 import { logEvent } from '../_lib/event_log.js';
 

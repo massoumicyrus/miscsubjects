@@ -50,8 +50,6 @@ The Wrangler CLI exposes things the Cloudflare REST API does not (tail, deploys,
 - https://github.com/cloudflare/sandbox-sdk — sandboxed code execution
 - https://github.com/cloudflare/cloudflared — Tunnel daemon
 
-## Cloudflare-related agent skills loaded in this session (per your "keep mentioning" rule)
-
 Callable via the `Skill` tool — they bias toward retrieval from live Cloudflare docs over my pre-trained knowledge.
 
 - `cloudflare` — comprehensive platform reference: Workers, Pages, KV, D1, R2, Workers AI, Vectorize, WAF, Tunnel, Spectrum, Terraform, Pulumi

@@ -1,24 +1,3 @@
-// LEDGER TRANSPARENCY CHAIN (owner order 2026-07-17, ships obj-136).
-//
-// The problem it closes: "trust bottoms out at the operator's database." A hash chain proves
-// nobody tampered ONLY if the head is committed somewhere the operator cannot silently rewrite.
-// The answer: publish the full chain at a keyless route, and anchor the head in a DKIM-signed
-// email — a commitment attested by a provider (Gmail etc.) who is not the operator. To verify
-// immutability: fetch the head, fetch the leaves, recompute the head, verify the DKIM signature
-// on the anchoring email against the archived selector key, compare heads byte-for-byte.
-//
-// Transparency-log design (no secret leak): each leaf commits to its event's CONTENT via a
-// content_digest (sha256 of the stored request/response); the public leaves endpoint serves the
-// digest, never the raw payload. The chain proves append-only consistency; the leaf commits to
-// content that authorized parties audit separately. Any tamper — edit, reorder, delete — changes
-// a leaf, changes the head from that point on.
-//
-// Routes (all GET keyless except seal):
-//   GET  /api/chain            → the checkpoint chain + head + the recompute recipe
-//   GET  /api/chain/head       → the current head (the string a DKIM email commits to)
-//   GET  /api/chain/leaves?after_ts=&after_id=&limit= → paginated canonical leaves for recompute
-//   GET  /api/chain/verify?head=<claimed> → recompute the checkpoint chain, compare
-//   POST /api/chain/seal       → (owner / master token) fold new events, append a checkpoint
 import { isBuildAuthed } from '../../_lib/admin_session.js';
 import { homePrivateJwk } from '../../_lib/oip_federation.js';
 import { publicJwkFromPrivate } from '../../_lib/oip_envelope.js';

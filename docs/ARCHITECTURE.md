@@ -141,14 +141,6 @@ Two workflows remain after the cron cutover:
 
 Inbound webhook URLs map to handlers; outbound is routed by `SEND_BY_CHANNEL` or the channel-specific sender.
 
-| Channel | Inbound URL | Build phone / id | Webhook handler file | Outbound sender | Outbound directory key |
-|---|---|---|---|---|---|
-| Bloo io (iMessage) | `POST /blooio` | `[BUILD_PHONE]` | `functions/blooio.js` (3-line shim → `webhook_intake.js`) | `sendBlooio(env, chat, text, media)` | `BLOOIO` (target_map for chat actions) |
-| 2chat (WhatsApp) | `POST /2chat` | `[PHONE]` | `functions/2chat.js` (3-line shim) | `send2chat(env, chat, text, imgs)` | `TWOCHAT_SEND` |
-| Telegram | `POST /telegram` (secret-token-gated) | bot token | `functions/telegram.js` (3-line shim) | `sendTelegram(env, chat, text, media)` | (sendTelegram direct; no row) |
-| Meta CAPI (server-side events) | n/a (outbound only) | — | — | inline in `functions/capi.js` + `META_CAPI_EVENT` flow | `META` (target_map) |
-| Voice (Grok STT/TTS + OpenAI TTS/whisper) | n/a | — | — | `VOICE_SEND` (synthesize + post), `GROK_STT`/`VOICE_TRANSCRIBE` (audio in) | `VOICE_SEND`, `VOICE_SAY`, `GROK_TTS`, `GROK_STT`, `VOICE_TRANSCRIBE` |
-
 All three text channels share one collapsed intake (`functions/_lib/webhook_intake.js`):
 
 1. `logEvent` — full raw to `LEDGER.events` with `source = <channel>`.

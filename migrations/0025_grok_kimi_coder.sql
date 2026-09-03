@@ -8,7 +8,6 @@ INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES
  ('grok_model','grok-4.3', datetime('now')),
  ('grok_web_search','1', datetime('now'));
 
--- One explicit routing line so ROUTER hands code questions to CODER (the owner-requested).
 UPDATE directory
 SET content = content || char(10) ||
  'For any question about THIS build''s code, architecture, or files, call [CODER]<the request>[/CODER]. CODER reads the whole repo and proposes edits; relay its summary in [REPLY].',

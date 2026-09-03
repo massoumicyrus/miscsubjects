@@ -1,36 +1,8 @@
 #!/usr/bin/env node
-// DEPLOY BLOCKER: the number of published articles with no claims can only fall.
-//
-// Owner, 2026-08-05, on /a/tesofensine and /a/slu-pp-332 shipping with "0 claims": "some articles have
-// claims, some articles dont… I dont want some to have divs, others not to have divs, some to have
-// proof of work, some not, they all should have a standardized format."
-//
-// Claims are the article's addressable surface. They become the voxel DIVs, the proof-of-work object a
-// certifier signs, the surface a token is scoped to, and the regions an outsider can challenge. An
-// article with none of them is a different kind of object from the rest of the corpus.
-//
-// The write path now refuses a new one (functions/_lib/claim_law.js), so this gate exists for the
-// backlog. 884 published articles were already in that state when the law landed. This holds that
-// number as a ceiling: it may fall, it may never rise. A ship that would add one fails.
-//
-// Set CLAIM_CEILING to lower the recorded ceiling after a backfill. Raising it is the one thing this
-// gate exists to prevent — repair the articles instead.
 
 const BASE = process.env.WORK_BASE || 'https://miscsubjects.com';
 const KEY = process.env.TERMINAL_KEY || '';
 
-// The count at the moment CLAIM_LAW landed. Every backfill lowers it.
-//
-// 884 was the first figure taken, and it was wrong in a way worth recording: it counted every published
-// article without claims, including hundreds of 59-byte stubs that are pointers rather than articles
-// making assertions. Restricted to substantial pages — over 2,400 characters, the ones that actually
-// assert things and are read — the real debt is 161. Measuring the wrong population would have made the
-// gate slack by a factor of five and let five claim-less articles ship for every one it caught.
-// Lowered to 159 when /a/tesofensine and /a/slu-pp-332 were repaired, then to 156 when /a/sciatica,
-// then to 148 when all eleven reader-facing health pages were backfilled (WT-0058 batches 1-3):
-// frozen-shoulder, tendinopathy, carpal-tunnel-syndrome, spinal-stenosis, peripheral-neuropathy,
-// plantar-fasciitis, rotator-cuff-tear, facet-joint-syndrome, sacroiliac-joint-dysfunction,
-// kisspeptin. What remains at 148 is build documentation, not reader-facing content.
 const RECORDED_CEILING = Number(process.env.CLAIM_CEILING || 147);
 
 const SQL = `SELECT COUNT(*) n FROM articles WHERE published=1

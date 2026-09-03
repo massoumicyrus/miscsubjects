@@ -1,18 +1,6 @@
 name: Vault Protection — Auto-revert unauthorized mutations
 
-# Fixed 2026-07-03 (owner order — "run failed" alert storm):
-#   1. The old path filters used [slug].js / [[path]].js literally — `[...]` is a character
-#      class in Actions glob syntax, so the filter was broken and matched routine sync pushes.
-#      Every 10-minute ledger-mirror commit triggered a false "violation" whose revert step
-#      exited 1 BY DESIGN → a failure alert on the owner's phone every cycle. Globs now use valid
-#      directory patterns; routine quadsync commits also carry [skip ci] and never start runs.
-#   2. A clean auto-revert now concludes SUCCESS (the protection WORKED) — the job fails only
-#      when it cannot revert. The revert commit carries #vault-approved [skip ci] so it can
-#      never retrigger this workflow into a revert war.
 
-# OWNER ORDER 2026-08-04: auto-revert OFF. The owner has repeatedly ordered that nothing
-# writes over build progress on its own authority — this workflow reverted commits it deemed
-# unauthorized and pushed those reverts to main. It now runs only when a human dispatches it.
 on:
   workflow_dispatch: {}
 

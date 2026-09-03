@@ -1,16 +1,8 @@
-// Self-audit endpoint (audit 2026-07-24, P2-1/P2-2): the site's core promise is "every
-// sentence on this page ends in something you can open." Nothing enforced that before this —
-// which is exactly how a homepage link to a 404 shipped. This runs the checks live, in public,
-// and gives the /careers "Protocol Conformance Engineer" role a machine target instead of a
-// posted description with no surface.
 const BASE = "https://miscsubjects.com";
 const TEST_ID_PATTERN = /^__|^TEST_ROW$|^TEST_ALL$|^AUDIT_TEST_ROW$|DUMMY|SCRATCH/i;
 
 async function checkLinks() {
   const res = await fetch(BASE + "/");
-  // Scan only real markup: the homepage builds its article feed in inline JS, and href-shaped
-  // string fragments inside <script> ('/a/' + esc(f.slug) + ') are code, not links. Scanning
-  // them produced false 404s that failed every scheduled conformance run on 2026-07-25.
   const html = (await res.text()).replace(/<script[\s\S]*?<\/script>/gi, "");
   const found = new Set();
   const hrefRe = /(?:href|src)="(\/[^"#?]*(?:\?[^"#]*)?)"/g;

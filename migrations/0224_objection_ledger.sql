@@ -1,7 +1,3 @@
--- 0224 — DB (loop-content-spine). THE OBJECTION LEDGER, live (Book IV / IX.7 compiled).
--- A model or reader objects; the owner (or the artifact) answers; the exchange is stored,
--- ledgered, and rendered inside the article + its machine JSON + its bundle — so settled
--- ground holds itself and nobody re-fights it without new load.
 CREATE TABLE IF NOT EXISTS oip_objections (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   slug        TEXT NOT NULL,

@@ -1,9 +1,3 @@
-// GET /api/drop/<model>[/<short-token>] — the per-model token drop, everything in the path.
-// Owner order 2026-08-07: ChatGPT never received a working token drop because every prior drop
-// carried query-string URLs its tool strips. This door is path-only end to end. Public: the only
-// credential it ever shows is the short-lived scoped comment token the caller itself supplied.
-// Every unknown-model hit and malformed attempt is ledgered (source 'model-door') so the cards
-// in model_doors.js are amended from observed failures, never from guesses.
 import { MODEL_DOORS, findDoor, dropCardMarkdown } from '../../_lib/model_doors.js';
 import { logEvent } from '../../_lib/event_log.js';
 

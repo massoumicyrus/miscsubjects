@@ -1,6 +1,3 @@
-# Deploys the site exactly as scripts/ship.mjs does (wrangler pages deploy public), so a session
-# without the owner's Mac can still land code live. Dispatch-only. Prints ABSENT and stops if the
-# repo has no CLOUDFLARE_API_TOKEN secret — set one to enable this lane.
 name: deploy-pages
 on:
   workflow_dispatch: {}

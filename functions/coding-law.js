@@ -11,9 +11,6 @@ import {
 import { CODING_LAW_OBJECT } from "./_lib/coding_law_object.js";
 import { KNOWLEDGE_ACTION_FACETS } from "./_lib/knowledge_action_object.js";
 import { getActiveProfile, cssVarOverride } from "./_lib/design/tokens/runtime.js";
-// EVERY PAGE A READER CALLS AN ARTICLE CARRIES THE THREAD (owner order 2026-08-05). The law pages
-// are read as articles and are linked from the footer as articles, so exempting them would have made
-// "every article" mean "every article except the ones stating the rules".
 import { renderLedgerThread, listComments } from "./_lib/article_ledger.js";
 
 const HERO = "https://miscsubjects.com/img/gen/arcads-coding-law-hash-de861fe1-7e78-4f8e-bc81-2419ac00eef2.png";

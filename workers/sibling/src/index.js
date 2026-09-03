@@ -244,9 +244,6 @@ export default {
         if (refusal) return new Response(JSON.stringify(refusal, null, 2), { status: 422, headers: { 'content-type': 'application/json' } });
       }
       try {
-        // cc/bcc pass straight through to the Email binding (max 50 combined recipients).
-        // The owner-BCC law is enforced upstream at /api/email/send — the copy rides the
-        // SAME send, never a separate after-the-fact message.
         const cc = Array.isArray(b.cc) ? b.cc.filter(Boolean) : (b.cc ? [String(b.cc)] : []);
         const bcc = Array.isArray(b.bcc) ? b.bcc.filter(Boolean) : (b.bcc ? [String(b.bcc)] : []);
         const r = await env.EMAIL.send({
@@ -390,8 +387,6 @@ export default {
       } catch {}
     })());
     ctx.waitUntil(fetch(PAGES_BASE + '/api/deliver', { method: 'POST', headers: deliverHeaders(env) }).catch(() => {}));
-    // Build to-do: run the next open task. Self-gates on KV todo_autorun (default off), so this
-    // is inert until the owner enables it. One task per tick.
     ctx.waitUntil(fetch(PAGES_BASE + '/api/dispatch', { method: 'POST', headers: dispatchHeaders(env), body: JSON.stringify({ key: 'TODO_RUN', body: '' }) }).catch(() => {}));
     // Protocol recursion tick: claim one open writer/reviewer/source_hunt job, run it, close/reopen.
     // Self-gates on KV protocol_autorun (default off). One item per tick so the 100s cap is never hit.
@@ -500,10 +495,6 @@ export default {
     const messageId = message.headers.get('message-id') || null;
     const from = cleanAddr(message.from);
     const preview = `${message.from} → ${message.to}: ${subject}`.slice(0, 240);
-    // theloopway.com, not dsco.co, because a forward has one destination and it must resolve today.
-    // dsco.co is the owner's real primary address (verified 2026-06-02); its .co delegation to
-    // ns1/ns2.dnsimple.com went lame and those servers answer REFUSED. Registrar repair, not a wrong
-    // address. See workers/sibling/src/inbound_mail.js and functions/api/email/send.js.
     const dest = env.EMAIL_FORWARD || '[OWNER_EMAIL]';
 
     // Read the raw message once and check for an OIP envelope.
@@ -544,10 +535,6 @@ export default {
       return; // handled as OIP; do not forward to the human inbox
     }
 
-    // Not an OIP message — a human writing back. Store it as a reply linked to the send it
-    // answers, classify bounce/auto-responder separately, then forward to the owner. Before
-    // this, inbound mail was ledgered as a preview line and forwarded: nothing the build could
-    // count, which is why reply rate did not exist as a number. REPLY_CIRCUIT_LAW.
     await handleInboundEmail(message, env, ctx, { raw, dest });
   },
 };

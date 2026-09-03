@@ -286,10 +286,6 @@ export function bodyNeedsReaderProse(body, meta = {}, slug = "") {
   const sources = Array.isArray(meta.sources) ? meta.sources : [];
   if (claims.length < 3 && sources.length < 3) return false;
   if (text.length < 2800) return true;
-  // A hand-written body of real length is NEVER replaced by the slot composer.
-  // (Owner law, 2026-08-02: the old "no 'Evidence inventory' string + 5 sources" and
-  // "prose_synthesized_at < updated_at" clauses silently swapped authored articles for a
-  // claims digest at render. That class of replacement is banned.)
   return false;
 }
 

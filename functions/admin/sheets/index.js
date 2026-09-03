@@ -1,27 +1,7 @@
-// /admin/sheets — the Sheets workbook (WT-0092).
-//
-// One page, many sheets, Google Sheets look and behavior: a formula bar with a name box,
-// A1 addressing, click/type/Enter cell editing, range selection, fill handle, column
-// drag-reorder and resize, per-column filters and sorts, right-click menus, TSV copy/paste,
-// undo/redo, a bottom tab strip where each tab is one sheet, and a model-run panel that
-// fills columns through POST /api/invoke's engine.
-//
-// Three sheet kinds, one grid:
-//   directory — projection of the `directory` D1 table. Cells commit via PATCH
-//               /api/directory/<key>; new grid rows POST; row deletes DELETE. `key` is the
-//               primary key so it is read-only on existing rows.
-//   ledger    — projection of LEDGER.events via /admin/ledger?data=1. Append-only upstream,
-//               therefore read-only here; filters, sorts and the raw viewer still work.
-//   user      — stored grids under /api/sheets/<id> with the full values/dimension/run lanes.
-//
-// No prompt text lives in this file (MODEL_CALL_LAW): run configs are rows in
-// sheet_run_configs, written from the panel at run time.
 
 import { shellHtml, PRIMARY_TABS } from '../_layout.js';
 
 export function workbookResponse(activeTab, activeHref) {
-  // Owner order 2026-08-29: on workbook surfaces the admin destinations live as sheet tabs
-  // in the sticky footer strip — every destination, one visible click each, none collapsed.
   const navTabs = PRIMARY_TABS.filter((t) => !['/admin/directory', '/admin/ledger', '/admin/sheets'].includes(t.href));
   const body = `
 <style>
@@ -51,7 +31,7 @@ header nav.tab-row,header nav.sub-row{display:none}
 .gs-titlebar .sp{flex:1}
 .gs-chip{font-size:11px;color:var(--gs-head-ink);border:1px solid var(--gs-border);border-radius:12px;padding:3px 10px;text-decoration:none}
 .gs-chip:hover{background:var(--gs-pill)}
-/* Sheet ⇄ Classic: the two views of the same objects, top right (owner order 2026-08-30) */
+/* Sheet ⇄ Classic: the two views of the same objects, top right */
 #gs-viewtoggle{display:none;align-items:center}
 #gs-viewtoggle .gs-chip{border-radius:0;border-right-width:0;padding:3px 12px}
 #gs-viewtoggle .gs-chip:first-child{border-radius:12px 0 0 12px}
@@ -608,7 +588,7 @@ function liveConnect(st){
 }
 function cellVal(st,dr,dc){ var row=st.vals[dr]; return row? (row[dc]==null?'':String(row[dc])) : ''; }
 
-// The ledger scrolls forever (owner order 2026-08-29): near the bottom, page in rows strictly
+// The ledger scrolls forever: near the bottom, page in rows strictly
 // older than the oldest loaded ts and append them. Filters and sorts stay client-side on top.
 function loadMoreLedger(){
   if(!T||T.kind!=='ledger'||T._noMore||T._loadingMore||!T.loaded||!T.vals.length) return;
@@ -707,7 +687,7 @@ function matchKindTab(kind, tab){
   return kind===tab;
 }
 
-/* ═══════ every view state is a link (owner order 2026-08-30, WT-0097) ═══════
+/* ═══════ every view state is a link ═══════
    Kind tab, filters, sort and the active cell serialize into the URL; a pasted link
    restores the exact view; every populated cell is addressable as ?id=<object>&field=<col>. */
 var URLSYNC={last:'',suppress:true};
@@ -776,7 +756,7 @@ function applyUrlState(){
 // workbook kind tab -> classic bigtab, so the toggle lands on the same slice of objects
 var KIND2CLASSIC={agent:'agent',content:'content',tool:'code',flow:'code',code:'code',page:'other',file:'files',other:'other'};
 
-/* ═══════ cached grids (owner order 2026-08-30): instant paint, background refresh ═══════ */
+/* ═══════ cached grids: instant paint, background refresh ═══════ */
 var GS_CACHE='gs-grid-cache-v1';
 function ck(url){ return TOKQ && url.charAt(0)==='/' ? url+(url.indexOf('?')>=0?'&':'?')+TOKQ : url; }
 function cacheGet(url){ if(!window.caches) return Promise.resolve(null);
@@ -1285,7 +1265,7 @@ function wireGrid(){
     openFilterPanel(Number(f.getAttribute('data-vi')), e.clientX, e.clientY);
     e.stopPropagation();
   });
-  // Tap-to-sort (owner order 2026-08-29): double-click a column header cycles
+  // Tap-to-sort: double-click a column header cycles
   // high-to-low -> low-to-high -> off. Numbers sort numerically (used, size, status...).
   $('gs-colheads').addEventListener('dblclick',function(e){
     var head=e.target.closest('.gs-colhead'); if(!head||e.target.closest('.gs-grip')||e.target.closest('.funnel')) return;
@@ -1373,7 +1353,7 @@ function fitEditor(ed,dc){
   ed.style.width=Math.min(Math.max((T.colW[dc]||DEFAULT_W)+2, mw+22), Math.max(window.innerWidth*0.6, 480))+'px';
   ed.style.height='auto'; ed.style.height=Math.min(ed.scrollHeight+2, Math.max(window.innerHeight*0.4, 260))+'px';
 }
-// Google Sheets rule (owner order 2026-08-31): EVERY cell opens an in-place editor at its
+// Google Sheets rule: EVERY cell opens an in-place editor at its
 // own location on double-click / Enter / F2 — a read-only cell opens the same editor
 // read-only (full text, caret, selectable), never a modal. Typing to replace a read-only
 // value is the one refused gesture.

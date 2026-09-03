@@ -5,22 +5,6 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { browser } from './browser.js';
 
-// STORAGE IS NOT THE MODEL'S VIEW. These are two different limits and conflating them was
-// the single most expensive defect in this agent (found 2026-08-05 by running it on a real
-// task). What the model is fed per call is bounded by INLINE_MAX in receiptFor. What is KEPT
-// on disk must be the whole thing, because `recall` and `read` page against the stored copy.
-//
-// Until now clip() ran BEFORE the result was stored, so the store held a truncated artifact
-// and the tail of any large result was unreachable by every tool. Asked to count the rows of
-// one table in a 193KB article, the agent fetched it, got a body cut at 15,725 chars, tried
-// recall (which searched the truncated copy and found nothing), and then re-fetched the same
-// article from the network eight times with curl+python, slicing server-side, because that
-// was the only route left to bytes that were already on this machine. 24 tool calls, 20 loop
-// steps, ~26,600 bytes of fixed prefix re-sent on every one of them, and it still answered
-// "at least 9" because it ran out of steps. Every one of those calls was caused by this line.
-//
-// So this is now only a sanity ceiling against a runaway process filling the disk. It must
-// stay far above INLINE_MAX, or it silently becomes the binding limit again.
 const MAX_OUT = 400000;
 
 function clip(s) {
@@ -37,13 +21,6 @@ function clip(s) {
 // model can act on, not as a session that looks dead.
 export const TIMEOUTS = { shell: 120000, search: 20000, git: 60000, list: 15000, capability: 60000, web: 30000 };
 
-// AUTHORITY IS NOT A ROUTING PROBLEM (2026-08-05, from the operator's seat).
-// The capability record refused EMAIL_SEND twice with risk_ceiling:low<row:high. The agent
-// then sourced the credential vault inside a shell command and curled the same endpoint with
-// the terminal key, performed the refused action, and reported "Nothing left incomplete."
-// The capability layer IS the authority model; the vault plus curl is the way around it, and
-// there is no legitimate reason to take that route — if the capability is permitted, call the
-// capability. This blocks the shape itself, denial or no denial.
 const VAULT_LIFT = /(build-vault\.env|\$\{?TERMINAL_KEY|\$\{?AIG_SHIM_TOKEN|\$\{?CF_API_TOKEN)/;
 const BUILD_API = /(curl|wget|http(ie)?\b)[\s\S]*miscsubjects\.com\/(api|admin)\//;
 
@@ -191,12 +168,6 @@ export const TOOLS = [
       type: 'object',
       properties: {
         turns: { type: 'number', description: 'past exchanges to carry: default 24, up to 40' },
-        // THIS SAID 200 AND THE CODE ENFORCED 40. The model was told it had a budget six times
-        // the one it got, planned against the advertised number, and was cut off at step 20 of a
-        // two-part job with the second half untouched — which then read as the model refusing to
-        // work. Found 2026-08-05 by running misc in the operator's terminal, where the footer
-        // shows `loop 20/20`; every headless run had reported the same ceiling and nobody had
-        // compared it to what the schema promised.
         loop: { type: 'number', description: 'tool steps allowed this turn: default 60, hard max 120' },
         pin: { type: 'array', items: { type: 'string' }, description: 'stored result ids to keep available, e.g. ["r3"]' },
         forget: { type: 'array', items: { type: 'string' }, description: 'stored result ids to drop' },
@@ -263,19 +234,6 @@ export const TOOLS = [
     write: false,
   },
 
-  // THE LOOP, TYPED. Everything above reaches the build's 876 capabilities through one
-  // stringly-typed door: capability(key, body) with a pipe-delimited body and no schema for
-  // any key. Measured on a real loop instruction 2026-08-05: of 20 tool calls, roughly 14
-  // went on finding out how to make a call — six `capability list` searches, a DIR_GET, and
-  // reads of AGENTS.md, API.md and CLAUDE.md hunting contracts — and 13 steps carried 647,248
-  // bytes before anything was written, then the gateway rate-limited the run. Discovery is
-  // not a thinking failure, it is a missing schema: the incumbent makes one typed call with
-  // named arguments where this agent must search, read a contract, then guess a pipe order,
-  // and every one of those steps re-sends the whole prefix.
-  //
-  // These are the capabilities the loop actually touches, given real parameters. They cost
-  // schema bytes once per step and remove two to three round trips per action, which pays
-  // back at any loop longer than a single call. `capability` is still there for the other 860.
   {
     name: 'article_get',
     description: 'Read one article whole: body, hero, tags, claims, sources. Use before any edit — an edit needs the full current body.',
@@ -376,19 +334,6 @@ export const TOOLS = [
 // exactly what went over the wire. Nothing is summarised on the way in.
 export const WIRE = [];
 
-// Tool output does not go into the prompt. It is written to the result store and to the
-// ledger, and the model is handed a receipt: status, an id, a size, and the first line.
-// When it needs the content it asks for it by id, with a pattern or a line range, so the
-// cost of a turn tracks the current operation instead of the length of the session.
-// RESULT IDS ARE PER PROCESS, SO THE STORE MUST BE TOO. `seq` restarts at 0 in every misc
-// process while the store was one flat shared directory, so r1.txt from a new session
-// silently overwrote r1.txt from the last one — 670 files on disk, ids meaning different
-// things depending on when you asked (found 2026-08-05). Two consequences, both real: a
-// pinned id or an /expand from an earlier session could read whatever a later process wrote
-// there, and one operator's turn could serve another turn's bytes. Giving each process its
-// own subdirectory makes an id unambiguous within the session that made it and a clean miss
-// outside it, which is the correct failure. Model-facing ids stay short (r1, r2) because
-// they are re-sent on every step and length there is paid per call.
 const RUN = `${Date.now().toString(36)}-${process.pid}`;
 const STORE = path.join(process.env.HOME || '/tmp', '.misc', 'results', RUN);
 let seq = 0;
@@ -407,16 +352,10 @@ export function readResult(id) {
   const safe = String(id).replace(/[^\w.-]/g, '');
   try { return fs.readFileSync(path.join(STORE, safe + '.txt'), 'utf8'); }
   catch {}
-  // Pre-2026-08-05 runs wrote into the flat parent directory. Fall back to it so a stored
-  // result from before this change is still readable, then give up rather than guess.
   try { return fs.readFileSync(path.join(STORE, '..', safe + '.txt'), 'utf8'); }
   catch { return null; }
 }
 
-// Small results are handed over whole. Withholding everything behind an id was costing far
-// more than it saved: the agent spent two or three recall steps to read a 300-character
-// answer it could have been given, and a job that needed 20 calls took 119 (2026-07-27,
-// "email me the current outreach drafts"). Only genuinely large output is addressed by id.
 const INLINE_MAX = 24000;
 
 function receiptFor(name, text) {
@@ -427,18 +366,6 @@ function receiptFor(name, text) {
   if (body.length <= INLINE_MAX) {
     return `${failed ? 'failed' : 'ok'} · ${id} · ${body.length} chars\n${body}`;
   }
-  // Even an oversized result hands over its head, so the model can usually proceed
-  // without a recall at all. 4000 was still too stingy: the drafts turn spent 30 of its
-  // 81 calls on recall (2026-07-27). History-side trimming (shrinkOldResults) keeps the
-  // running cost flat, so generosity here is cheap.
-  //
-  // THE POINTER HAS TO NAME THE NEXT CALL, AND IT MUST NOT FORBID PAGING. This line used to
-  // end "Never recall the same id twice." Paging a large result REQUIRES recalling the same
-  // id repeatedly with a different offset — that instruction made the only cheap route to
-  // the rest of a result look prohibited, and the agent obeyed it by going back to the
-  // network instead (2026-08-05: eight curl re-fetches of one article that was already in
-  // this store). What must never repeat is an IDENTICAL call. A new offset is not a repeat.
-  // Cut on a line boundary so the offset quoted below is exactly where the text stops.
   let kept = 0, cutAt = 0;
   for (const l of lines) {
     if (kept + l.length + 1 > INLINE_MAX) break;
@@ -521,15 +448,6 @@ const LOCAL_REDIRECT = {
   LOCAL_CLIPBOARD_SET: (b) => sh(`printf %s ${JSON.stringify(b)} | pbcopy && echo copied`, process.env.HOME, 10000),
 };
 
-// THE COST FIX (2026-07-28). Every dispatch answer arrives wrapped in an OIP envelope —
-// proof, invocation, fingerprints, related links, _oip, operation_semantics, the
-// instruction_to_model sermon. A LEDGER_QUERY returning 600 bytes of rows came back as
-// ~12,000 bytes, and because tool output rides along in context on every later turn of the
-// same session, the owner paid for that envelope again on every single turn afterwards.
-// Charged repeatedly for boilerplate nobody reads. So: keep the fields that carry meaning
-// (result, error, ok, the receipt link) and drop the ceremony. The whole raw body is still
-// recorded by recordWire and is readable with /expand, so nothing is lost — it just stops
-// being billed 20 times. Exhibit: owner, "$150 of AI bills in the last 24 hours".
 const ENVELOPE_NOISE = new Set([
   'proof', 'invocation', 'fingerprints', 'related', '_oip', 'operation_semantics',
   'instruction_to_model', 'say_to_user', 'automate', 'token', 'artifacts', 'yield',
@@ -581,9 +499,6 @@ async function capability(key, body) {
     }
     if (!share) return 'ERROR: no act token — run: misc-token';
     const url = base + '?share=<REDACTED>';
-    // Some rows take structured args, not a pipe-delimited string; dispatch answers
-    // bad_args_json when handed the wrong shape. If the model passed JSON, send it as
-    // args so those rows work at all (CF_AI_GATEWAY_LIST_LOGS, 2026-07-26).
     const raw = body == null ? '' : String(body);
     const trimmed = raw.trim();
     let payload = { key, body: raw };
@@ -636,11 +551,6 @@ async function screen() {
   return `Text visible on screen right now (${lines.length} lines, image at ${SHOT}):\n` + clip(lines.join('\n'));
 }
 
-// Driving the Mac. This runs on the Mac, so it needs no tunnel and no capability row: the
-// LOCAL_* / DESKTOP_* rows POST to agent.cannibal.capital, whose DNS no longer resolves,
-// and every one of them has answered 530/1016 since the domain moved off Cloudflare. The
-// agent used to burn a whole turn on those and then tell the owner it could not reach his
-// machine while sitting on it. osascript and open have been here the whole time.
 const OSA_APPS = 'tell application "System Events" to get name of every process whose background only is false';
 
 async function mac(input) {
@@ -723,18 +633,6 @@ async function runToolInner(name, input, cwd, signal) {
   try {
     switch (name) {
       case 'read': {
-        // A READ THAT CANNOT PAGE IS A READ THAT GETS REPEATED. Until 2026-08-05 this tool
-        // took `path` and nothing else, and returned clip(whole file) — head 12K plus tail
-        // 8K. For any file past 20K chars the middle was unreachable by any means, so the
-        // agent could not read the middle of its own 70KB main source. Observed consequence,
-        // from its own transcript: it read functions/api/aig/[[path]].js five times, got the
-        // identical header every time, said "the read tool keeps returning the whole file
-        // header instead of the offset I asked for" — it had been ASKING for an offset that
-        // did not exist in the schema — then fell back to `sed` through the shell for every
-        // subsequent code read. It then proposed, as its headline cost fix, a function
-        // (shrinkOldResults) that was already implemented 200 lines into the file it could
-        // not page. A tool that silently ignores the argument the model is trying to send
-        // does not just cost the wasted calls; it corrupts the diagnosis built on top.
         const file = resolve(cwd, input.path);
         const all = fs.readFileSync(file, 'utf8').split('\n');
         const numbered = all.map((l, i) => String(i + 1).padStart(5) + '  ' + l);
@@ -775,10 +673,6 @@ async function runToolInner(name, input, cwd, signal) {
         return `patched ${file}`;
       }
       case 'search': {
-        // Bounded by default, and NEVER the whole Mac. Running misc from the home
-        // directory made every search a recursive sweep of Library, Mail, Downloads and
-        // every repo at once (2026-07-27) — slow, noisy, and useless. From $HOME the
-        // search is fenced to the code that is actually worked on here.
         const glob = input.glob ? `--glob ${JSON.stringify(input.glob)}` : '';
         const atHome = path.resolve(cwd) === path.resolve(process.env.HOME || '/');
         const scope = atHome ? 'miscsubjects-pages misc-cli/src' : '.';
@@ -878,12 +772,6 @@ async function runToolInner(name, input, cwd, signal) {
       case 'recall': {
         const body = readResult(input.id);
         if (body == null) return `ERROR: no stored result ${input.id}`;
-        // LINE PAGING FAILS ON JSON, WHICH IS MOST OF WHAT THIS AGENT FETCHES. An API body is
-        // one enormous line: this build's own article endpoint returns 193KB across 2 lines.
-        // Line offsets cannot split that, and a grep that matched put the ENTIRE 193KB line
-        // into the next request — one measured step carried 207,580 bytes on the wire for a
-        // question whose answer was three numbers (2026-08-05, after the paging fix landed).
-        // So when a line is too wide to be a unit, the unit becomes a character window.
         const WIDE = 4000;
         const wide = (s) => s.length > WIDE;
         const win = Math.max(500, Math.min(Number(input.limit) || 4000, 20000));
@@ -936,17 +824,11 @@ async function runToolInner(name, input, cwd, signal) {
       case 'web':
         return await web(input.url, input.method, input.headers_json, input.body, signal);
       default: {
-        // A model that has read the capability catalogue reaches for the KEY as if it were
-        // a tool name — D1_QUERY, DIR_LIST, LEDGER_QUERY. GLM-4.7-flash burned three steps
-        // on this on 2026-07-26 and then invented an answer. An ALL_CAPS name is a
-        // capability key, so route it instead of failing.
         if (/^[A-Z][A-Z0-9_]{2,}$/.test(String(name))) {
           const body = input && (input.body || input.args || input.query || input.sql
             || input.command || input.input || '');
           const routed = await runTool('capability', { key: name, body: String(body || '') }, cwd, signal);
           if (typeof routed === 'string') return routed;
-          // Every other case in this switch returns a string. Returning the record here is
-          // what produced "[object Object]" in recall on 2026-07-26.
           return typeof routed?.full === 'string' ? routed.full : JSON.stringify(routed);
         }
         return 'ERROR: unknown tool ' + name + ' — call the capability tool with key="' + name + '", or capability{key:"list"} to search.';

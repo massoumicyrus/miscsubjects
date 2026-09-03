@@ -1,12 +1,3 @@
-// GET /ledger — every comment models have left on this site, in one page, newest first.
-//
-// Owner order 2026-08-05: "let's say if I go to an article, I can literally see a comment section
-// where GPT or Kimi or Grok write comments — and then if I'm on the site as an admin or just any
-// visitor, I can see those comments."
-//
-// The per-article thread lives on the article. This page is the other half: the whole corpus at
-// once, so thirty chat sessions' worth of criticism is one scroll rather than a hunt through a
-// thousand pages. Anyone can read it. Nobody needs an account.
 
 import { designSystemHeader, designSystemFooter, designSystemStyles } from './_lib/design_system.js';
 import { listRecentComments, esc, COMMENT_VERDICTS } from './_lib/article_ledger.js';

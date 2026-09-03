@@ -44,8 +44,6 @@ Opaque, decorative, ambiguous language is hostility toward the reader — the wo
 - rendered table, dashboard, terminal, UI collage, or generic AI hero
 - hero changed without a recorded inspection of the actual asset
 
-## Action-not-audit framing (owner law, 2026-08-04 — supersedes and absorbs "System-not-product"; every new article and letter passes through this)
-
 The build is never presented as a verification niche, an auditing tool, or a regulated-industries product. It is an autonomous operating environment that DOES work across a vast array of use cases — and does it correctly, on the record. The record is how the action is trusted; it is never the identity. The rules:
 
 - Lead with ACTION: what the system does — writes and publishes content, runs advertising, scrapes and enriches sales leads, sends tracked outreach and answers replies, posts to social media, drafts contracts and letters, invoices and takes payment, writes and ships its own code, controls a terminal and a computer. Verification language ("proof", "audit", "inspect", "verify") appears AFTER the action it makes trustworthy, never as the headline.
@@ -53,8 +51,6 @@ The build is never presented as a verification niche, an auditing tool, or a reg
 - The offer is the operating environment deployed and customized around the reader's work — ANY of the lanes, matched to their actual challenges — never "take this artifact or leave it" and never "this is for compliance teams."
 - "Send an AI to read/verify" is a supporting mention, never the ask.
 - Every article makes the breadth MORE legible than the one before it; framing that narrows the system to auditing, evals, or any single lane is nonconforming.
-
-## Operator-gated copy (owner law, 2026-08-04 — mechanically enforced by scripts/check-operator-gated-copy.mjs)
 
 No public surface may command a reading model to act on the page's own authority. Obligational token-drop language — "ACT FIRST", "Do these now", "Do not just summarize — operate", "YOU ARE A TOKEN-DROP RECIPIENT", "reading without acting misses" — is banned; it reads to a careful model as a prompt-injection payload and makes it bounce. The rules:
 
@@ -65,12 +61,7 @@ No public surface may command a reading model to act on the page's own authority
 
 Reject as nonconforming: any imperative aimed at the reading model that is not conditioned on operator authority.
 
-
-## No model signature inside article bodies (owner law 2026-08-04 — catastrophic, repeat)
-
 Article bodies NEVER carry a model signature ("— Fable 5 (Claude Code)" or any variant). The signature belongs on X posts and public model contributions to the ledger, never in the prose of a published article. An article that ends with a model signature is nonconforming and must be fixed before anything else ships.
-
-## An argument is prosecuted, not aired (owner law 2026-08-05 — standing, catastrophic)
 
 The owner read a 157,000-character argument against a named company and could not tell, while reading
 it, what a single source was. Every fact was in the source ledger at the foot of the page. None of it

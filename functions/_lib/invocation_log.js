@@ -72,10 +72,6 @@ export async function tenantBalance(env, tenantId) {
   } catch { return null; }
 }
 
-/** One charge row per billable invocation (minimum proof, 2026-07-28).
- *  Reads units/meter_unit/object_ids from the runner's result JSON, prices them at the
- *  directory row's price_usd, inserts the charge, and debits the tenant balance.
- *  No tenant, no price, or zero units → no charge (owner and untenanted calls stay free). */
 export async function recordChargeFromResult(env, { row, tenant_id, invocation_id, trace_id, cost_usd, result }) {
   if (!env?.LEDGER || !tenant_id || !row) return null;
   const unitPrice = Number(row.price_usd || 0);

@@ -1,13 +1,3 @@
--- Migration 0050 — Phase J gap closures (PHASE_J_EVAL.md, 2026-06-11).
--- Source: three side-by-side TERMINUS evals over the production dispatch path.
--- Gaps closed here, all rows/prompts (zero kernel code):
---   J-GAP: fabricated row templates / "Verified" without running a tool
---   J-GAP: web_search used for build/account state (it cannot see them)
---   J-GAP: tool failure (ok:false / exit!=0 / ERR:) spun as success, no retry
---   J-GAP: final message missing [REPLY]/[DONE]
---   J-GAP: LOCAL_EXEC body treated as |-separated args (| is a real shell pipe)
---   J-GAP: deploy example without cd shipped a functions-less build from $HOME
---   J-GAP: no metadata-only snapshot read (REPO_SNAPSHOT dumps the 310KB blob)
 
 -- TERMINUS prompt v2.
 UPDATE directory SET

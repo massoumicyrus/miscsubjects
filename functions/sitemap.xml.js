@@ -16,11 +16,6 @@ const SITE = "https://miscsubjects.com";
 // source chain and were verified by hand. Add here one at a time — never widen
 // the blanket exclusion above without doing that per-article check.
 const D1_ARTICLE_ALLOWLIST = [
-  // 10 sources, 25 claims, dictionary-cited (MacKenzie, Dehkhoda) — not a
-  // thin/unsourced page. Excluded by the blanket rule only because it lives
-  // in the same D1 table as the peptide corpus; that's a filing accident, not
-  // a sourcing problem. Was undiscoverable outside the site (owner-reported
-  // 2026-08-07, external AI search tools returned zero hits for it).
   "the-canonical-morgh-index",
 ];
 
@@ -34,8 +29,6 @@ export async function onRequestGet({ env }) {
     )
   );
   const urls = [
-    // Core surfaces. The root was absent from its own sitemap until 2026-08-06 — every
-    // engine had to discover the homepage from links alone.
     { loc: `${SITE}/`, pri: "1.0", changefreq: "daily" },
     { loc: `${SITE}/latest`, pri: "0.8", changefreq: "daily" },
     { loc: `${SITE}/ledger`, pri: "0.6", changefreq: "daily" },

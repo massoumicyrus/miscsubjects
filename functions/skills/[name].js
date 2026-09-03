@@ -35,12 +35,6 @@ export async function onRequestGet(context) {
     )
     .join("");
 
-  // A SKILL WRITTEN HERE HAS NO EXTERNAL SOURCE, AND SAYING SO BEATS INVENTING ONE.
-  //
-  // 2026-08-05: publishing coding-law — the first skill authored in this repository rather than
-  // imported from one — took /skills and every /skills/<name> page to 500, because four reads here
-  // and one on the index dereferenced the source block directly. Every skill until then had carried
-  // a licence and a repo, so the absent case had never run.
   const src = skill.source || {};
   const sourceLink = src.url && /^https?:/.test(src.url)
     ? `<a href="${esc(src.url)}" rel="noopener">${esc(src.repo || src.url)} ↗</a>`

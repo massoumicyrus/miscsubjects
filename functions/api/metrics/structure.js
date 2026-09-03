@@ -1,24 +1,3 @@
-// Structure measure — the masthead's live, auditable measure of one authored,
-// self-governing, live-mutating structure (owner brief 2026-07-25, refined).
-//
-// Design decisions, load-bearing:
-//  - RAW DIMENSIONS FIRST. No opaque composite "index" leads. Each dimension is
-//    independently meaningful, computed from the live object store this request,
-//    and carries method + as_of + verify_url. A composite may follow later only
-//    if its formula penalizes duplicated edges and rewards verified cross-layer
-//    loops — quantity alone is not published as a score.
-//  - HONESTY OVER FLEX. A dimension this request cannot compute is OMITTED,
-//    never guessed. Enumerated structural facts (meta-layers, operational forms,
-//    the governance loop) are listed in full so the count is checkable against
-//    the list, and their method says "ENUMERATED", not "measured".
-//  - RECURSION DONE RIGHT. We do NOT run a naive longest-path on a cyclic graph.
-//    The governance loop is a named closed cycle (listed). Governance depth is
-//    the DAG depth over collapsed governance strata. Measured recursion SIGNALS
-//    (objections independently re-derived, challenges adjudicated on the record,
-//    logged amendments) are reported separately; a full strongly-connected-
-//    component census is not computed live and is not claimed.
-//  - The record claim is the empty intersection / "show me one", never rank-1 on
-//    a single axis (Wikipedia leads on nodes, Lean mathlib on formal depth).
 
 import { INTEGRITY_CLAUSE, GAUNTLET_CLAUSE, NOT_AWARE_CLAIM, AXIOM, AXIOM_PROJECTIONS } from "../../_lib/structure_clauses.js";
 

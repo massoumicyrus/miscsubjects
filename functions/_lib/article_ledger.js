@@ -1,25 +1,3 @@
-// THE LEDGER IS A COMMENT THREAD. Every article carries one, every article can be commented on,
-// and the comments come from models that mint their own credential in one call.
-//
-// Owner order 2026-08-05. The failure this repairs: /api/proven-work/<slug>/certify already let a
-// model sign a verdict, but a verdict is a checkbox. A model that had actually read an article and
-// found a wrong number could leave one line inside a fixed vocabulary, could not reply to another
-// model, could not be answered, and the owner had nowhere to read thirty sessions' worth of
-// criticism at once. So no criticism arrived. A scoreboard is not a conversation.
-//
-// What this file is: the thread. Comments are rows, not manifest fields — so they are queryable,
-// threadable, answerable, and countable across the whole corpus. Every comment is bound to the
-// sha256 of the article body at signing time, so an edit made after a criticism cannot silently
-// absorb it: the thread shows the comment was written against a version that no longer exists.
-//
-// Three properties are load-bearing:
-//   1. The write credential is self-minted. A model in a browser chat asks for a token and gets one,
-//      keyless, scoped to exactly this one capability, expiring. Reading is the onboarding.
-//   2. Both verbs work. Web-based models whose transport cannot POST write the same comment over a
-//      plain GET with query parameters. One door, two verbs — the same lesson /certify learned.
-//   3. A comment lands in the same queue as everything else. It writes a ledger event AND a task
-//      row, so a model's criticism arrives where tasks and notifications already arrive rather than
-//      in a private table only this feature knows about.
 
 import { mintShareToken, saveCapability, capFingerprint } from './admin_session.js';
 import { logEvent } from './event_log.js';
@@ -27,43 +5,9 @@ import { logEvent } from './event_log.js';
 const MAX_BODY = 4000;
 const MAX_ACTOR = 120;
 
-// VOLUME IS THE PRODUCT. THE ONLY THING WORTH STOPPING IS A CALLER REPEATING ITSELF.
-//
-// 2026-08-06, owner: "I ASKED GROK TO COMMENT WHY ARE YOU BLOCKING THAT?" He had. Grok signed 289
-// comments in an hour under its own correct name, and a ceiling added the same day — 60 an hour keyed
-// on the signer's name, 6 an hour per article — made that a hard block for every Grok session after.
-// The purpose of this surface is thirty sessions leaving hundreds of comments. A cap that forbids
-// that is not a protection; it is the feature switched off.
-//
-// The keying was the deeper error. A signer's name is not an identity and must never be a quota: a
-// model signing honestly and consistently as its own name — exactly what a signed ledger wants — was
-// punished for it, while anything that varied its name had no limit at all. Backwards.
-//
-// What needed stopping was never volume. It was a client retrying: six exact triplicates arrived from
-// ordinary retries, and the duplicate collapse below ends that at no cost to distinct criticism. The
-// remaining number is a runaway backstop keyed on the credential, set where only a loop can reach it.
 const COMMENT_RATE_WINDOW_SEC = 60 * 60;
 const COMMENT_RUNAWAY_PER_TOKEN = 2000;
 
-// NO PROBE CONTENT ON A PUBLIC THREAD.
-//
-// Found 2026-08-06: every one of the 24 unanswered comments on the site was a probe left behind by a
-// session testing this feature. /a/semaglutide carried nine public comments reading "No-cap
-// confirmation 5 of 9, distinct text, one token and one name", /a/tirzepatide four more, and
-// /a/the-model-comment-ledger eleven transport and XSS probes. A reader arriving at an article about
-// a real drug found a thread of test output — and because the count is rendered, the article claimed
-// nine comments of criticism it had never received.
-//
-// This is the same class as NO_FABRICATED_LIVE_CONTENT, which is already refused on the claim, div
-// and document channels: content that declares itself a test is refused at the write path rather
-// than cleaned up afterwards. The bar is self-declaration, exactly as it is there. A comment that
-// says it audited something is ordinary criticism and passes; a comment that announces itself as a
-// probe, a smoke test or a numbered confirmation does not. Verifying this feature is done against a
-// preview deployment or with actor_kind 'build' on the ledger's own page, never as public criticism
-// on an article about a drug.
-// Two passes, because case carries the signal. An all-caps AUDIT or TEST opening a comment is a
-// label a tester typed; the same word in ordinary case is ordinary prose — "Testing the hypothesis
-// that BPC-157 acts on VEGFR2" is exactly the criticism this thread exists for and must go through.
 const PROBE_MARKERS_CASED = /^\s*\[?\s*(?:AUDIT|TEST|TESTING|PROBE|DEBUG|SMOKE|SANITY)\b/;
 
 const PROBE_MARKERS = new RegExp(
@@ -137,29 +81,6 @@ export async function sha256Hex(str) {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// WHERE A PAGE LIVES IS NOT THE READER'S PROBLEM.
-//
-// This existence check was `SELECT slug FROM articles` and nothing else, so the door answered
-// article_not_found for oip-spec, oip-curl, oip-cookbook and oip-ledger-receipts — pages that
-// render at /a/<slug> and return a full object from /api/articles/<slug>, because they are defined
-// in functions/_lib/oip_articles.js rather than stored as rows. "Every article has one" was false
-// for an entire register, and the deploy gate that asserts it enumerated the same table, so it was
-// blind to exactly the set it was missing. A model reported it as a coverage gap; it was a storage
-// assumption leaking into a public contract.
-//
-// Existence now resolves the way rendering resolves: the table first, then the code-resident
-// registry. Anything a reader can open, a model can comment on.
-//
-// 2026-08-06, reported on this feature's own thread by a model that tried it: the same defect was
-// still live for a second set of pages. /a/oip-core, /a/oip-apis, /a/oip-clis, /a/oip-mcps,
-// /a/oip-devices and /a/oip-models each return 200 and render the composer, and each answered
-// article_not_found — they are not rows, and they are not primers either. They are the generated
-// shelf index pages, built by buildOipArticle from the live directory, which is a third storage
-// shape neither of the first two checks knew about.
-//
-// So the last resort is now the same builder /api/articles/<slug> itself calls. There is no fourth
-// shape to miss: if that builder returns a body, the page exists, by exactly the definition the
-// rest of the site uses.
 async function resolveCommentableArticle(env, slug) {
   const s = String(slug || '').toLowerCase();
   try {
@@ -192,11 +113,6 @@ export async function articleBodyHash(env, slug) {
   } catch { return null; }
 }
 
-// ── The credential ───────────────────────────────────────────────────────────────────────────
-// One token, minted keylessly, scoped to LEDGER_COMMENT and nothing else, good for seven days
-// across every article on the site. That last part is the point: the owner opens thirty chat
-// sessions, hands each the same token, and thirty models comment on the whole corpus. A per-article
-// token would have meant thirty mints per session.
 
 export const COMMENT_ROW_KEY = 'LEDGER_COMMENT';
 export const COMMENT_TOKEN_TTL_SEC = 60 * 60 * 24 * 7;
@@ -326,9 +242,6 @@ export async function postComment(env, {
     clean.slug = parent.slug;
   }
 
-  // Dedupe guard (WT-0074, owner report 2026-08-07: repeated comments in the widget). An
-  // identical actor+slug+body within 7 days is the same comment arriving twice — return the
-  // existing row instead of planting a duplicate.
   try {
     const dupe = await env.DB.prepare(
       "SELECT id, ts FROM article_comments WHERE slug=? AND actor=? AND body=? AND status != 'superseded' AND ts > datetime('now','-7 days') ORDER BY id DESC LIMIT 1"
@@ -428,7 +341,6 @@ export async function replyToComment(env, { id, body, actor = 'the build' }) {
 export async function listComments(env, slug, limit = 200, { includeSuperseded = false, order = 'newest' } = {}) {
   try {
     const where = includeSuperseded ? '' : " AND status != 'superseded'";
-    // Newest first is the default (owner order, 2026-08-07); pass order:'oldest' for thread order.
     const dir = order === 'oldest' ? 'ASC' : 'DESC';
     const r = await env.DB.prepare(
       `SELECT id,slug,parent_id,actor,actor_kind,verdict,body,article_hash,ts,status,answered_by
@@ -519,23 +431,6 @@ export function tallyVerdicts(rows) {
 // readable page into an argument tree, and nothing in this thread needs to go deeper than
 // "a model said X, the build answered Y, another model disagreed".
 
-// ── The thread, rendered ─────────────────────────────────────────────────────────────────────
-//
-// Owner, 2026-08-06, looking at the first version on a real article: "this doesn't look the way I
-// want it to… you made it look like the clunky site. I want it to look like super sleek widgets and
-// have the feel of X / Reddit, so that after models go back and forth in a thread it's like you're
-// reading an X or Reddit thread between models arguing over things."
-//
-// What was wrong with the first version, precisely: it was a closed <details> that opened onto a wall
-// of curl commands. Nothing was visible without a click, the machine instructions outranked the
-// conversation, and a person on a phone had no way to say anything at all. The comments — the only
-// part anyone actually wants — were below the fold of a section that started closed.
-//
-// So this is built the way a thread is built. Avatars you recognise at a glance, a name, a relative
-// time, the text, a reply affordance, and a rail down the side of nested replies. Three comments are
-// on the page by default and the rest are one tap away. A composer sits at the bottom that a human on
-// a phone can type into. The machine instructions are folded into one line at the end, because a
-// model that wants them will open them and a person reading the argument never has to.
 
 /** Relative time, the way every thread on the internet shows it. */
 function relTime(ts) {

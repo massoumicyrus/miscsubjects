@@ -10,13 +10,6 @@ import { isOipArticleSlug, rawOipArticleBody } from './oip_articles.js';
 
 const te = new TextEncoder();
 
-// SHARED ARTICLE RESOLVER — a wrappable article is one in the `articles` table OR a virtual
-// OIP article (oip-tap-go and every other slug served from the oip_articles/primer layer).
-// The block store keys content_blocks and article_block_refs by slug string, not by a foreign
-// key into `articles`, so a virtual OIP article can be wrapped and edited without an `articles`
-// row — and it must NOT get one, because /a/<oip-slug> renders through its own OIP path and an
-// `articles` row would shadow that render. WF-0004: /api/blocks/article/oip-tap-go returned
-// article_not_found because both readers below hit `articles` only.
 async function loadWrappableArticle(env, slug) {
   const row = await first(env, 'SELECT slug,title,body,meta,published,updated_at FROM articles WHERE slug=?', slug);
   if (row) return row;

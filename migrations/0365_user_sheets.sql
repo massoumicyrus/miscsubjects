@@ -1,7 +1,3 @@
--- 0365 — user sheets: the Sheets workbook's stored grids (WT-0092).
--- Directory and Ledger tabs project existing tables; ONLY user-created sheets store cells here.
--- sheet_cells is sparse: a row exists only where a cell has a value. (sheet_id, r, c) is the
--- A1 address — r and c are 1-based, c=1 is column A.
 
 CREATE TABLE IF NOT EXISTS user_sheets (
   id         TEXT PRIMARY KEY,

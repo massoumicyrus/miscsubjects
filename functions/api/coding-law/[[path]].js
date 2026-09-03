@@ -182,24 +182,6 @@ export async function onRequestPost({ request, env, params }) {
   return json({ error: 'unknown_route', door: `${origin}/api/coding-law` }, 404);
 }
 
-// An agent that opens a lease and then decides not to make the change should be able to say so.
-// Without this the only ways out of an open lease were committing work that does not exist or
-// abandoning the row, and abandonment is what fills the table with ghosts.
-// WHEN THE REGISTRY'S OWN RECORD IS THE STALE ONE.
-//
-// The check that makes this law work compares the base an agent declares against the newest
-// sha this registry recorded. That is sound only while every commit passes through here. It has
-// not: scripts/ship.mjs was last recorded on 2026-08-09, real commits landed in git after that
-// without a lease, and from then on the recorded head could never advance — every lease on that
-// path was refused, and each refusal recorded nothing, so the staleness was self-sustaining.
-// An agent's only exits were to force (forbidden) or to commit unrecorded (which is what caused
-// the drift). Both make the law weaker than doing nothing.
-//
-// So a path can be re-baselined explicitly. This does not skip the check for anyone else and it
-// does not touch a lease: it appends a row saying "this is the content that exists now, and here
-// is why the registry had lost track", signed by the caller, with the superseded sha kept. The
-// next lease on that path compares against a true head again. It needs the terminal key, and it
-// refuses to invent a baseline for a path the registry has never seen.
 async function reconcilePath(request, env, b, origin) {
   if (!(await isBuildAuthed(request, env))) {
     return json({ error: 'unauthorized', note: 'Re-baselining a path is an owner action: it edits the record the law is checked against.' }, 401);
@@ -389,17 +371,6 @@ async function commitLease(env, b, origin) {
   if (!files.length) return json({ error: 'files_required', example: '[{"path":"functions/x.js","new_sha":"<sha256 as you are leaving it>"}]' }, 422);
   const badSha = files.filter((f) => !f.valid);
   if (badSha.length) return json({ error: 'new_sha_must_be_sha256', bad: badSha.map((f) => f.path), how: 'shasum -a 256 <path>' }, 422);
-  // A LEASE WHOSE BASE EQUALS ITS RESULT RECORDED NOTHING.
-  //
-  // Refused server-side as well as at the deploy gate, because this is the shape of the only
-  // laundering the law could not see: edit the file, hash the RESULT, declare it as the version you
-  // read, then commit that same hash. The collision check below then passes trivially, and the chain
-  // stores a base nobody ever held. Used by an agent on 2026-08-06 on this very endpoint.
-  //
-  // There is no lawful case. If the bytes did not change under your lease, the file did not belong
-  // in it; if they did, your base is the version from before the edit and cannot equal the result.
-  // A file being CREATED declares the sha256 of nothing as its base, because that is what was read.
-  // Without this the rule below makes new files unleasable, and an unobeyable law teaches laundering.
   const EMPTY_SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
   const unchanged = files.filter((f) => f.valid
     && baseByPath.get(f.path) !== EMPTY_SHA256

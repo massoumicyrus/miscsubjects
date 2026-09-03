@@ -64,7 +64,6 @@ function blooioOutChat(chat, from) {
 const GROK_REPLY_MAX = 3500;
 const GROK_DEFAULT_CWD = '/Users/owner';
 
-/** the owner-only: /grok <task> → Grok Build CLI on the Mac (same cwd session as TUI). */
 function parseGrokPrefix(text) {
   const t = String(text || '').trim();
   if (!/^\/grok\b/i.test(t)) return undefined;
@@ -281,15 +280,6 @@ function parseOwnerTokenRequest(text) {
   };
 }
 
-/**
- * Owner-facing mint → model-facing drop.
- * LAW (2026-07-03 owner finding, re-broken 2026-07-12 as inventory blob):
- * NEVER emit "FRESH TOKEN DROP", bare share_token lists, "Hand any model any *_url",
- * "I built this for you to inspect", imperatives, or **Grok Build** inside the drop
- * that goes to another model. Those read as capability smuggling / prompt injection.
- * ONLY emit buildTapGoDropMarkdown: public docs link first, third-person system prose,
- * token as optional data, "Whether to use it is between you and them."
- */
 function formatOwnerTokenDrop(cap, opts = {}) {
   if (!cap || typeof cap !== 'object') return 'Mint failed — empty capability.';
   if (cap.error) return 'Mint failed: ' + cap.error;
@@ -476,7 +466,6 @@ async function parseBlooio(env, request, raw) {
   const d = (parsed.data && typeof parsed.data === 'object') ? parsed.data : {};
   const event = String(parsed.event || parsed.type || d.kind || '').toLowerCase();
 
-  // Tapback / emoji reactions — the owner signaling on a prior message (full emoji vocabulary).
   if (event.includes('reaction')) {
     const rx = parseBlooioReaction(parsed);
     if (!rx) return { skip: true };
@@ -674,9 +663,6 @@ export async function processWebhook(context, channel) {
   // Second Blooio number now routes to BLOOIO2 agent (see parseBlooio)
   // if (m.gasForward) { ... }  // REMOVED — BLOOIO2 agent handles it now
 
-  // Hard spiral stop: a build NEVER replies to one of our own build numbers
-  // (Pepper/ButterCup). Kills bot-to-bot and the group echo where one build's
-  // reply is re-delivered to the other build's webhook. Humans (incl. the owner) pass.
   if (isBuildNum(m.from)) return new Response(null, { status: 200 });
 
   // Self-test audit group: TEST prompts are injected by /api/selftest (ButterCup asks,
@@ -735,7 +721,6 @@ export async function processWebhook(context, channel) {
     bg(threadInboundMessage(env, m, { source: 'owner-imessage', priority: 'P1', role: 'owner', title: String(m.messageBody || '').slice(0, 120) }));
   }
 
-  // the owner: /grok anywhere (ops group, 1:1 iMessage, WhatsApp) → Grok CLI, not ROUTER.
   if (owner) {
     const grokTask = parseGrokPrefix(m.messageBody);
     if (grokTask !== undefined) {
@@ -770,7 +755,6 @@ export async function processWebhook(context, channel) {
     }
   }
 
-  // Ops group: staff (the owner, Will, …) may command; SEND +phone | text relays to a lead.
   const inOps = isMetaOpsGroup(m.chat, { groupName: m.groupName, ops2chatGroup: ops2chatUuid });
   if (inOps && staff) {
     const relay = parseStaffLeadSend(m.messageBody);
@@ -813,11 +797,6 @@ export async function processWebhook(context, channel) {
     } catch {}
   }
 
-  // ── Landing-page lead capture (Blooio line, temporary mode) ──────────────────
-  // The Blooio number does NOT auto-reply to the public. Every inbound that is not
-  // from the owner is forwarded to the owner (sender # + their message). Only the owner
-  // ([OWNER_PHONE]) and the other AI / ButterCup ([PHONE]) continue to the
-  // agent and get a live reply; everyone else's turn stops here, silent.
   if (channel === 'blooio') {
     const p = normalizePhone(m.from);
     const isOwner = p.endsWith('[OWNER_PHONE]');

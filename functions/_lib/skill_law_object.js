@@ -135,12 +135,12 @@ export const SKILL_LAW_OBJECT = createKnowledgeActionObject({
     summary:
       "The governance law for the article ⇄ skill loop: when something becomes a skill, when a model may edit one, how edits are judged, and whose words bind — so no failure is fixed twice.",
     thesis:
-      "A skill is the build's memory of a failure it refuses to repeat. Memory that is not written is repeated; memory written without a failing exhibit is fiction; memory edited without judgment decays into noise. So skills are created only from real failures, edited the moment the owner's words change the rule, judged by fresh-agent behavior and falling failure counts, and bound by provenance — because fluency is not provenance, and one model's confident output must never silently become another model's instruction.",
+      "A skill is the build's memory of a failure it refuses to repeat. Memory that is not written is repeated; memory written without a failing exhibit is fiction; memory edited without judgment decays into noise. So skills are created only from real failures, edited the moment the the stated failure change the rule, judged by fresh-agent behavior and falling failure counts, and bound by provenance — because fluency is not provenance, and one model's confident output must never silently become another model's instruction.",
     clauses: SKILL_CLAUSES,
   },
   instructions: {
     trigger:
-      "Use when deciding whether something becomes a skill, before creating or editing any skill in either tree, when judging or reviewing a skill edit, when a failure or owner correction repeats, or when importing an external skill.",
+      "Use when deciding whether something becomes a skill, before creating or editing any skill in either tree, when judging or reviewing a skill edit, when a failure or rule repeats, or when importing an external skill.",
     decision_mandate: [
       "Did a model actually fail at this without the skill, and where is the exhibit?",
       "Is this a procedure (skill) or a fact (instruction file) — and could a mechanical gate enforce it instead?",
@@ -149,7 +149,7 @@ export const SKILL_LAW_OBJECT = createKnowledgeActionObject({
     ],
     procedure: [
       "Search both skill trees for the concern before writing anything new.",
-      "Capture the failing exhibit: the ledger event, owner correction, or wrong output.",
+      "Capture the failing exhibit: the ledger event, rule, or wrong output.",
       "If a mechanical gate can block the failure, build the gate; keep prose for judgment only.",
       "Write or edit the smallest clause that prevents the failure; one concern per skill.",
       "Sync the sibling tree in the same change; claim shared files before editing.",
@@ -282,7 +282,7 @@ export function skillLawMarkdown() {
 
 export function skillLawSkillMarkdown() {
   const object = SKILL_LAW_OBJECT;
-  return `---\nname: skill-law\ndescription: Apply the miscsubjects Laws of Skills when deciding whether something becomes a skill, before creating or editing any skill, when judging a skill edit, when a failure or owner correction repeats, or when importing an external skill.\n---\n\n# Apply the Laws of Skills\n\nThis Skill is the model-operating expression of [the human article](/a/skill-law). Read the canonical object at /api/articles/skill-law when exact clauses or provenance are needed.\n\n## The axiom\n\nA skill is the build's memory of a failure it refuses to repeat. Unwritten memory repeats; exhibit-less memory is fiction; unjudged edits decay into noise. Fluency is not provenance — one model's confident output never silently becomes another model's instruction.\n\n## Decide\n\n${object.instructions.decision_mandate.map((line) => `- ${line}`).join("\n")}\n\n## Operate\n\n${object.instructions.procedure.map((line, index) => `${index + 1}. ${line}`).join("\n")}\n\n## Reject as nonconforming\n\n${object.conformance.failure_modes.map((failure) => `- ${failure}`).join("\n")}\n\n## Pair with\n\nshared-failure-to-skill (the capture procedure), shared-rule-capture (owner restatements), shared-write-law (claim before edit), writing-skills (authoring mechanics), skill-creator (eval harness), test-driven-development and systematic-debugging (the code-writing discipline this law governs the upkeep of).\n\n## Return\n\nReturn only: ${object.instructions.output.join(", ")}. Cite ${object.identity.id}, its version, and the exhibits used.\n`;
+  return `---\nname: skill-law\ndescription: Apply the miscsubjects Laws of Skills when deciding whether something becomes a skill, before creating or editing any skill, when judging a skill edit, when a failure or rule repeats, or when importing an external skill.\n---\n\n# Apply the Laws of Skills\n\nThis Skill is the model-operating expression of [the human article](/a/skill-law). Read the canonical object at /api/articles/skill-law when exact clauses or provenance are needed.\n\n## The axiom\n\nA skill is the build's memory of a failure it refuses to repeat. Unwritten memory repeats; exhibit-less memory is fiction; unjudged edits decay into noise. Fluency is not provenance — one model's confident output never silently becomes another model's instruction.\n\n## Decide\n\n${object.instructions.decision_mandate.map((line) => `- ${line}`).join("\n")}\n\n## Operate\n\n${object.instructions.procedure.map((line, index) => `${index + 1}. ${line}`).join("\n")}\n\n## Reject as nonconforming\n\n${object.conformance.failure_modes.map((failure) => `- ${failure}`).join("\n")}\n\n## Pair with\n\nshared-failure-to-skill (the capture procedure), shared-rule-capture (owner restatements), shared-write-law (claim before edit), writing-skills (authoring mechanics), skill-creator (eval harness), test-driven-development and systematic-debugging (the code-writing discipline this law governs the upkeep of).\n\n## Return\n\nReturn only: ${object.instructions.output.join(", ")}. Cite ${object.identity.id}, its version, and the exhibits used.\n`;
 }
 
 export function skillLawConformance() {

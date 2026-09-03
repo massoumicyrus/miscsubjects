@@ -1,7 +1,3 @@
--- Self-explaining, continued: curated real examples + discoverable WHEN_TO_USE for the
--- capabilities the owner named — GitHub, edit a prompt/capability — so a model asking in plain
--- words gets the exact call, never a guess. (The generic synthesizer in object_contract.js
--- handles the long tail; these are the ones worth curating by hand.)
 
 UPDATE directory SET content =
 '# WHAT: Run any gh (GitHub CLI) command with the owner''s auth on the Mac.

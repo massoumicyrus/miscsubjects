@@ -106,8 +106,6 @@ const PB = [
     bundle: ['STATE.md STACK + CURSOR', 'wrangler.toml'] },
 ];
 
-// Measured 2026-06-14 from `git ls-files` + byte sizes. tokens ≈ bytes/4.
-// kind: 'logic' = needed to understand the running build · 'ref' = reference/history.
 const SIZES = {
   total: { files: 1006, bytes: 6263977 },
   tiers: [
@@ -169,7 +167,6 @@ const FILES = [
 const GROUP = { ai: 'compute', q: 'compute', do: 'compute', spine: 'data', ledger: 'data', kv: 'data', r2: 'data', ext: 'external' };
 const GROUP_LABEL = { compute: 'Compute (the Worker runs these)', data: 'Data stores (distinct from the Worker)', external: 'External' };
 
-// Live bindings + real specs (measured 2026-06-14).
 const SPECS = [
   ['DB', 'D1', 'loop-content-spine', '10.51 MB · 34 tables', 'directory 338 · content_items 375 · assets 103 · pages 16 · directory_tests 64 · tasks 9 · settings 5 · watch_rules 5 · articles 1'],
   ['LEDGER', 'D1', 'loop-shared-events', '24.53 MB · 1 table', 'events 13,367 — every payload in/out'],
@@ -194,8 +191,6 @@ const RULES = [
 ];
 const HAVE = ['Pages', 'Pages Functions', 'Workers', 'D1 (×2)', 'KV', 'R2', 'Workers AI', 'AI Gateway (gw:)', 'Queues', 'Durable Objects'];
 const DONT = ['Workers for Platforms (dynamic Workers)', 'Browser Rendering binding (REST only)', 'Vectorize', 'Hyperdrive', 'Workflows (sibling worker only)', 'Pipelines', 'Stream', 'Images', 'Email Routing / Sending', 'Cron Triggers', 'WebSockets / DO hibernation', 'Service Bindings', 'Access / Zero Trust / mTLS', 'Secrets Store', 'Containers', 'Analytics Engine', 'Logpush / Tail Workers', 'Turnstile', 'Zaraz', 'WAF / Rate Limiting'];
-// Every wired CLI_* row vs whether the binary is on the owner's Mac (which-sweep 2026-06-14).
-// run_via: the build calls these on the remote exec host agent.cannibal.capital, NOT this Mac.
 const CLIS = [
   ['aider', 1], ['aws', 0], ['brew', 1], ['bun', 1], ['clasp', 1], ['claude', 1], ['codex', 1], ['curl', 1], ['deno', 0], ['docker', 1], ['fd', 1], ['ffmpeg', 1], ['gcloud', 1], ['gemini', 1], ['gh', 1], ['git', 1], ['goose', 1], ['dot (graphviz)', 0], ['http (httpie)', 0], ['interpreter', 1], ['jq', 1], ['kubectl', 0], ['magick', 0], ['node', 1], ['npm', 1], ['openai', 0], ['openhands', 0], ['pandoc', 1], ['plandex', 0], ['pnpm', 1], ['psql', 0], ['python3', 1], ['rg', 1], ['sqlite3', 0], ['terraform', 0], ['typst', 0], ['wrangler', 1], ['yt-dlp', 0],
 ];

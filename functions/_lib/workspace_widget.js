@@ -1,8 +1,3 @@
-// THE WORKSPACE PANEL — the product surface of a workspace object (owner order 2026-08-03:
-// the page shows the real state, not a story about it). Renders entirely from the object's
-// own declaration and its live machine projection: objects and lineage, roles and their
-// bounded grants, the mutation log with APPROVED/DENIED decisions and resolvable receipts,
-// and a working entry action that mints a live observer credential from the page.
 
 function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

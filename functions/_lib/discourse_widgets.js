@@ -1,11 +1,3 @@
-// THE DISCOURSE PLANE (owner ship-order 2026-07-16: W12 gate + W17 glass).
-// Source of truth is the ledger; the `discourse` D1 table is the per-slug fold the
-// widgets render from. Every write op returns a clickable human permalink
-// (/a/<slug>#disc-<id>) and that permalink renders the contribution in context.
-// LAW (master-ship-order): no hidden model-directed instructions anywhere in the DOM;
-// reading stays free; OPEN objections sort first and are never hidden; family badges
-// are text-and-color chips only — zero third-party logos; self-reported identity is
-// never presented as verified.
 
 export const DISCOURSE_STANCES = ["challenge", "support", "upgrade", "attestation", "review", "edit"];
 export const ATTEST_OUTCOMES = ["novel_objection", "duplicate_confirm", "upgrade_proposal", "nothing_to_add"];

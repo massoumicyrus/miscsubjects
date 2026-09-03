@@ -1,17 +1,3 @@
-// WHEN A THING WAS POSTED, AND WHEN IT WAS LAST CHANGED — one formatter, used everywhere.
-//
-// Owner, 2026-08-04: "i want articles when updated to go up to newest but for there to be a
-// distinction between when things are posted versus updated… there should be a machine readable
-// ledger but right now it isn't legible on the homepage. it stops at the calendar date (not the
-// time). it should say down to the hour PST 2026.01.01.23.59 PST".
-//
-// Two separate facts were being collapsed into one. The homepage sorted by updated_at and printed
-// updated_at truncated to ten characters, so a page rewritten today and a page first published today
-// were indistinguishable, and the time of day — which is the part that makes a feed legible when
-// several things land in one day — was thrown away.
-//
-// The list still orders by last change, because that is what the owner asked for. What changes is
-// that the card now says which of the two facts it is showing, and shows it to the minute.
 
 const PST_FORMAT = new Intl.DateTimeFormat('en-US', {
   timeZone: 'America/Los_Angeles',
@@ -19,13 +5,6 @@ const PST_FORMAT = new Intl.DateTimeFormat('en-US', {
   hour: '2-digit', minute: '2-digit', hour12: false,
 });
 
-/**
- * `2026.01.01.23.59 PST` — the owner's format, in Pacific time, to the minute.
- *
- * The zone label is computed rather than hard-coded: Los Angeles is PST for part of the year and
- * PDT for the rest, and printing "PST" through the summer would be a wrong timestamp that looks
- * precise. Anyone reconciling a card against the ledger would be an hour out for eight months.
- */
 export function pacificStamp(iso) {
   const s = String(iso || '').trim();
   if (!s) return '';

@@ -195,7 +195,7 @@ describe('large execution-case contract', () => {
     assert.match(html, /\/api\/execution-case\/WT-0090/);
     assert.match(html, /\/api\/work-evidence\/WT-0090\/verify/);
     assert.match(html, /1,000/);
-    assert.match(html, /partners@proof\.example/); // recipient shown in full (owner order, public launch)
+    assert.match(html, /partners@proof\.example/);
     assert.match(html, /receipt\/inv_k9/); // every row links its receipt
     assert.match(html, /1,400/); // raw discovery total is disclosed alongside the deduped count
     assert.match(html, /view=raw/);

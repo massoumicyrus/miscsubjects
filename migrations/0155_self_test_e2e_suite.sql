@@ -1,7 +1,3 @@
--- End-to-end self-test suite: a fixed, sequential list of natural-language questions run
--- through the ROUTER exactly the way the owner messages it. Each passes only on a real solution
--- (reply_ok = non-empty, no tool tag, no error). Re-run any time; failures = what's broken.
--- Idempotent: reseed on every apply.
 DELETE FROM directory_tests WHERE kind='e2e';
 INSERT INTO directory_tests (key, kind, args, expect_kind, expect_value, note) VALUES
 ('ROUTER','e2e','what can you do','reply_ok','tool|article|deploy|run|search|build|help','self-description'),

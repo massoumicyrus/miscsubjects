@@ -1,20 +1,3 @@
--- A REPORT TO THE OWNER IS SENT WHEN THERE IS EVIDENCE IT ARRIVED, NOT WHEN THE API SAID ok.
---
--- 2026-08-05, reported twice: "I have still not received an email to me that I requested." Two sends
--- had returned {ok:true, messageId:"<...>"} and nothing landed. Neither response was a lie and neither
--- was a receipt — env.EMAIL.send() accepted the message, which is all ok:true has ever meant.
---
--- The worst case is specifically the owner-addressed send. /api/email/send BCCs both owner addresses on
--- every outbound message, so a normal send always has him as a witness; it deliberately skips that
--- injection when the recipient already is an owner inbox. So the one class of message whose entire
--- purpose is to reach him was the only class with no second copy and no way to tell delivered from
--- dropped. "Sent" was unfalsifiable — the same shape as the Apps Script health payload.
---
--- OWNER_REPORT sends to build@miscsubjects.com, whose MX points at Cloudflare Email Routing with a
--- worker that ledgers every inbound message and forwards it on. The message must leave Cloudflare and
--- cross the public internet, its arrival is written where the function reads it back, and the last hop
--- is a routing forward rather than a fresh send. The owner BCC rides the same envelope, so he gets it
--- twice by two independent paths. The return value is a ledger row id or an explicit failure.
 
 INSERT OR REPLACE INTO directory (key, type, target, auth, content, category, enabled, sensitive, planner_visible, planner_rank, input_schema, updated_at, created_at)
 VALUES (

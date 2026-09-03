@@ -1,6 +1,3 @@
--- Migration 0150: Ideas table + Vault events table
--- Created: 2026-06-21
--- Purpose: Preserve ideas from macro to micro + audit vault mutations
 
 -- Ideas table: append-only, hash-chained, linkable
 CREATE TABLE IF NOT EXISTS ideas (

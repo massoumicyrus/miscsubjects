@@ -1,4 +1,3 @@
--- Owner correction: recurring article generation/editing and self-testing remain off.
 DELETE FROM directory_tests
 WHERE kind = 'e2e' AND note = 't5 owner automation shutdown lock';
 

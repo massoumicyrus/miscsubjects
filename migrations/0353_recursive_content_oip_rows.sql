@@ -1,8 +1,3 @@
--- Recursive article collaboration uses the same OIP directory, capability tokens, scopes,
--- invocation receipts, replay, repair, and transports as every other object. These rows are
--- deliberately low-risk and live only under BLOCK_: a pfx:BLOCK_ token cannot name MCP_, CLI_,
--- COMPUTER_, owner, or terminal capabilities. Public keyless proposals remain available at the
--- underlying /api/blocks routes; invoking these rows records the work as an OIP invocation.
 
 INSERT INTO directory (key, type, target, auth, content, category, enabled, planner_visible, planner_rank, sensitive, updated_at)
 VALUES

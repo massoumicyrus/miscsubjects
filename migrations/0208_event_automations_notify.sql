@@ -11,7 +11,7 @@ INSERT INTO directory (key, type, target, auth, content, category, planner_rank,
 # EX: [AUTOMATE_FIRE]customer_text|hi, is this still available?[/AUTOMATE_FIRE]
 ["$1","$2+"]', 'automation', 40, 1, 1, datetime('now')),
 ('NOTIFY_OWNER', 'fn', 'sendByChannel', '',
-'# WHAT: Text the owner (the owner) a message — the "background daemon pings you when it needs a decision" primitive. Automations and event hooks call this to ask a question or report.
+'# WHAT: Text Owner (the owner) a message — the "background daemon pings you when it needs a decision" primitive. Automations and event hooks call this to ask a question or report.
 # WHEN_TO_USE: the AI needs the owner''s input or wants to surface something — "tell the owner", "ask the owner", "ping me when X".
 # ARGS: message
 # EX: [NOTIFY_OWNER]A customer asked something I have no automation for — how do you want me to reply?[/NOTIFY_OWNER]

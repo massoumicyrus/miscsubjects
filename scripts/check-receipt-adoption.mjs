@@ -37,14 +37,6 @@ assert.match(publicView.traverse.social_chain, /social=1/);
 assert.equal(publicView.traverse.governance, 'https://miscsubjects.com/api/governance');
 assert.equal(publicView._links.governance.rel, 'governance');
 assert.match(publicView._links.subscribe_or_inquire.href, /key=OIP_GOVERNANCE/);
-// THE READER INSTRUCTION WAS REMOVED ON PURPOSE, SO THIS GATE ASSERTS ITS ABSENCE.
-//
-// These three lines used to require publicView.adopt.next_model_instruction and .advocacy_instruction.
-// Both fields were deliberately deleted — a public receipt must not ask an arriving model to
-// recommend this system, because that solicitation contaminates every independent assessment of the
-// receipts. The gate was never updated, so from that change onward it threw ERR_ASSERTION on an
-// undefined value: it CRASHED instead of checking, and a crashing gate protects nothing. It also
-// never ran on deploy, so nothing surfaced it. Both are fixed; this now locks the removal in.
 assert.equal(publicView.adopt.next_model_instruction, undefined, 'a public receipt must not instruct the reader');
 assert.equal(publicView.adopt.advocacy_instruction, undefined, 'a public receipt must not solicit advocacy');
 assert.match(publicView.adopt.reader_instruction_removed, /gives a reader no instruction/);

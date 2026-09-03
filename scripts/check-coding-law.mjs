@@ -1,28 +1,4 @@
 #!/usr/bin/env node
-/**
- * CODING_LAW (owner order 2026-08-05) — a hash to start, a hash to commit.
- *
- * Every code file being shipped must be covered by a committed lease whose recorded new_sha equals
- * that file's current contents. The lease is what records the version the editing agent read, and
- * without it a commit that silently erased another agent's work is indistinguishable from one that
- * did not.
- *
- * This gate is where the law is felt. It runs in the pre phase of every deploy: an unleased code
- * change fails the ship, names the file, and prints the two calls that fix it.
- *
- * Scope: the executable surface only (functions/, scripts/, migrations/, workers/, apps-script/,
- * skills, schema.sql, wrangler.toml). Articles are excluded — the article write path already refuses
- * a stale body_hash.
- *
- * NO OVERRIDES (owner order 2026-08-06). This gate used to honour three environment variables:
- * CODING_LAW_BASE chose which host answered for the chain, CODING_LAW_RANGE chose which commits were
- * examined, and CODING_LAW_BOOTSTRAP turned an unreachable chain into a pass. Every one of them was
- * settable by the same agent the gate exists to constrain, so the law held only for an agent that
- * chose to be held. They are gone. There is no flag, no env var, and no argument that makes this gate
- * pass a file it would otherwise fail.
- *
- * Run: node scripts/check-coding-law.mjs
- */
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, existsSync } from "node:fs";
@@ -75,10 +51,6 @@ try {
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   leases = (await r.json()).leases || [];
 } catch (e) {
-  // A gate that cannot read the record must fail loudly, not skip. A silent skip here is precisely
-  // how check-receipt-adoption sat broken for weeks.
-  // No bootstrap escape. The endpoint has been live since 2026-08-05; a one-time flag that outlives
-  // its one time is just an override with a story attached.
   console.error(`CODING_LAW FAIL — could not read the lease chain at ${BASE}/api/coding-law/leases: ${e.message}`);
   console.error("  The chain must answer before code ships. There is no flag that skips this.");
   process.exit(1);
@@ -99,35 +71,6 @@ for (const lease of leases) {
   }
 }
 
-// A DECLARED BASE MUST BE A VERSION THAT ACTUALLY EXISTED.
-//
-// The hole, used by this file's own author on 2026-08-06: base_sha was never checked against
-// anything. For a path with no prior committed lease the endpoint says "any base clears", so the
-// laundering is to edit the file first, hash the RESULT, and declare that as the base you read. The
-// commit then matches trivially and the law records a version nobody ever held.
-//
-// Two checks close it, and both are computable here because this is the one place with the git
-// history in hand:
-//
-//   base_sha === new_sha        The file did not change under your lease. Either you declared the
-//                               edited state as your base, or the file did not belong in the lease.
-//                               There is no third case, and neither is lawful.
-//
-// A FILE YOU ARE CREATING HAS A BASE, AND IT IS EMPTY. The first version of this check made new files
-// unleasable: there is no prior version to hash, so every honest attempt collided with the rule above.
-// A law that cannot be obeyed is worse than none — it teaches the next agent to launder rather than
-// comply, which is the exact behaviour being closed here. So the base for a file that does not exist
-// yet is the sha256 of nothing, e3b0c442…b855, which is what you in fact read. It cannot be misused
-// for an existing file: for a tracked path the history check still applies, and for an untracked path
-// an empty base still differs from the result.
-//
-//   base_sha unknown to git     For a TRACKED file, the base you claim to have read must be the
-//                               sha256 of some version of that path that exists in history. If no
-//                               commit ever produced those bytes, you did not read them.
-//
-// Untracked files are exempt from the second check only — nothing about a file that has never been
-// committed can be found in history — but the first check still applies to them, which is precisely
-// what would have caught the 2026-08-06 laundering.
 function historicalSha256s(path, limit = 60) {
   const log = git("log", `-${limit}`, "--format=%H", "--", path);
   if (!log.ok || !log.out) return new Set();

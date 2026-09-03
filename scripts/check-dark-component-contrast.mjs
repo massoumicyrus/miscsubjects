@@ -38,10 +38,6 @@ for (const path of walk(join(ROOT, 'functions/_lib'))) {
   }
 }
 
-// The governed-finding panel (.rp-gf) renders inside BRAND cards, some of which are black
-// (xAI). Its ink is hardcoded dark (#1e1b16), so the panel itself must stay an OPAQUE light
-// surface — a translucent background inherits the brand card's black and the text vanishes.
-// Caught live on /a/three-models-deliberate-one-statutory-question, 2026-08-03 (owner screenshot).
 {
   const rail = readFileSync(join(ROOT, 'functions/_lib/widgets/rail-platform.js'), 'utf8');
   const gfRule = rail.match(/\.rp-gf\{[^}]*\}/);

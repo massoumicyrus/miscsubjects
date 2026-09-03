@@ -1,6 +1,3 @@
--- Guard the leak classes fixed in the 2026-07-10 end-to-end audit:
--- executable tags in explanations, tool-result injection, bounded model-row lookup,
--- and bounded directory keyword search.
 
 UPDATE directory
 SET content = REPLACE(

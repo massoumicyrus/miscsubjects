@@ -59,9 +59,6 @@ function plainFromPayload(raw) {
 function toolsFromJsonList(raw) {
   let list = [];
   try { list = JSON.parse(raw || '[]'); } catch {}
-  // Agents also post tools as a plain comma-separated string ("browser, capability").
-  // Stored quoted, that parses to a STRING, and .map on it threw — which blanked the
-  // ENTIRE cards feed, not just the one card (2026-07-27, first misc-cli turn rows).
   if (typeof list === 'string') list = list.split(',').map((x) => x.trim());
   if (!Array.isArray(list)) return [];
   return list.map((tl) => (typeof tl === 'string' ? tl : (tl.name || tl.tool || tl.key || ''))).filter(Boolean);

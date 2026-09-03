@@ -1,12 +1,3 @@
-// THE GOVERNED-TABLE GUARD, PINNED TO THE STATEMENTS THAT USED TO WORK.
-//
-// WT-0039: D1_EXEC accepted any write to the content database, so `UPDATE work_tasks SET
-// state='completed'` closed a task without running one acceptance test or appending one audit row —
-// the exact thing the work object exists to make impossible. `UPDATE work_actions` could rewrite the
-// hash chain itself.
-//
-// Each case below is a statement that succeeded before the guard. Weakening the guard makes one of
-// them pass again, and the bypass is back.
 
 // node:test, not vitest. Every gate in ship.mjs invoked `npx --no-install vitest`, and this repo
 // has never had vitest installed — so npx refused to fetch it and each of these regression tests

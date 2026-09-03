@@ -2,10 +2,8 @@
 -- examples (arg1|arg2|arg3) so a model could not learn how to actually call them.
 -- Give the rows a model reaches for real, copy-pasteable examples + canonical guidance.
 
--- Texting: SEND_BY_CHANNEL is THE way to text the owner. BLOOIO_SEND_MESSAGE is the wrong door
--- (it needs a channel_id) and kept getting grabbed first.
 UPDATE directory SET content =
-'# WHAT: Text the owner (or anyone) — the ONE way to send a message. $1=channel (use "blooio" to text the owner), $2=recipient ([OWNER_PHONE] is the owner), $3=the message text.
+'# WHAT: Text Owner (or anyone) — the ONE way to send a message. $1=channel (use "blooio" to text the owner), $2=recipient ([OWNER_PHONE] is the owner), $3=the message text.
 # WHEN_TO_USE: ANY "text me / send a text / message the owner / notify me / sms / dm me" request. This is the canonical texting row. Do NOT use BLOOIO_SEND_MESSAGE for this.
 # ARGS: channel | recipient | text   (pipe-delimited, exactly three)
 # EX: [SEND_BY_CHANNEL]blooio|[OWNER_PHONE]|Woof woof.[/SEND_BY_CHANNEL]

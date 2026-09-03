@@ -4,8 +4,6 @@ Operational scripts for the miscsubjects build. Each runs under Node (`node scri
 
 ## guard.mjs
 
-Protected-widget guardian. Keeps its own snapshot of each locked file in `.protected/guard-baseline/` and detects changes *between* snapshots (git HEAD is not a valid baseline because the working tree is chronically dirty). First sight of a file = silent snapshot; a later change = quarantine the new version, ask Grok + Kimi for a verdict, text the owner, and heal on 👍.
-
 Modes:
 - `--baseline` — snapshot all locked files now (no alerts). Run after authorized work.
 - `--check` — alert on any locked file changed since its snapshot.
@@ -19,7 +17,7 @@ Run:
 node scripts/guard.mjs --check
 ```
 
-Cron (launchd `com.the owner.guard`): `node scripts/guard.mjs --check --nojudge` every 900s (15 min), `RunAtLoad` true. Logs to `~/.miscsubjects/guard.log`.
+Cron (launchd `com.owner.guard`): `node scripts/guard.mjs --check --nojudge` every 900s (15 min), `RunAtLoad` true. Logs to `~/.miscsubjects/guard.log`.
 
 ## ship.mjs
 
@@ -39,7 +37,7 @@ Run:
 node scripts/recurse.mjs
 ```
 
-Cron (launchd `com.the owner.recurse`): `node scripts/recurse.mjs` every 3600s (hourly), `RunAtLoad` false. Logs to `~/.miscsubjects/recurse.log`.
+Cron (launchd `com.owner.recurse`): `node scripts/recurse.mjs` every 3600s (hourly), `RunAtLoad` false. Logs to `~/.miscsubjects/recurse.log`.
 
 ## resolve.mjs
 

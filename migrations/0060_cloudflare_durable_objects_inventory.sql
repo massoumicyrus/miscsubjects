@@ -1,6 +1,3 @@
--- 0060_cloudflare_durable_objects_inventory.sql
--- Adds the Durable Objects namespace list endpoint the owner pasted.
--- This is a safe READ-only Cloudflare row. It uses the existing scoped Bearer token.
 
 INSERT OR REPLACE INTO directory
   (key, type, target, auth, content, updated_at, category, allowed_categories, seq, enabled, planner_visible, planner_rank)

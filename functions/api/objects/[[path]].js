@@ -1,9 +1,3 @@
-// GET /api/objects/{type}/{id}[?format=card] — the one object route (2026-07-28).
-// A projection over existing tables: leads + charges (LEDGER) + assets. JSON by default,
-// an HTML card page with ?format=card. Tenant boundary: a lead owned by a tenant refuses
-// a public read with a recorded refusal receipt (the refusal lands on the invocations
-// ledger, same shape as any other event); the labeled synthetic demonstration record and
-// owner-authed reads render in full. Assets are already public site images.
 import { isBuildAuthed } from '../../_lib/admin_session.js';
 import { logInvocation } from '../../_lib/invocation_log.js';
 import { renderObjectCard, renderAssetCard, objectWidgetStyles, leadObjectJson } from '../../_lib/object_widgets.js';
@@ -23,10 +17,6 @@ function cardPage(title, inner) {
   );
 }
 
-// GET /api/objects/export?tenant=t_x — the answer to the custody objection (Kimi K3, 2026-07-28):
-// an object a buyer cannot walk away with is custody, not property. This returns every object the
-// tenant owns plus every charge that produced them, as one plain JSON document, with no cost and
-// no gate beyond the tenant's own token. Portability is a right of the owner, not a paid feature.
 async function exportTenant(env, request, tenantId) {
   const owner = await isBuildAuthed(request, env);
   const token = new URL(request.url).searchParams.get('share') || '';

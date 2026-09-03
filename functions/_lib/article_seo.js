@@ -18,18 +18,6 @@ const OIP_DESC =
 const PHIL_DESC =
   "A living philosophy corpus — order, obligation, right action, and falsification, every claim hashed and individually challengeable.";
 
-// TAGS ARE WHATEVER THE WRITE PATH ACCEPTED, AND IT ACCEPTS A STRING.
-//
-// 2026-08-05: /a/the-model-comment-ledger published cleanly through every write gate and then
-// returned "render error" on every request. The cause was one line here — `(meta?.tags || [])
-// .join(", ")` — against a tags value stored as "a, b, c" rather than ["a","b","c"]. Strings have no
-// .join, the whole page threw, and the failure surfaced as a 500 with no message rather than as
-// anything the author could have seen at publish time.
-//
-// The write path has always accepted both shapes. Six places in this file spread or joined tags as
-// if only one existed, so every one of them was a 500 waiting for the next author who typed a
-// comma-separated string. Normalising on read is the repair: the reader accepts what the writer
-// accepts. Fixing the two stored rows would have left the trap armed for the third.
 function tagList(tags) {
   if (Array.isArray(tags)) return tags.map((t) => String(t || "").trim()).filter(Boolean);
   if (typeof tags === "string") return tags.split(",").map((t) => t.trim()).filter(Boolean);

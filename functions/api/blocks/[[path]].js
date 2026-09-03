@@ -35,8 +35,6 @@ import {
   verdictOnBlock,
 } from '../../_lib/recursive_content.js';
 
-// The article fast-lane cache key version and the purge helper live in one shared module,
-// so this route and _middleware.js cannot drift apart (they used to hold twin literals).
 import { purgeArticlePageCache } from '../../_lib/edge_cache.js';
 
 function json(body, status = 200) {

@@ -1,14 +1,3 @@
-// EVERY ARTICLE IS THE SAME OBJECT.
-//
-// Built from the exact failure of 2026-08-05: /a/tesofensine and /a/slu-pp-332 published reading
-// "7 sources · 0 claims · 3303w". Owner: "some articles have claims, some articles dont… I dont want
-// some to have divs, others not to have divs, some to have proof of work, some not."
-//
-// The write path enforced five laws — source quotes, one-object framing, register, headline, hero —
-// and accepted claims:[] in silence. So the standard lived in the renderer's capabilities and in
-// nobody's contract, and 161 substantial articles shipped as a lesser kind of object.
-//
-// These tests pin the refusal. Weakening any of them lets a claim-less article publish again.
 
 // node:test, not vitest. Every gate in ship.mjs invoked `npx --no-install vitest`, and this repo
 // has never had vitest installed — so npx refused to fetch it and each of these regression tests

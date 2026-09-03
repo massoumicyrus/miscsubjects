@@ -5,12 +5,6 @@ export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);
 
-  // The Sheets workbook is the default view of this surface (owner order 2026-08-29).
-  // Every JSON mode (?data=…) and the classic grouped-by-kind page — all behavior
-  // contracted in PROTECTED_FEATURES.md — remains below; any other query parameter routes
-  // to it, and ?view=classic reaches the classic page explicitly. The workbook's own
-  // view-state params (owner order 2026-08-30: every view state is a link) pass through
-  // so a pasted sheet link restores the exact view.
   {
     const passthrough = ['view', 'share', 'terminal_key', 'tk', 'tab', 'kind', 'sort', 'cell', 'id', 'field'];
     const paramKeys = [...url.searchParams.keys()].filter(
@@ -82,9 +76,6 @@ export async function onRequestGet(context) {
       if (env.GITHUB_TOKEN) {
         const gr = await fetch('https://api.github.com/repos/[OWNER_HANDLE]/miscsubjects-pages/git/trees/main?recursive=1',
           { headers: { Authorization: 'Bearer ' + env.GITHUB_TOKEN, 'User-Agent': 'miscsubjects-build', Accept: 'application/vnd.github+json' } });
-        // Build code only (owner order 2026-08-31): machine artifacts are not files of the
-        // build — ledger-mirror/ (quadsync's per-day event mirrors, thousands of .jsonl) and
-        // .protected/ (guardian snapshot copies of code that already has its own row).
         const ARTIFACT_PREFIXES = ['ledger-mirror/', '.protected/'];
         if (gr.ok) { const gj = await gr.json(); files = (gj.tree || []).filter(t => t.type === 'blob' && !ARTIFACT_PREFIXES.some(p => t.path.startsWith(p))).map(t => ({ key: t.path, type: 'file', target: '/api/file/' + t.path, category: 'file', size: t.size || null, href: '/api/file/' + t.path })); }
       }
@@ -125,7 +116,7 @@ table td{padding-top:5px;padding-bottom:5px}
 .bigtab .ct{font-size:11px;font-family:var(--mono);color:var(--muted)}
 .bigtab.on{background:#000;color:#fff;border-color:#000}
 .bigtab.on .ct{color:#bbb}
-/* Sheet ⇄ Classic: two views of the same objects, top right (owner order 2026-08-30) */
+/* Sheet ⇄ Classic: two views of the same objects, top right */
 .topbar .vtwrap{margin-left:auto;display:inline-flex}
 .topbar .vt{padding:7px 12px;border:1px solid var(--line-strong);background:#fff;font-size:13px;font-weight:600;color:var(--ink);text-decoration:none}
 .topbar .vt:first-child{border-radius:6px 0 0 6px;border-right-width:0}
@@ -181,7 +172,7 @@ function e(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/
 function catColor(c){ return PALETTE[c] || '#9aa7ba'; }
 function elv(id){ return document.getElementById(id); }
 
-// Every tap is a link (owner order 2026-08-30): tab, search, category, sort, use, page and
+// Every tap is a link: tab, search, category, sort, use, page and
 // the clicked row's object id all live in the URL; a pasted link restores the exact view.
 // A page reached via ?share= / ?terminal_key= / ?tk= carries that token on its own data
 // fetch and on every state URL it writes — the cookie is absent on those visits.
@@ -256,7 +247,7 @@ async function doDelete(){
   if(j.ok){ st.style.color='#178c45'; st.textContent='deleted '+k; loadDir(true); } else { st.style.color='#c0392b'; st.textContent='error: '+(j.error||res.status); }
 }
 
-// Big filter tabs the owner asked for: agent · content · code · files · other.
+// Big filter tabs the it was asked for: agent · content · code · files · other.
 // 'code' = the executable rows (fn/http/flow); 'other' = pages, meta, everything else.
 const BIGTABS = [
   { id:'',        label:'Everything', sw:'#9aa7ba' },
@@ -306,7 +297,7 @@ function refreshCategories(){
   if (wrap) wrap.style.display = cats.length > 1 ? '' : 'none';
 }
 
-// Cached corpus (owner order 2026-08-30): the last good copy paints the table instantly,
+// Cached corpus: the last good copy paints the table instantly,
 // the live fetch replaces it in place — the loading row only ever shows on a cold first visit.
 async function loadDir(fresh){
   var KEY = '/admin/directory?data=directory' + (TOKP ? '&'+TOKP[0]+'='+encodeURIComponent(TOKP[1]) : '');

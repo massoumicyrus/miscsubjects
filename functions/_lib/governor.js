@@ -1,23 +1,7 @@
-// GOVERNOR — the build's manager. Periodically reads the last window of ledger turns,
-// computes a deterministic symptom digest (recurring errors, file collisions, loop states,
-// auth lockouts, cron noise, task flow, waste), has a model write the governor's brief on
-// top of it, emails the owner, texts a summary, and ledgers the whole thing.
-//
-// Triggers (all KV-gated, fired via waitUntil from dispatch traffic — no new routes):
-//   time    — every governor_cfg.every_hours (default 12h)
-//   volume  — governor_cfg.volume new events since last brief (default 2000)
-//   errors  — governor_cfg.error_burst new error events since last brief (default 150)
-//   manual  — dispatch GOVERNOR_RUN (always runs; arg 'dry' = digest only, no model/email)
-//
-// The GOVERNOR directory row holds the charter prompt (editable in the ledger brain panel).
-// settings.governor_corpus, when filled, is injected as the owner's systems-governance corpus.
 
 import { logEvent } from './event_log.js';
 
 const OWNER_PHONE = '[OWNER_PHONE]';
-// theloopway.com because it resolves and is verified today. [OWNER_EMAIL] is the real primary, but the
-// .co delegation to ns1/ns2.dnsimple.com is lame (nameservers answer REFUSED), so nothing reaches it
-// until that is repaired at the registrar. Not a wrong address. See functions/api/email/send.js.
 const OWNER_EMAIL = '[OWNER_EMAIL]';
 const DEFAULT_CFG = { every_hours: 12, volume: 2000, error_burst: 150, model_key: 'GOVERNOR', fallback_key: 'ASK_GEMINI', window_hours: 48, autorun: 1 };
 
@@ -62,9 +46,6 @@ export async function buildGovernorDigest(env, windowHours) {
     if (k === 'PROTOCOL_RUN' || k === 'AUTOMATE_RUN_DUE' || k === 'TODO_RUN') noise++;
     if (typeof e.status === 'number' && e.status >= 400) {
       errByKey[k] = (errByKey[k] || 0) + 1;
-      // Only authenticated callers count toward a lockout: a dead credential fails WITH an
-      // actor. Anonymous 401/403s are the gate rejecting strangers — the 2026-07-22 false
-      // "MARKETING_API dead credential" URGENT came from one unauthenticated 12-endpoint sweep.
       if ((e.status === 401 || e.status === 403) && e.actor) authByKey[k] = (authByKey[k] || 0) + 1;
     }
   }
@@ -194,17 +175,12 @@ export async function buildGovernorDigest(env, windowHours) {
     d.instituted = inst && inst.value ? JSON.parse(inst.value) : {};
   } catch { d.instituted = {}; }
 
-  // Thread bus — machines post, the owner accepts; a piling proposed backlog means
-  // the loop is starving for governance. Counted, flagged, remembered.
   try {
     const bus = await env.DB.prepare("SELECT SUM(CASE WHEN status='proposed' THEN 1 ELSE 0 END) proposed, SUM(CASE WHEN status='accepted' AND decided_at > datetime('now','-1 day') THEN 1 ELSE 0 END) accepted_24h, COUNT(*) total FROM thread_updates").first();
     d.thread_bus = { proposed: bus?.proposed || 0, accepted_24h: bus?.accepted_24h || 0, total: bus?.total || 0 };
     if ((bus?.proposed || 0) >= 5) d.flags.push('URGENT: ' + bus.proposed + ' proposed thread updates await owner acceptance — the bus is starving; accept or reject them (taps in each ledger event)');
   } catch {}
 
-  // NAME LAW (owner law, 2026-07-03, same standing as the PST time law): the owner's name
-  // never appears on any public surface. The governor fetches the key public pages every
-  // run and greps the redaction list. A hit is URGENT and a recurrence class.
   try {
     const redact = ['the owner', '[OWNER_SURNAME]'];
     const surfaces = ['/api/protocol/thread-update', '/api/articles/oip-total-structure/drop', '/a/oip', '/api/articles/system-map', '/api/protocol/thread-state?target=oip&format=markdown'];
@@ -218,9 +194,6 @@ export async function buildGovernorDigest(env, windowHours) {
     if (hits.length) d.flags.push('URGENT: NAME LAW VIOLATED — the owner name is on public surfaces: ' + hits.join('; '));
   } catch {}
 
-  // RESTATEMENT LAW: the owner never has to say a rule twice. Owner inbound turns carrying
-  // restatement-pain markers are counted; any occurrence means a stated rule was not captured
-  // as law — the brief must name the rule and the mechanism that now holds it.
   try {
     const pain = (await env.DB.prepare(
       "SELECT COUNT(*) n FROM agent_turns WHERE ts > ? AND input_kind='human' AND (user_input LIKE '%RESTAT%' OR user_input LIKE '%ALREADY SAID%' OR user_input LIKE '%ALREADY TOLD%' OR user_input LIKE '%OVER & OVER%' OR user_input LIKE '%OVER AND OVER%' OR user_input LIKE '%AGAIN AND AGAIN%')"
@@ -229,7 +202,6 @@ export async function buildGovernorDigest(env, windowHours) {
     if ((pain?.n || 0) >= 1) d.flags.push('URGENT: the owner restated a rule ' + pain.n + '× this window — a stated law was not captured into enforcement; identify it and institute it');
   } catch {}
 
-  // Prior briefs — the governor remembers what it already told the owner.
   try {
     const pb = (await env.LEDGER.prepare("SELECT ts, response_preview FROM events WHERE key='GOVERNOR_BRIEF' ORDER BY ts DESC LIMIT 5").all()).results || [];
     d.prior_briefs = pb.map((r) => {
@@ -275,7 +247,7 @@ export async function buildGovernorDigest(env, windowHours) {
 function briefPrompt(charter, corpus, digest) {
   return [
     charter || 'You are GOVERNOR, the build manager. Analyze the digest and write the daily brief to the owner.',
-    corpus ? '\n## the owner SYSTEMS-GOVERNANCE CORPUS (honor this worldview)\n' + corpus : '',
+    corpus ? '\n## OWNER SYSTEMS-GOVERNANCE CORPUS (honor this worldview)\n' + corpus : '',
     '\n## DETERMINISTIC DIGEST (counted from the ledger — treat as ground truth, never contradict it)\n',
     JSON.stringify({ ...digest, recent_turns: undefined }, null, 1),
     '\n## RECENT TURNS SAMPLE\n',
@@ -286,7 +258,7 @@ function briefPrompt(charter, corpus, digest) {
     'RECURRING PROBLEMS: numbered; each = pattern + count from the digest + root cause. Use issue_recurrence to say how many briefs in a row have seen this class.',
     'CONFLICTS: agents/paths working against each other (double edits, contradictory prompts, dead loops). Say "none observed" if none.',
     'INSTITUTIONAL CHANGES I PROPOSE: numbered; each = ONE concrete change naming the exact directory row, file, or law to alter, and what it relieves.',
-    'DECISIONS NEEDED FROM the owner: numbered yes/no questions only.',
+    'DECISIONS NEEDED FROM OWNER: numbered yes/no questions only.',
     'VERDICT: one line — GREEN / YELLOW / RED and why.',
     'HARD RULES: every numeric claim carries its digest count in parentheses. If a digest list is empty (e.g. auth_lockouts: []) you MUST write "none observed" for that class — inventing an incident that is not in the digest is a firing offense.',
   ].join('\n');
@@ -337,10 +309,6 @@ export async function governorRun(env, mode) {
     '\nEdit my charter: the GOVERNOR card brain panel on /admin/ledger?view=turns' +
     '\nFeed my corpus: settings key governor_corpus';
 
-  // DELIVERY DISCIPLINE — the governor speaks when the situation CHANGES, never on repeat.
-  // Same verdict-color + same flags within 6h → ledger the brief, skip email + text.
-  // mode 'force' overrides (the owner explicitly asked). Prevents the brief-storm failure mode
-  // (2026-07-03: eight urgent texts in one hour during a debugging loop).
   const color = (verdict.match(/\b(GREEN|YELLOW|RED)\b/i) || ['', ''])[1].toUpperCase();
   const deliveryHash = color + '|' + digest.flags.join('|');
   let deliver = m === 'force';
@@ -380,8 +348,6 @@ export async function governorRun(env, mode) {
   return JSON.stringify({ ok: true, urgent, delivered: deliver, flags: digest.flags, subject, model: modelUsed, event: eventId, email: clip(emailRes, 160), sms: clip(smsRes, 160), verdict: clip(verdict, 200) }, null, 1);
 }
 
-// ── Conversational governor: the owner texts a question, this answers from live evidence. ──
-// Sized for an iMessage reply. Never delivers anything itself — the ROUTER replies.
 export async function governorAsk(env, question) {
   const q = String(question || '').trim() || 'What is the state of the build right now?';
   const cfg = await cfgOf(env);
@@ -394,10 +360,10 @@ export async function governorAsk(env, question) {
   } catch {}
   const prompt = [
     charter,
-    corpus ? '\n## the owner SYSTEMS-GOVERNANCE CORPUS\n' + corpus : '',
+    corpus ? '\n## OWNER SYSTEMS-GOVERNANCE CORPUS\n' + corpus : '',
     '\n## DETERMINISTIC DIGEST (ground truth — never contradict a count; empty list = "none observed")\n',
     JSON.stringify({ ...digest, recent_turns: digest.recent_turns.slice(0, 25) }, null, 1),
-    '\n## the owner ASKS\n' + q,
+    '\n## OWNER ASKS\n' + q,
     '\n## ANSWER CONTRACT: answer the literal question from the digest evidence in ≤1100 characters, plain sentences, counts in parentheses, no sections, no preamble, no sign-off. If the digest cannot answer it, say exactly what evidence is missing.',
   ].join('\n');
   const { dispatch } = await import('../api/dispatch.js');
@@ -423,9 +389,6 @@ export async function governorTick(env) {
     lastIsolateCheck = now;
     if (!env || !env.KV || !env.LEDGER) return null;
     const cfg = await cfgOf(env);
-    // force_off is the owner's kill switch (owner order 2026-08-04): it outranks autorun and
-    // stays until the owner explicitly commits the governor back on (remove force_off from
-    // governor_cfg in KV). No agent may lift it on its own judgment.
     if (cfg.force_off) return null;
     if (!cfg.autorun) return null;
     const nowS = Math.floor(now / 1000);

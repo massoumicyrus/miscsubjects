@@ -4,10 +4,6 @@ import { readFileSync } from 'node:fs';
 
 import { MODEL_RANKINGS, oceScore, modelRankingsFooter } from './model_rankings.js';
 
-// The rankings block used to print bare three-digit scores with no published formula.
-// These tests pin the honesty repair: the scores are computed from the recorded inputs,
-// they reproduce the previously published figures exactly, and the rendered block carries
-// the formula and each row's arithmetic — generated from the same code, always visible.
 
 test('computed scores reproduce the published figures from the recorded inputs', () => {
   const expected = {

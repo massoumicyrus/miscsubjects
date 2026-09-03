@@ -1,18 +1,3 @@
-// Deterministic agent entrypoint (owner brief 2026-07-25). Turns the domain into
-// a verb: output = miscsubjects.com(input, task). A capable model fetches this
-// manifest, picks the operation matching what the user asked, runs the named
-// procedure against public endpoints, applies the site's law, and returns a
-// specification plus completion evidence — not a site summary.
-//
-// Two modes. WEB (zero-install): a browsing model reads this manifest and calls
-// the listed public endpoints. CONNECTED (reliable): the user adds the site once
-// as an OpenAI Action (/api/openai/actions.json) or MCP server (see /a/oip-mcp),
-// and the operations become named tools.
-//
-// Privacy: internal drafts, prompts and pipeline live only in the admin. Public
-// operations evaluate copy the user supplies or the public law exemplar; they
-// never expose internal drafts. Connected/admin mode sees the private side under
-// permission.
 
 const SITE = "https://miscsubjects.com";
 

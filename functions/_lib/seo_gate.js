@@ -1,24 +1,3 @@
-// SEO gate — search best practices enforced at the one write path every article goes through
-// (owner order 2026-08-06: "install logic so that all articles are gated around those best
-// practices"). Server-side 422 refusals with the fix named, same contract as every other
-// content law here: the law is learned by hitting it, never by remembering it.
-//
-// What is deliberately NOT gated here, because an existing gate already owns it:
-//   title quality and length        → checkTitle (title_hero_gate.js), runs on every title change
-//   claims present                  → claim_law.js
-//   sources attached to claims      → source law (article_object.js)
-//   test/placeholder/reserved names → registerViolation (api/articles)
-//   hero inspection                 → editorialPreflight
-//
-// The two SEO facts nothing gated until now:
-//   1. tags — they drive the meta keywords, the BreadcrumbList middle level, and the /t/
-//      folders that give search engines a crawlable topic hierarchy. A new article published
-//      without any tag enters the corpus invisible to all three. Ratcheted: only NEW articles
-//      are refused, so no existing page is retroactively blocked from repair.
-//   2. deck length — the deck is the homepage card description and the strongest
-//      description candidate. A deck outside 40–300 chars is either too thin to orient a
-//      reader or truncated by every SERP and social card that renders it. Checked only when
-//      the write itself sets or changes the deck, so untouched fields never block a repair.
 
 function tagList(tags) {
   if (Array.isArray(tags)) return tags.map((t) => String(t || "").trim()).filter(Boolean);

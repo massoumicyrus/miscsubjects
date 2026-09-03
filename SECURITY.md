@@ -19,7 +19,8 @@ be minted for agents that should hold less than the whole key.
 ## Configuration names the code expects
 
 These are the environment variable names the Functions and Workers read. Names only; a value is a
-secret and lives in the platform's secret store.
+secret and lives in the platform's secret store. Names for integrations that the public primitive
+stubs out are still listed, because the function-runner module reads them by name.
 
 | Group | Names |
 |---|---|

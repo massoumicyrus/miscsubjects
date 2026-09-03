@@ -1,27 +1,3 @@
-// SUBJECT BOUNDARY — the article about BPC-157 is about BPC-157.
-//
-// The owner stopped reading /a/bpc-157 after ten words and asked what an article about a compound
-// had to do with spinal discs. His direction: an article about a compound covers that compound and
-// nothing else; a condition appears as a subject only on the page about that condition, or on a
-// page whose subject is the pairing.
-//
-// The page had ninety mentions of disc/back/spine, a whole section titled "What is wearing out in
-// a disc", and closed on "your disc is none of those things". Every one of them was individually
-// true and well sourced. The defect was not any sentence — it was that the page had been bent
-// toward the condition the site sells into. W47 already forbids it ("A page about BPC-157 is about
-// what BPC-157 does… who the build happens to be selling to is a campaign fact and never an
-// article fact") and W56 already forbids it ("one subject, one article"). Both clauses were live,
-// both were read, and the page shipped anyway. A clause that is read and not obeyed needs a gate,
-// not a restatement — so this refuses the write.
-//
-// THE RULE. The slug names the subject set. A compound slug names a compound. A condition slug
-// names a condition. A pairing slug (bpc-157-herniated-disc) names both, and on that page the
-// condition is a subject and everything here is silent. On a page whose slug does NOT name a
-// condition, condition language may still appear as a FACT ABOUT THE SUBJECT — "no study of
-// BPC-157 in a spinal disc exists, in any species" is a true and load-bearing statement about
-// BPC-157, and deleting it would suppress a negative finding under W62. What may never happen is
-// the condition becoming the page's FRAME: carried in a heading, standing in the opening, or
-// assigned to the reader as their own body.
 
 import { COMPOUNDS } from './one_object_guard.js';
 import { openingNamesNoSubject, unglossedJargon } from './plain_words.js';
@@ -169,17 +145,6 @@ export function subjectForeignDensity(slug, body) {
   return { total, per_1000_words: Number(((total / words) * 1000).toFixed(1)), terms: hits };
 }
 
-// ─────────────────────────── EVERY CLAUSE IS A GATE ───────────────────────────
-//
-// Owner, 2026-08-07: "This isn't just a subject gate. The rules are binding. Every single rule is
-// binding." Before this block the law had 104 clauses and five machine checks — title, hero,
-// register, one-object, model signature. The other ninety-nine were text a model read and then
-// violated, which is what happened across a full session with the law open in context.
-//
-// A clause earns a check here only when its OWN TEXT states an exact test — a named banned word,
-// a named banned shape, a required block. Nothing is inferred and no threshold is invented; where
-// a clause needs judgment, it is listed in UNENFORCED below so the gap is countable instead of
-// hidden. An honest register of what is not enforced is worth more than a check that guesses.
 
 const CLAUSE_CHECKS = [
   {
@@ -231,18 +196,6 @@ const CLAUSE_CHECKS = [
       + 'English — "in 38 people over 28 days", "in rats", "one person reported", "no one has measured this".',
   },
   {
-    // W111: "ALWAYS state within the first five sentences what the substance does for a person and
-    // in which tissue, with its tier in the same sentence. NEVER open with an inventory of studies."
-    //
-    // The half of that clause a regex can settle is the NEVER. An inventory of studies has one
-    // recognisable shape — a count governing the word studies/trials/papers — and the clause names
-    // the position it may not occupy: the opening. So the test runs on the FIRST SENTENCE only, and
-    // nothing about "what the substance does for a person" is inferred, because that needs a reader.
-    //
-    // This is the clause the eight core pages all failed on 2026-08-08: /a/ara-290 opened "Six
-    // randomised, placebo-controlled trials have put this compound into people", /a/bpc-157 opened
-    // on 150 animal papers and five human studies. Every one of them was true, sourced, and the
-    // wrong first sentence — the reader arrives wanting to know what the thing does.
     id: 'W111',
     code: 'study_inventory_opening_W111',
     scope: 'body',
@@ -257,25 +210,6 @@ const CLAUSE_CHECKS = [
       + 'The study tally belongs further down, under W114\'s descending tiers.',
   },
   {
-    // W118: "NEVER open a page, a section or a comparison on a trial that was not run, an approval
-    // not held, or a claim the substance never made."
-    //
-    // THE EXHIBIT (owner, 2026-08-08, reading /a/bpc-157-vs-nsaids): "BPC-157 has never completed a
-    // randomised controlled trial in a human being for any injury. Not for tendon, not for muscle,
-    // not for a disc, not for a joint." — "You think that this is the most important thing… Where in
-    // the rules did I say that something that something has never claimed ~ is what is most important
-    // about it? 'The color black is not white, it is not white, it is not sterile.'"
-    //
-    // W111 already banned opening on an inventory of studies that WERE run. This bans opening on the
-    // ones that were not, which is the same defect with the sign flipped.
-    //
-    // THE TEST IS THE FIRST THING THE PAGE SAYS ABOUT THE SUBSTANCE, not the first sentence on the
-    // page. The exhibit was the THIRD paragraph: a scene-setting line opened the page, the drug got
-    // its benefit paragraph, and only then was the peptide introduced — by a trial nobody ran. A
-    // first-sentence check passes that, which is how the identical defect reached the owner twice in
-    // one day. So: inside the preamble, which is the page's opening, find the first sentence naming
-    // a compound the slug names and refuse if that sentence is an absence. Absences elsewhere stay
-    // legal and required — W62 needs them and W119 governs their symmetry.
     id: 'W118',
     code: 'absence_as_frame_W118',
     scope: 'slug+body',
@@ -318,9 +252,6 @@ const CLAUSE_CHECKS = [
       + 'anything is compared. "These two", "this compound" and "the drug" name nothing.',
   },
   {
-    // W13 PLAIN WORDS. The jargon map ran only at deploy, over a fixed corpus list, so it never saw
-    // a write. Owner, on "corticosteroids inhibited resorption in preclinical work": "Dude, I can't
-    // fucking read your articles."
     id: 'W13',
     code: 'jargon_without_plain_words_W13',
     scope: 'body',
@@ -412,21 +343,6 @@ export function checkWritingLawClauses(title, body, slug) {
   return writingLawViolations(title, body, slug)[0] || null;
 }
 
-// THE WRITE PATH REFUSES WHAT A WRITE INTRODUCES, NOT WHAT IT INHERITED.
-//
-// FAILURE (2026-08-08). law_enforcement.js declared five writing clauses — W51, W52, W63, W87 and
-// the W87 tier-label test — enforced by this module "at the write path". The article write path
-// imported checkSubjectBoundary and nothing else, so not one of those five ran on a single write
-// for as long as the declaration existed. A register that says a clause is enforced when it is not
-// is worse than an honest gap, because the enforcement ratchet counts it and the next agent trusts
-// it. The layer that permitted it: nothing checked that an `enforced_by` string named a function
-// the surface it names actually calls.
-//
-// WHY A RATCHET RATHER THAN A GATE. Wiring the checks in flat would refuse every future edit to
-// every stored article that already carries one of these shapes — including the edit that repairs
-// it. claim_law.js already learned this and solved it with existing_claim_count. Same shape here:
-// a write is refused for a violation IT INTRODUCES, and never for one it inherited and left alone.
-// So the corpus can only get cleaner, and no repair is ever blocked by the thing it is repairing.
 export function newWritingLawViolation({ slug, prevTitle, prevBody, title, body }) {
   const now = writingLawViolations(title, body, slug);
   if (!now.length) return null;

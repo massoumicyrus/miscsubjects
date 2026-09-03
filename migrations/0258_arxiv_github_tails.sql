@@ -1,6 +1,3 @@
--- OIP tails (loop-content-spine / DB) — the arXiv paper and the GitHub repository are
--- protocol objects. github.com/[OWNER_HANDLE]/oip (private) is written only by ARXIV_GROW;
--- commit messages carry trace ids so the commit history is a receipt chain rendered into git.
 INSERT INTO directory (key, type, target, auth, content, category, planner_rank, planner_visible, enabled, updated_at) VALUES
 ('ARXIV_PAPER', 'fn', 'arxivState', '',
 '# WHAT: The arXiv paper as a live object. The paper "The Document Is the Receipt" lives at github.com/[OWNER_HANDLE]/oip (private) and is written only by ARXIV_GROW. Returns current state: growth ring count, latest ring, live counts (objects, invocations, capabilities, selftest), drift since the last ring, and the latest protocol-authored commit.
@@ -10,7 +7,7 @@ INSERT INTO directory (key, type, target, auth, content, category, planner_rank,
 []', 'oip', 20, 1, 1, datetime('now')),
 ('ARXIV_GROW', 'fn', 'arxivGrow', '',
 '# WHAT: Regenerate the arXiv paper from live state. Reads paper/template.tex + paper/rings.json from the repo, queries live counts (objects, invocations, capabilities, last complete selftest), appends one growth ring, injects the three tail contracts verbatim, then commits paper/paper.tex + paper/rings.json + README.md + oip.json — each commit message carries this trace id. CI compiles the PDF on the paper.tex push. This fn is the only writer of the generated files.
-# WHEN_TO_USE: the owner says "grow the paper", "regenerate the arxiv", "add a ring", "refresh the paper". Also fired daily by launchd com.the owner.oip.arxiv-grow on the Mac.
+# WHEN_TO_USE: the owner says "grow the paper", "regenerate the arxiv", "add a ring", "refresh the paper". Also fired daily by launchd com.owner.oip.arxiv-grow on the Mac.
 # ARGS: none.
 # EX: [ARXIV_GROW][/ARXIV_GROW]
 []', 'oip', 20, 1, 1, datetime('now')),

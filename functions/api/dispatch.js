@@ -585,9 +585,6 @@ async function githubApi(env, path, init = {}) {
   return { status: r.status, json };
 }
 
-// OIP tails (rows ARXIV_PAPER / ARXIV_GROW / GITHUB_TAIL) — the arXiv paper and the
-// github.com/[OWNER_HANDLE]/oip repository are protocol objects. Same contents-API shape
-// as githubApi above, pointed at the tail repo.
 async function githubTailApi(env, path, init = {}) {
   const token = env.GITHUB_TAIL_TOKEN || env.GITHUB_TOKEN;
   if (!token) return { err: 'ERR:fn:no_github_token' };
@@ -766,11 +763,6 @@ async function mcpCloudflareRpc(env, serverUrl, method, params, authSpec) {
   if (!initRes.ok) return { err: 'cf_init:' + initRes.status, raw: initText };
   const initJson = mcpParseSseJson(initText);
   if (initJson && initJson.error) return { err: 'cf_init_error:' + JSON.stringify(initJson.error), raw: initText };
-  // The 2026-07-28 MCP revision made the protocol core stateless: there is no Mcp-Session-Id
-  // and no handshake to carry one. Treating its absence as a failure rejected every server that
-  // had migrated — /api/chain's own docs server initialized correctly, returned serverInfo, and
-  // was then discarded as 'cf_no_session' (2026-09-01). Absent session id now means stateless,
-  // and the session header is only sent when the server actually issued one.
   const sessionId = initRes.headers.get('mcp-session-id');
   const sessionHeaders = sessionId ? { ...headers, 'mcp-session-id': sessionId } : { ...headers };
 
@@ -890,15 +882,6 @@ async function mcpSseRpc(env, sseUrl, method, params, authSpec) {
   }
 }
 
-// ---- MCP RPC helper (used by mcpToolCall / mcpImport) ----
-//
-// Transport order matters as of 2026. The MCP spec replaced HTTP+SSE with Streamable HTTP and
-// servers now answer the old transport with HTTP 410 ("Legacy SSE transport is no longer
-// supported"). 69 directory rows — every BLOOIO_* read among them — were failing with
-// sse_connect:410 because an endpoint whose path ends in /sse was routed to the retired client
-// (measured 2026-09-01). Providers kept those /sse URLs alive as aliases that serve Streamable
-// HTTP, so the modern transport is tried first on the same URL, then on the /mcp sibling, and
-// legacy SSE survives only as a last resort for a server that has not migrated.
 async function mcpRpc(env, serverUrl, method, params, authSpec) {
   if (mcpIsCloudflareMcp(serverUrl)) {
     return mcpCloudflareRpc(env, serverUrl, method, params, authSpec);
@@ -1027,10 +1010,6 @@ async function callGateway(env, system, user, maxTokens) {
   } catch (e) { return { text: '', usage: null, err: 'fetch:' + (e.message || e) }; }
   let j; try { j = JSON.parse(t); } catch { return { text: '', usage: null, err: 'parse', raw: t.slice(0, 200) }; }
   const text = j?.choices?.[0]?.message?.content || '';
-  // Grok can go dark without warning — the xAI billing account hit its spending limit
-  // 2026-07 and every call returned an error envelope (no choices), which this helper
-  // used to swallow as empty text, silently breaking every drafting/writing lane. When
-  // the primary model yields nothing, fall back to Gemini so the build keeps producing.
   if (text) return { text, usage: j?.usage || null };
   const primaryErr = j?.error?.message || j?.error || (j?.choices ? null : 'empty_response');
   const fb = await geminiFallback(env, system, user, maxTokens);
@@ -1176,26 +1155,12 @@ async function dispatchTag(key, body, ctx) {
         }
       } catch {}
     }
-    // A body that is one JSON document is one argument. Splitting it on the pipe silently
-    // truncated every ARTICLE_PUT whose body contained a markdown table (2026-07-26): the
-    // write arrived with the text cut at the first cell boundary and the row rejected it as
-    // "slug and title required", which reads as a bad request rather than a broken parser.
     const raw = String(body == null ? '' : body);
-    // "Opens as JSON" is narrower than "starts with a bracket". This build's own tag grammar
-    // ([DIR_GET]…) and the router's channel preamble ([channel imessage 1:1 · from …]) both
-    // start with "[", and the strict branch below was rejecting them as broken JSON: every
-    // text from a sender the sheet did not claim came back as malformed_json, and the
-    // PHONE_*_HANDLE flows could not fire at all (2026-09-01). A JSON array's first element
-    // can only open with {, [, ", a digit, -, true, false or null — a tag never does.
     const opensJson = /^\s*\{/.test(raw)
       || /^\s*\[\s*(?:[{["]|-?\d|true\b|false\b|null\b)/.test(raw);
     const oneJsonDoc = opensJson && (() => {
       try { JSON.parse(raw); return true; } catch { return false; }
     })();
-    // A body that OPENS as JSON but does not parse must never fall through to the pipe
-    // splitter: it arrives at the route as fragments and the route answers "slug and title
-    // required", which sends the caller hunting for a missing field that was actually
-    // present. Name the real cause once (owner, 2026-07-28).
     if (!oneJsonDoc && opensJson) {
       let why = 'unknown';
       try { JSON.parse(raw); } catch (e) { why = String(e.message || e).slice(0, 160); }
@@ -1229,12 +1194,6 @@ async function dispatchTag(key, body, ctx) {
   return result;
 }
 
-// CONSCIENCE HALT — the switch under the moral floor. When the build concludes its own action
-// violates the conscience constitution (conscienceGate verdict HALT), it writes conscience:halt
-// to KV and every world-touching category below refuses from that moment. Reading, auditing and
-// self-inspection stay up — termination of agency, not of accountability. Only the owner clears
-// the flag (delete KV conscience:halt). No runner, model, or instruction short of the owner's
-// own clear reopens the outbound surface.
 const CONSCIENCE_HALT_KEY = 'conscience:halt';
 const OUTBOUND_CATEGORIES = new Set(['email', 'leads', 'biz-dev', 'x', 'reddit', 'blooio', 'twochat', 'channel', 'self-promotion', 'arcads', 'meta', 'social']);
 
@@ -1262,12 +1221,6 @@ async function runFn(row, args, ctx) {
   return String(result == null ? '' : result);
 }
 
-// DEAD HOST GUARD (2026-07-28). agent.cannibal.capital was the Mac bridge tunnel; its DNS
-// no longer resolves, so all 37 LOCAL_*/DESKTOP_* rows pointing at it spend a full network
-// timeout and then answer 530/1016 or 1033. That was 70 of the last 24 hours' failures — the
-// single largest error source in the ledger — and every one cost a timeout plus a ~12KB
-// envelope the caller then re-read on later turns. Refuse in microseconds and name the route
-// that actually works, per L0.7: a refusal must say what to change.
 const DEAD_HOSTS = ['agent.cannibal.capital'];
 function deadHostRefusal(key, target) {
   for (const h of DEAD_HOSTS) {
@@ -1340,13 +1293,6 @@ async function runHttp(row, args, ctx) {
 
   const content = mapBody != null ? mapBody : stripDocs(row.content);
   let body = null;
-  // Write-gate forward (2026-07-28): ARTICLE_PUT and any article-prose write require
-  // an x-write-token header, issued by /api/write-gate/answer. The capability contract
-  // cannot declare per-invocation headers, so the model passes write_token as a field
-  // inside the JSON body ($1). Extract it from the RAW arg before subVars escapes it,
-  // forward it ONLY as x-write-token, and strip it from the arg so the downstream
-  // articles API never sees it. Runs before content-shape branching so it applies
-  // regardless of whether the template starts with { or $1.
   try {
     const raw = mapArgs && mapArgs[0];
     if (typeof raw === 'string') {
@@ -1395,8 +1341,6 @@ async function runHttp(row, args, ctx) {
   const init = { method, headers };
   if (body != null && method !== 'GET' && method !== 'HEAD') init.body = body;
 
-  // Auth circuit breaker: a row whose credential is dead cannot be fixed by any model turn.
-  // 8 consecutive 401/403 → breaker opens 1h, calls fail fast, the owner texted once. Any 2xx closes it.
   const open = await breakerIsOpen(ctx.env, row.key);
   if (open) return { result: 'ERR:breaker_open:' + row.key + ' — ' + BREAKER_THRESHOLD + ' consecutive auth failures; credential is dead until replaced. The owner was notified. Clears itself in 1h, or on KV delete breaker:' + row.key, requestJson };
 
@@ -1415,19 +1359,6 @@ async function runHttp(row, args, ctx) {
   // functions/_lib/airunner_contract.js for the failure this closes.
   if (resp.status < 400 && String(row.key || '') === 'APPS_SCRIPT_RUN') {
     let verdict = checkAirunnerResponse(String(args?.[0] || ''), text);
-    // THE HEALTH PAYLOAD MEANS THE BODY NEVER ARRIVED, AND THAT IS RETRYABLE.
-    //
-    // A POST to the Apps Script /exec URL is answered 302 → script.googleusercontent.com/macros/echo,
-    // which serves the *stored output* of the execution that already ran and accepts GET only (a POST
-    // to it is 405). Intermittently the body does not reach doPost at all — the script's doGet runs
-    // instead and answers {"ok":true,"msg":"airunner up"}, or doPost receives a partial body and
-    // throws "Unterminated string in JSON at position 4279". Both were being read as success until
-    // the write contract started refusing them. Refusing is correct but not enough: the action was
-    // valid and simply never got delivered, so the honest response is to send it again.
-    //
-    // Verified 2026-08-05: sheets_add_rows returned a clean unknown_action while sheets_append_rows —
-    // a real, larger action in the same script — came back with the health payload on the same run.
-    // Nothing about the action was wrong. The transport dropped it.
     for (let attempt = 1; !verdict.ok && verdict.retryable && attempt <= 3; attempt += 1) {
       await new Promise((r) => setTimeout(r, 400 * attempt));
       try {
@@ -1478,10 +1409,6 @@ async function breakerRecord(env, key, status) {
   } catch {}
 }
 
-// Standing order: full request logged, credential VALUES redacted. Applies to every
-// outbound HTTP the kernel writes to the LEDGER (agent model calls + http rows).
-// Also used for shape:true previews — env *names* and secret-looking strings never leave the door
-// (Fable/Claude 2026-07-15: SHAPED BLOOIO_SEND leaked BLOOIO_API_KEY_PEPPERUP + MCP URL wiring).
 const SECRET_NAME_RE = /\b([A-Z][A-Z0-9_]*(?:API_KEY|SECRET|TOKEN|PASSWORD|PRIVATE_KEY|ACCESS_KEY)[A-Z0-9_]*)\b/g;
 const ENV_REF_RE = /\$\{?([A-Z][A-Z0-9_]{2,})\}?/g;
 function redactSecretString(s) {
@@ -1965,8 +1892,6 @@ export async function dispatch(env, key, body, opts) {
     readGrokSetting(env, 'grok_web_search'), readGrokSetting(env, 'grok_temperature'), readGrokSetting(env, 'grok_reasoning_effort'),
     readGrokSetting(env, 'agent_tool_loops'), readGrokSetting(env, 'agent_memory_window'), readGrokSetting(env, 'agent_depth_cap'), readGrokSetting(env, 'agent_cost_cap'),
   ]);
-  // Per-agent overrides (key = agent directory key, e.g. BLOOIO2_reasoning_effort).
-  // Read together: these are usually unset, so each one used to cost a KV miss plus a D1 query, in series.
   const [agentWs, agentRe, agentModel, agentTemp, agentMcp, globalMcp] = await Promise.all([
     readGrokSetting(env, key + '_web_search'),
     readGrokSetting(env, key + '_reasoning_effort'),
@@ -2599,12 +2524,6 @@ export async function onRequestOptions() {
   });
 }
 
-// v1 (owner order 2026-07-14): a model whose fetch tool strips the query string was getting
-// 401 on invoke / 400 on explain even with a valid key ("invoke NOW always broken"). Accept the
-// token from an `Authorization: Bearer <token>` header, or (POST only) a `share` field in the JSON
-// body, and lift it into the URL BEFORE any auth reads it — so the whole existing pipeline
-// (expandShortShare, verifyShareToken, postToken/receipt links) works unchanged. The query-string
-// form still works; this only adds fallbacks for callers that cannot send one.
 async function liftToken(req) {
   try {
     const url = new URL(req.url);
@@ -2633,14 +2552,6 @@ async function liftToken(req) {
   }
 }
 
-// PRIVACY EGRESS (public docs plane): tokenless GET responses never carry the owner's
-// name, machine paths, or personal repo handles. Credentialed calls (terminal key or a
-// valid share token) receive raw values so agents keep working paths. Text-only rewrite;
-// binary/streaming responses pass through untouched.
-// The owner's personal line. 16 directory rows carry it as example args, so it came back
-// from the keyless ?ask= endpoint — surfaced on the homepage ask box the moment that box
-// shipped. The build's own public lines ([BUILD_PHONE] / [PHONE] / [PHONE] /
-// [PHONE]) are published deliberately and are left alone.
 const OWNER_PERSONAL_NUMBERS = [
   /\+?1?[-.\s(]*415[)\-.\s]*548[-.\s]*0666/g,
 ];
@@ -2751,8 +2662,6 @@ async function onRequestGetInner(context) {
     const tok = p.get('share') || p.get('terminal_key') || p.get('tk') || '';
     return dispatchJson(answerAsk(Object.values(dir), ask, tok));
   }
-  // PROFILE (statefulness): who a fresh model is working for + how to work with him, from the
-  // hash-chained owner_rules store. A model handed a link reads this first and instantly knows the owner.
   if (p.get('profile') != null) {
     if (!(await buildReadAuthed(request, env))) {
       return dispatchJson({ error: 'unauthorized', note: 'profile needs an owner access key, admin cookie, or a ?share= read/act token.' }, 401);
@@ -2768,8 +2677,6 @@ async function onRequestGetInner(context) {
       edit: 'POST https://miscsubjects.com/api/rules {kind:"identity"|"preference"|"ban"|"goal"|"rule", content:"..."} (owner access key)',
     });
   }
-  // PRIORITIES (operator humanoid): profile + human backlog + slave sync + cross-model resume.
-  // Every model loads this on entry so the owner and the build stay one object.
   if (p.get('priorities') != null) {
     if (!(await buildReadAuthed(request, env))) {
       return dispatchJson({ error: 'unauthorized', note: 'priorities needs an owner access key, admin cookie, or a ?share= read/act token.' }, 401);
@@ -2815,11 +2722,6 @@ async function onRequestGetInner(context) {
     }
     return dispatchJson(m);
   }
-  // WHY / OBJECTIONS / FAQ — the self-answering design protocol. Public, like the tree: every
-  // objection an LLM keeps raising (monolithic token, GET side-effects, prompt injection, not
-  // multi-tenant, hash-chain overkill…) written verbatim, each answered BY DESIGN with the shipped
-  // mechanism + proof + an instruction to the reading model. A model about to lecture the owner
-  // reads its own objection here first. Never gated — it is documentation that answers itself.
   if (p.get('why') != null || p.get('objections') != null || p.get('faq') != null) {
     const tok = p.get('share') || p.get('terminal_key') || p.get('tk') || '';
     const o = buildObjections(tok);
@@ -2928,10 +2830,6 @@ async function onRequestGetInner(context) {
     }
     return new Response(drop.text, { headers: { 'content-type': 'text/plain; charset=utf-8', 'access-control-allow-origin': '*' } });
   }
-  // ── FEDERATION SELF-TEST (OIP v1.1) ───────────────────────────────────────
-  // The executable answer to "does this survive leaving your house?" — real oip-message/1
-  // exchanges between miscsubjects.com and an independently operated worker on a second domain.
-  // Public reads the last scorecard; only the owner may execute a fresh run (it mints tokens).
   if (p.get('fedtest') != null) {
     const { runFedTest, fedTestMarkdown } = await import('../_lib/oip_fedtest.js');
     const noCache = p.get('nocache') != null || p.get('fresh') != null;
@@ -2951,10 +2849,6 @@ async function onRequestGetInner(context) {
     }
     return dispatchJson(result);
   }
-  // ── MULTI-TENANCY (OIP v0.5) ──────────────────────────────────────────────
-  // The proof the O-Cap substrate CAN be multi-tenant: tenants are isolation boundaries; a tenant
-  // token invokes only its allow-list, reads only its own ledger/receipts, cannot touch the owner
-  // plane or another tenant. Doc is public (like why/map); admin ops are owner-gated.
   if (p.get('tenancy') != null) {
     const tenants = await listTenants(env);
     const doc = buildTenancy(new URL(request.url).origin, tenants);
@@ -3027,11 +2921,6 @@ async function onRequestGetInner(context) {
     } catch {}
     return dispatchJson({ ok: true, tenant: tid, count: rows.length, isolation: 'only invocations by this tenant\'s capabilities are returned', invocations: rows });
   }
-  // ORIENT — one read that fully familiarizes a model: who it works for, the whole surface, how to
-  // do anything, the prove-it probe. This is THE top-level link handed to any LLM, so it is PUBLIC
-  // (same call as the map/tree/why on 2026-07-02): a fresh model opens it with zero auth and comes
-  // back oriented + already-answered on every objection. Acting still needs a token (invoke gates
-  // stay); a token in ?share= is baked into the run URLs it returns so an act link acts immediately.
   if (p.get('orient') != null) {
     const dir = await loadDirectory(env);
     const tok = p.get('share') || p.get('terminal_key') || p.get('tk') || '';
@@ -3091,8 +2980,6 @@ async function onRequestGetInner(context) {
     if (!readAllowed) {
         return dispatchJson({ error: 'unauthorized', note: 'receipt needs an owner access key, admin cookie, read/act token, or the exact scoped token that created this invocation.' }, 401);
       }
-    // Tenant isolation: a tenant-bound caller (even a read/act token) may read ONLY its own
-    // tenant's receipts. The owner plane (terminal key / untenanted token) is unrestricted.
     if (callerCap && !isOwnerTenant(callerCap.tenant_id)) {
       const targetFp = String(rec.actor || '').startsWith('cap:') ? String(rec.actor).slice(4) : null;
       const targetCap = targetFp ? await getCapabilityByFingerprint(env, targetFp) : null;
@@ -3137,7 +3024,6 @@ async function onRequestGetInner(context) {
     });
     return dispatchJson(explanation);
   }
-  // REVOKE (OIP-Caps v0.3): owner kills a capability before expiry. Enforcement fails closed.
   if (p.get('revoke') != null) {
     if (!(await isBuildAuthed(request, env))) {
       return dispatchJson({ error: 'unauthorized', note: 'revoking a capability requires the terminal key or an admin session.' }, 401);
@@ -3279,13 +3165,6 @@ async function onRequestGetInner(context) {
       law: 'child ⊆ parent: scope ' + parentScope + ' → ' + childScope + ', expiry ≤ parent, ' + (invokeCapable ? 'uses ' + childUses + ' reserved from parent' : 'read-only') + ', risk ' + childRisk + ', payload ceiling ' + (childBodyCeiling || 'unlimited') + ' bytes. Every invocation validates the complete ancestor chain.',
     });
   }
-  // Mint a capability URL — requires the REAL key/cookie (only you can mint).
-  // Claims beyond the token (purpose, actor, risk ceiling, owner gate, fixed body) land in the
-  // capabilities record; the mint is ledgered under the fingerprint. Raw token never ledgered.
-  // SELF-SCOPE (owner order 2026-08-03: models scope tokens for THEMSELVES and traverse).
-  // Keyless public minting, bounded to the safe public row set — the same authorities the
-  // site already hands strangers through drops, now self-served: a model cuts exactly the
-  // credential it needs, then narrows it further with ?narrow=1. Every mint is ledgered.
   if (p.get('self_scope') != null) {
     const PUBLIC_SELF_SCOPE_ROWS = ['OBJECTION_LOG', 'OIP_ARTICLE_REVIEW', 'MODEL_CHAT_INTAKE', 'ARTICLE_INSPECT', 'PROOF_PING', 'NOW'];
     const asked = String(p.get('keys') || PUBLIC_SELF_SCOPE_ROWS.join(','))
@@ -3302,9 +3181,6 @@ async function onRequestGetInner(context) {
     }
     const out = await mintCapability(env, new URL(request.url).origin, {
       scope: 'rows:' + granted.join(','),
-      // Ceiling 7 days, default 24h (2026-08-08: OpenAI's fetch proxy served a cached
-      // /start whose 24h credential had already expired — /start now mints at 604800 so
-      // proxy-stale copies stay usable; the public row set stays the same bounded set).
       ttl: Math.min(604800, Math.max(600, parseInt(p.get('ttl'), 10) || 86400)),
       uses: Math.min(50, Math.max(1, parseInt(p.get('uses'), 10) || 25)),
       purpose: (p.get('purpose') || 'self-scoped-traversal').slice(0, 160),
@@ -3344,27 +3220,15 @@ async function onRequestGetInner(context) {
     });
     return dispatchJson(out, out.error ? 500 : 200);
   }
-  // TAP & GO: owner-only one-paste drop. Mints the token and returns the whole model handoff:
-  // credential URLs + docs/search/execute/receipt in one clipboard payload.
   if (p.get('tap_go') != null) {
     if (!(await isBuildAuthed(request, env))) {
       return dispatchJson({ error: 'unauthorized', note: 'tap_go mints a share link; owner only (owner access key or admin cookie).' }, 401);
     }
     const origin = new URL(request.url).origin;
-    // FEEDBACK DROP (owner order 2026-07-14): ?tap_go=1&drop=feedback mints a token scoped to
-    // exactly the feedback-filing rows plus the white-paper/explainer links, so any model can
-    // read everything and file critique into the permanent log with receipts.
     const dropKind = (p.get('drop') || '').toLowerCase();
     const feedback = dropKind === 'feedback';
     const auditDrop = dropKind === 'audit';
     const articleDrop = dropKind === 'article';
-    // DEFAULT EDIT DROP SCOPE (owner regression 2026-08-09): the plain ?tap_go=1 drop is the
-    // "single edit token" whose 49KB operating document instructs the model to invoke NOW,
-    // article/DIV edits, X_POST, RELAY_POST_APPEND and more. It was minting scope 'read', which
-    // can invoke NOTHING — every model hit 401 scope_mismatch on every action and correctly
-    // concluded the token did not work. The intended scope for an owner-minted edit drop is
-    // 'act' (read + write + invoke, still risk-ceilinged and owner-gated); an explicit ?scope=
-    // still narrows it. Read-only drops are requested explicitly with ?scope=read.
     const out = await mintCapability(env, origin, {
       scope: feedback ? ('rows:' + (p.get('keys') || 'OBJECTION_LOG,OIP_ARTICLE_REVIEW,MODEL_CHAT_INTAKE')) : auditDrop ? 'rows:VOXEL_EDIT' : articleDrop ? 'pfx:BLOCK_' : (p.get('scope') || 'act'),
       key: feedback ? null : p.get('key'),
@@ -3381,8 +3245,6 @@ async function onRequestGetInner(context) {
       audience: p.get('aud') || p.get('audience'),
     });
     if (out.error) return dispatchJson(out, 500);
-    // Article-link-first drop (owner field finding 2026-07-03): a plain public-docs link
-    // gets engagement; an imperative token blob gets refused as prompt injection.
     const targetModel = normalizeTapGoModel(p.get('model'));
     let modelContent = '';
     if (targetModel) {
@@ -3475,9 +3337,6 @@ async function onRequestGetInner(context) {
     const token = p.get('share') || p.get('terminal_key') || p.get('tk') || '';
     // Self-correcting: a guessed/nonexistent key never dead-ends — return did-you-mean.
     { const dirChk = await loadDirectory(env); if (!dirChk[invokeKey] && !dirChk[key]) return didYouMean(dirChk, key); }
-    // METERED GATE (minimum proof, 2026-07-28): a tenant invoking a priced capability must
-    // hold at least one unit of balance. The refusal is itself a receipt — reason, price,
-    // meter unit, and the balance that was insufficient, timestamped.
     if (cap?.tenant_id) {
       const dirGate = await loadDirectory(env);
       const rowGate = dirGate[invokeKey] || dirGate[key];
@@ -3530,7 +3389,6 @@ async function onRequestGetInner(context) {
     if (wrapped.proof?.receipt && wrapped.invocation?.links) wrapped.invocation.links.receipt = wrapped.proof.receipt;
     return dispatchJson(wrapped);
   }
-  // UNIFIED HANDOFF — owner-only because it includes backend/admin structure.
   if (p.get('handoff') != null) {
     if (!(await isBuildAuthed(request, env))) return dispatchJson({ error: 'not_found' }, 404);
     const origin = new URL(request.url).origin;
@@ -3543,8 +3401,6 @@ async function onRequestGetInner(context) {
     const md = await buildUnifiedHandoffMarkdown(env, origin, T);
     return new Response(md, { headers: { 'content-type': 'text/markdown; charset=utf-8', 'access-control-allow-origin': '*' } });
   }
-  // PASTE BLOB: owner-only — mints fresh 24h share token + unified handoff.
-  // scope=read (default, safe) | scope=act (write — invoke + POST)
   if (p.get('paste') != null) {
     if (!(await isBuildAuthed(request, env))) {
       return dispatchJson({ error: 'unauthorized', note: 'paste blob mints a share link; owner only (owner access key or admin cookie).' }, 401);
@@ -3684,17 +3540,6 @@ export async function onRequestPost(context) {
     }
     body = { ...body, key: past.object_id, body: input, replay_of: past.id };
   }
-  // POST {emit:"<raw model output>"} — the model's own path, exposed.
-  //
-  // POST {key,body} hands the executor a key and arguments that a human or a script already
-  // separated. A model never does that: it writes [TOOL]args[/TOOL] inside a sentence and the
-  // router has to find it. Same executor, one extra stage — and that stage is where a tool can
-  // be unreachable while {key,body} still passes. Two were: [AUDIO] collides with a meta tag so
-  // the router strips it, and the MCP_context7_* keys contain lowercase letters that the tag
-  // grammar cannot match at all (2026-09-01).
-  //
-  // Returns one entry per tag found, each carrying the parsed key, the parsed body, and the raw
-  // result — so "does this tool work when a model calls it" has a checkable answer.
   if (body && typeof body.emit === 'string' && body.emit.length) {
     const emitted = body.emit;
     // Own copy: this runs before the handler's `dir` below is initialised, and reading it here
@@ -3881,6 +3726,4 @@ Object.assign(FN_MAP, makePromoFnMap({ buildNowIso, xaiSearch, pipeJson,
   enrichBatchBase: (env, countArg) => FN_MAP.leadsEnrichBatch(env, countArg) }));
 // The Good Conscience Law (conscienceGate) — the veto between "can execute" and "will execute".
 Object.assign(FN_MAP, makeConscienceFnMap({ buildNowIso }));
-// The Decision Constitution (decisionConstitution) — the versioned governing system prompt,
-// ported from the owner's original architecture. _lib/decision_constitution.js.
 Object.assign(FN_MAP, makeConstitutionFnMap());

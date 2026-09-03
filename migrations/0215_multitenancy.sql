@@ -1,8 +1,3 @@
--- OIP v0.5 — multi-tenancy proof layer, built on the existing object-capability substrate.
--- A tenant is an isolation boundary: its tokens may invoke ONLY its allow-listed keys/prefixes,
--- read ONLY its own receipts/ledger, and can never touch another tenant's data or the owner plane.
--- The capability record (already the auth substrate) gains a tenant_id; the token format is unchanged.
--- Applied to LEDGER (loop-shared-events), where capabilities + invocations live.
 
 CREATE TABLE IF NOT EXISTS tenants (
   tenant_id       TEXT PRIMARY KEY,          -- t_<slug>
@@ -16,6 +11,5 @@ CREATE TABLE IF NOT EXISTS tenants (
   created_event_id TEXT
 );
 
--- Bind every capability to a tenant. NULL / 't_root' = the owner plane (unrestricted, unchanged).
 ALTER TABLE capabilities ADD COLUMN tenant_id TEXT;
 CREATE INDEX IF NOT EXISTS idx_cap_tenant ON capabilities(tenant_id);

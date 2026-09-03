@@ -1,17 +1,3 @@
-// PER-MODEL TOKEN DROPS — one URL the owner pastes to a web model, everything in the PATH.
-//
-// Owner order 2026-08-07, after another ChatGPT session failed to comment on /a/the-obedience-gap:
-// "I have never been able to send the token drop to ChatGPT successfully... make the instructions
-// in the token drop model specific." The unified handoff hands every model the same query-string
-// URLs, and the measured record (comment_transports.js) shows the transports differ per tool:
-// ChatGPT's open drops query strings entirely; claude.ai can only fetch URLs already present in
-// its conversation; Grok and Kimi fetch composed URLs fine. So the drop is now a card per model,
-// reachable at /api/drop/<model>/<short-token> — no query string anywhere in the flow.
-//
-// SOURCING: verdicts and tool names come from functions/_lib/comment_transports.js, which marks
-// each as OFFICIAL, MEASURED, or leak-derived. When a model fails a lane, the refusal is ledgered
-// (source 'model-door') and the block here is amended with the exhibit — the same learning loop
-// as everything else on this build.
 
 const BASE = 'https://miscsubjects.com';
 

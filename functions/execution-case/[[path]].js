@@ -24,7 +24,6 @@ function page(body, status = 200) {
 export async function onRequestGet(context) {
   const taskId = taskIdOf(context);
   if (!/^WT-\d{4}$/.test(taskId)) return Response.redirect('https://miscsubjects.com/a/the-run-that-found-you', 302);
-  // The owner's exact-review page. Behind the admin session; never cached.
   if (subOf(context) === 'review') {
     if (!(await isBuildAuthed(context.request, context.env))) return page('<h1>Not found</h1>', 404);
     const rows = await listSends(context.env, taskId, null);

@@ -1,18 +1,3 @@
-// THE ONTOLOGICAL CONTINUATION — what the infinite scroll reads next, computed from the graph.
-//
-// Owner order 2026-08-11: "it should have ontological based infinite scrolling" — the scroll was
-// paging a flat global index, so every article's feed converged onto the same sequence and a
-// reader saw the same articles over and over. The continuation of an article is now its
-// neighborhood in the corpus link graph, walked ring by ring: the pages it cites, then the pages
-// those cite, then the family that shares its category or tags — and the flat index only when the
-// component is genuinely exhausted. Edges come from the materialized article_links table (written
-// at the article write path), never re-derived over the corpus at read time.
-//
-//   GET  /api/articles/<slug>/continuation?exclude=a,b,c&limit=16
-//   POST /api/articles/<slug>/continuation   {"exclude":["a","b"],"limit":16}
-//
-// The client sends every slug already on the page; the answer never repeats one. `via` on each
-// row says which ring produced it — a reader-visible reason this article is next.
 
 function json(o, status = 200) {
   return new Response(JSON.stringify(o), {

@@ -160,11 +160,6 @@ const DESIGN_CLAUSES = [
     "Preflight, inspect, keep auditing",
     "ALWAYS record the article subject, hero subject, visible action and why the image belongs to the story, then pass the editorial preflight. NEVER generate a batch before one brief and one render pass. ALWAYS open the rendered asset and record what is visibly present before publishing. A prompt is NEVER visual proof.",
   ],
-  // ── Widget law, 2026-08-05. The owner opened an evidence-dense article and found the cards
-  // rendering light text on light surfaces — the verbatim quote, which IS the card, at 1.21:1.
-  // The cause was a `prefers-color-scheme:dark` block recolouring ink on a fixed-white card.
-  // The same defect had been repaired once, forty lines away, with a comment claiming it was
-  // the only one. These clauses replace the comment with a formula and a gate. ───────────────
   [
     "quality",
     "Widget ink derives from the widget surface",

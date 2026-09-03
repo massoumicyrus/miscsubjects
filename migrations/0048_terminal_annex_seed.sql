@@ -1,18 +1,3 @@
--- Migration 0048 — Terminal Annex seed (kernel-correct rewrite).
---
--- The original draft of this file used an aspirational row shape
--- (auth 'header:k:v', request_template JSON, {{var}} placeholders) that the
--- kernel does not implement. This rewrite uses the REAL conventions from
--- functions/api/dispatch.js:
---   http rows:  target = 'METHOD url' · auth = 'headers:{"k":"$ENVVAR"}' ·
---               content = '# doc lines' then a JSON body template with $1/$2/$N+
---               positionals (json-string escaped). ${VAR} survives substitution
---               and expands in the bridge's shell on the Mac.
---   agent rows: content IS the system prompt; tag protocol is [KEY]args[/KEY].
---
--- Per the owner's stated target state: no permission_tier, no [CONFIRM] gates.
--- TERMINUS targets grok-4.3 today (the owner's explicit instruction); swap to
--- claude-fable-5 with one EDIT_ROW once ANTHROPIC_API_KEY is installed.
 
 -- LOCAL_EXEC — the universal escape hatch. Body = one shell line, run via sh -lc.
 INSERT INTO directory (key, type, target, auth, content, category, planner_rank, updated_at)
@@ -64,9 +49,6 @@ ON CONFLICT(key) DO UPDATE SET
   content=excluded.content, category=excluded.category,
   planner_rank=excluded.planner_rank, updated_at=excluded.updated_at;
 
--- TERMINUS — the maximal-access agent. Brain: grok-4.3 per the owner's instruction
--- (2026-06-11). Swap: [EDIT_ROW]TERMINUS|agent|claude-fable-5|bearer:ANTHROPIC_API_KEY|<same content>[/EDIT_ROW]
--- once the Anthropic key is installed as a Pages secret.
 INSERT INTO directory (key, type, target, auth, content, category, allowed_categories, planner_rank, updated_at)
 VALUES (
   'TERMINUS',

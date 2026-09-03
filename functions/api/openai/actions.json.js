@@ -44,9 +44,6 @@ export function schema() {
       '/api/protocol/voxel-move': { post: operation('voxelMove', 'CAS-move one current body DIV', ref('Move'), bearer) },
       '/api/protocol/voxel-consolidate': { post: operation('voxelConsolidate', 'CAS-consolidate current DIVs without deleting their identities', ref('Consolidate'), bearer) },
       '/api/protocol/voxel-vote': { post: operation('voxelVote', 'Propose a structural change for later ratification', ref('Vote')) },
-      // THE PROVEN-WORK LOOP (outside-model finding 2026-08-03: the schema exposed voxel
-      // lanes only, so web models could mint an inspection but never sign). Open → inspect
-      // → sign, plus the root drop and workspace entry — every lane also answers GET.
       '/start': {
         get: { operationId: 'rootDrop', summary: 'Mint your own bounded credential; returns every next step as a complete pre-filled URL', responses: { 200: { description: 'Credential + ready-to-fetch action chain' } } },
       },

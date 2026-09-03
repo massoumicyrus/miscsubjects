@@ -19,9 +19,6 @@ const ROOTS = ['functions'];
 const MIN_INLINE_SYSTEM = 200; // chars of literal attached to a system role
 const MIN_PERSONA = 400;       // chars of a literal that opens like a persona prompt
 
-// Pre-law offenders, inventoried 2026-07-30 when the gate was written. Each one still has
-// a prompt in code and each one has to move to a directory row. Shrink this list; never
-// extend it. The gate exists to stop the seventh, not to bless the six.
 const KNOWN = new Set([
   'functions/_lib/pipeline_prompts.js',
   'functions/api/council.js',
@@ -42,19 +39,6 @@ function walk(dir, out = []) {
   return out;
 }
 
-// Every quoted literal in the file, with the line it starts on. Deliberately simple: a
-// missed exotic literal is better than a checker nobody trusts.
-//
-// THIS RAN AS A REGEX UNTIL IT STOPPED TERMINATING. The pattern was
-//   /(['"`])((?:\\.|(?!\1)[\s\S])*)\1/g
-// which backtracks catastrophically whenever a quote character opens a run that never closes —
-// an apostrophe in prose inside a file with an odd number of them is enough. On 2026-08-07 it
-// hit functions/_lib/outreach_law_object.js and ran for twenty minutes without returning,
-// blocking the pre-phase of every deploy for every agent. A gate that hangs is worse than no
-// gate: it stops all work and names no offender.
-//
-// This scanner walks the source once. Same rule, same hits, linear time, always terminates.
-// An unterminated literal is skipped rather than swallowing the rest of the file.
 function literals(src) {
   const out = [];
   // Precomputed line starts: the old version rebuilt the prefix for every match, which was

@@ -1,10 +1,3 @@
-// Voxel graph — claims as atoms, sources as edges, posted_by provenance.
-// DIV plane (2026-07-16, owner order): the article body itself divides into ordered,
-// hashed, chain-carrying DIVs (meta.divs). Each DIV: its own SHA-256 content hash, an
-// append-only per-DIV provenance chain, an order it can move up/down in, and four
-// token-gated verbs (divide / edit / move / consolidate) served by /api/protocol/voxel-*.
-// The body is regenerated from the ordered DIVs after every mutation — the content IS
-// the DIV list. Divide is verbatim (roundtrip-checked); nothing is rewritten by a model.
 
 import { reflexEdgesForClaim } from "./graph_reflex.js";
 

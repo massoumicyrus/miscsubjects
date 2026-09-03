@@ -1,16 +1,3 @@
-// REGRESSION TEST BUILT FROM THE EXACT FAILURES.
-//
-// Two failures, reported by the owner more than once and each time fixed on the article that showed
-// them rather than at the layer that produced them:
-//
-//   1. On /a/bpc-157 the FDA card rendered a paragraph we had written and never rendered the FDA's
-//      own words — "we propose not adding BPC-157 (free base) or BPC-157 acetate to the 503A bulk
-//      drug substances list" — which had been stored on the source the whole time. The cause was
-//      `esc(s.summary || s.quote)`: when a source carried both, the summary won.
-//   2. Sources with no quote at all, and sources that were bare strings, were accepted by both
-//      write paths and stamped as legitimate.
-//
-// Each assertion below fails if that exact defect returns.
 
 // node:test, not vitest. Every gate in ship.mjs invoked `npx --no-install vitest`, and this repo
 // has never had vitest installed — so npx refused to fetch it and each of these regression tests
@@ -65,7 +52,6 @@ function expectOk(cond, why) {
 }
 
 
-// The real row from /api/articles/bpc-157/sources on 2026-08-04, trimmed to the fields that matter.
 const FDA_CARD = {
   id: 'w_9qu2rfyq',
   type: 'news',

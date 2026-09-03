@@ -49,5 +49,5 @@ INSERT OR IGNORE INTO protocol_threads (thread_key, branch_id, branch_name, thre
 INSERT INTO thread_updates (target, thread_key, material_type, material_delta, actor, source_kind, status, decided_at)
 SELECT 'oip','B9:T1','branch_update',
  'The ledger already logs model turns. The missing recursion layer is promotion: materially new model turns must be classified into branch/thread state and appended into machine JSON, so the next model inherits protocol state instead of forcing the owner to re-explain the same context.',
- 'gpt-5 + the owner (founding delta)','owner_note','accepted',datetime('now')
+ 'gpt-5 + owner (founding delta)','owner_note','accepted',datetime('now')
 WHERE NOT EXISTS (SELECT 1 FROM thread_updates WHERE thread_key='B9:T1');

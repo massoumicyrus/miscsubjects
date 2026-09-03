@@ -1,30 +1,3 @@
-/**
- * /api/board — the owner's sheet. THREE tabs, forever, no exceptions:
- *
- *   Leads      every lead, its letter, its replies. Type APPROVE or REJECT in column A.
- *   ARTICLES   the newest articles, fully editable. Type SAVE in column A.
- *   MODEL_LAB  every model, every field, side by side. Type RUN in column A.
- *
- * Rules this route enforces, because they were violated:
- *   - No new tab is ever created. NEW_TABS_FORBIDDEN below is the whole allowed set; anything
- *     else the build previously wrote is emptied by ?purge=1, never added to.
- *   - No dropdowns. The owner types words. A validation list hides what is possible and blocks
- *     writes when a value is outside it.
- *   - Every column header states the type, the minimum, the maximum, and the default, so the
- *     range of what can be typed is visible without asking anyone.
- *   - A body longer than a Sheets cell (50,000 chars) is split across body_1…body_20 in the same
- *     row and rejoined in order on SAVE. The longest article in the corpus is 692,724 chars.
- *
- * Four more tabs the owner already had — OUTREACH, REPLIES, MODEL_FIELDS, EXPLAIN — are his, not
- * this route's. They are never emptied and are rewritten from D1 by {"restore":1}.
- *
- *   POST /api/board {"sync":1}     rewrite all three tabs from live data
- *   POST /api/board {"tick":1}     execute what the owner typed in column A
- *   POST /api/board {"restore":1}  rewrite OUTREACH, REPLIES, MODEL_FIELDS, EXPLAIN from D1
- *   POST /api/board {"purge":1}    empty every tab that is not one of those seven
- *
- * Auth: owner only.
- */
 import { isBuildAuthed } from '../_lib/admin_session.js';
 import { logEvent } from '../_lib/event_log.js';
 
@@ -35,8 +8,6 @@ const TAB_LEADS = 'Leads';
 const TAB_ARTICLES = 'ARTICLES';
 const TAB_MODELS = 'MODEL_LAB';
 const ALLOWED_TABS = [TAB_LEADS, TAB_ARTICLES, TAB_MODELS];
-// Tabs the owner already had. An earlier version of this route emptied them on its own judgment;
-// he never asked for that. purge() must never touch them again.
 const KEEP_TABS = ['OUTREACH', 'REPLIES', 'MODEL_FIELDS', 'EXPLAIN'];
 
 const CELL = 45000;        // per-cell body slice; Sheets hard limit is 50,000
@@ -77,9 +48,6 @@ function joinParts(row, startIndex, n = BODY_PARTS) {
   return s;
 }
 
-// ----------------------------------------------------------------------- Leads
-// Column A is the only instruction column. Q is left untouched: the owner's sheet carries a strict
-// validation rule there from an earlier life, and writing into it fails the whole write.
 const LEADS_HEADERS = [
   'A: type APPROVE or REJECT (text; APPROVE sends this exact letter, REJECT suppresses the address)',
   'result (written by the build)',
@@ -349,11 +317,6 @@ async function tick(env, url) {
   return did;
 }
 
-/**
- * Restore the tabs an earlier version of this route emptied on its own judgment. The owner never
- * asked for them to be cleared; every row in them is derived from D1, so restoring is a rewrite,
- * not a recovery. No tab is created here — each one already exists.
- */
 const EXPLAIN_HEADERS = ['A: type RUN (text)', 'slug', 'part', 'value', 'why it exists'];
 
 /** Field-by-field breakdown of one article object. Written under the slug on the EXPLAIN tab. */
@@ -395,11 +358,6 @@ async function explainRows(env, origin, slug) {
   return rows;
 }
 
-/**
- * Restore the four tabs an earlier version of this route emptied on its own judgment. The owner
- * never asked for them to be cleared; every row in them is derived from D1 or from the live field
- * contract, so restoring is a rewrite, not a recovery. No tab is created here — each already exists.
- */
 async function restore(env, url) {
   const done = {};
   const origin = url ? url.origin : 'https://miscsubjects.com';

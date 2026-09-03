@@ -22,7 +22,6 @@ INSERT INTO settings (key, value, description, updated_at)
 VALUES ('build_version', 'v1', 'Self-test build version label', datetime('now'))
 ON CONFLICT(key) DO NOTHING;
 
--- The 25-question starter suite — the way the owner messages the build. Reseeded idempotently.
 DELETE FROM directory_tests WHERE kind='e2e';
 INSERT INTO directory_tests (key, kind, args, expect_kind, expect_value, expected_text, note) VALUES
 ('ROUTER','e2e','what can you do','reply_ok','tool|article|deploy|run|search|build','A plain-language summary of its capabilities (tools, articles, deploy, shell, search).','self-description'),

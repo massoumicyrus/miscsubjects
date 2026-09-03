@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-// THE FAILURE VAULT GATE (owner order 2026-08-04). Reads failure-vault.json and fails the
-// commit/deploy if any vaulted failure mode has been reintroduced: a required needle lost,
-// a banned pattern back in a file. Every failure mode the owner names gets ONE entry in the
-// vault, the same turn — after that it cannot recur without failing this gate loudly.
 import { readFileSync } from 'node:fs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');

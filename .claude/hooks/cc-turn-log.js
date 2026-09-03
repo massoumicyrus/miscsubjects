@@ -1,9 +1,4 @@
 #!/usr/bin/env node
-// Claude Code per-turn capture. Registered as a Stop hook (harness runs it when a turn ends).
-// Reads the session transcript, extracts the just-finished turn (the owner's input + every tool
-// I used + files I changed), appends to ~/.claude/cc_turns.jsonl, and POSTs to the build so
-// the "Claude Code" tab can render it. Done by the harness, not by me — cannot be skipped.
-// Test:  node ~/.claude/cc-turn-log.js --test <transcript.jsonl>   (prints the record, no POST)
 const fs = require("fs");
 const os = require("os");
 const { execSync } = require("child_process");
@@ -51,7 +46,6 @@ if (trimmed.startsWith("<task-notification>")) {
   inputKind = "interrupt";
   userInput = trimmed.slice(0, 200);
 } else {
-  // the owner's actual typed text = strip injected system-reminder / command wrappers.
   userInput = rawInput
     .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "")
     .replace(/<command-[a-z-]+>[\s\S]*?<\/command-[a-z-]+>/g, "")

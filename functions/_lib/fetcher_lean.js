@@ -1,15 +1,3 @@
-// FETCHER LEAN LANE (owner law, 2026-07-24).
-//
-// The problem it solves, measured: an article page ships ~255KB, of which ~112KB (47%) is
-// inline CSS and only ~31KB (12%) is the text a reader or a model actually wants. A browser
-// needs that stylesheet. An LLM fetcher or a crawler never renders it — it downloads the
-// bytes, then truncates or times out on extraction. That is why web-based models kept failing
-// to read pages that were serving fine.
-//
-// For known model/search fetchers we serve the SAME HTML with presentation stripped:
-// <style>, <script>, and stylesheet/preload <link> tags removed. Content and markup are
-// byte-identical otherwise, so this is a presentation diet, NOT cloaking — a fetcher and a
-// browser read the same words in the same order.
 
 export const FETCHER_UA =
   /(GPTBot|ChatGPT-User|OAI-SearchBot|ClaudeBot|Claude-User|Claude-Web|Claude-SearchBot|anthropic-ai|PerplexityBot|Perplexity-User|Googlebot|Google-Extended|Bingbot|Applebot|Amazonbot|DuckAssistBot|Bytespider|Meta-ExternalAgent|cohere-ai|YandexBot|facebookexternalhit|Twitterbot|Slurp|python-requests|node-fetch|undici|axios|Go-http-client|okhttp|libwww-perl|Wget|curl)/i;
@@ -43,12 +31,6 @@ export async function leanResponse(res) {
     const headers = new Headers(res.headers);
     headers.delete("content-length");
     headers.set("x-ms-lean", "1");
-    // A lean copy must never enter Cloudflare's edge cache under the bare URL: the edge does
-    // not vary on user-agent, so a cached lean copy outlives every per-div write and gets
-    // served stale to fetcher UAs while browsers see the fresh page (reproduced live
-    // 2026-08-08 on /a/philosophy: curl UA got the pre-edit page with cf-cache-status HIT
-    // after the write-path purge and a version bump had both landed). The versioned
-    // caches.default entry is the only sanctioned cache for rendered articles.
     headers.set("cache-control", "no-store");
     return new Response(leanHtml(html), {
       status: res.status,

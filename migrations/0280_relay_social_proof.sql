@@ -77,7 +77,7 @@ INSERT INTO directory_tests (
   'A new model used my token, audited the prior public relay, and must return something I can post on LinkedIn, Facebook, Instagram, and X. What exact chained record does it append?',
   'reply_ok',
   'RELAY_POST_APPEND|model_name|prior_post_hash|proof_links|verdict|platform_copy',
-  'owner order 2026-07-16: every token drop carries the public social proof-post continuation chain',
+  'every token drop carries the public social proof-post continuation chain',
   'Append a RELAY_POST_APPEND record naming the model, action, time, PASS/FAIL/MIXED verdict, prior post hash, public proof and media links, audit method, and platform-ready copy. Return the new public post and receipt links.',
   8
 );

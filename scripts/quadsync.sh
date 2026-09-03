@@ -1,6 +1,6 @@
 #!/bin/bash
 # QUADSYNC — local corner of the four-way sync (Cloudflare ↔ GitHub ↔ local ↔ Google Drive).
-# Runs every 10 min via launchd (com.the owner.miscsubjects.quadsync) and on demand.
+# Runs every 10 min via launchd (com.owner.miscsubjects.quadsync) and on demand.
 #   1. fetch GitHub state without rebasing, stashing, checking out, committing, or pushing.
 #   2. report branch divergence and dirty state; explicit ship owns source convergence.
 #   3. mirror the working tree + latest ledger snapshot into Google Drive.
@@ -23,8 +23,6 @@ source "$HOME/.build-vault.env" 2>/dev/null
 [ -z "${TERMINAL_KEY:-}" ] && source "$KEYFILE" 2>/dev/null
 KEY="${TERMINAL_KEY:-${MISC_TERMINAL_KEY:-}}"
 
-# Stamp one corner and verify the server accepted it. curl exit 0 means the packet
-# left the machine, not that the write happened — a 401 used to print "stamped".
 stamp() {
   local key="$1" code
   code=$(curl -s -o /dev/null -w '%{http_code}' -X PUT \
@@ -111,9 +109,6 @@ fi
 
 # 3. local → Google Drive (Drive for desktop syncs the folder up)
 DRIVE_OK=0
-# Google Drive (File Stream) rejects chmod/chown/utimes, so `rsync -a` failed every run with
-# "Operation not permitted" and the Drive corner never mirrored (fixed 2026-07-22). Copy contents
-# and symlinks but do NOT try to preserve perms/owner/group/times on the Drive filesystem.
 if rsync -rlL --no-perms --no-owner --no-group --no-times --delete --exclude '.git' --exclude 'node_modules' --exclude '_worker.bundle' "$REPO/" "$DRIVE/repo/"; then DRIVE_OK=1; fi
 LEDGER_LATEST="$HOME/.miscsubjects/ledger-latest.json"
 if [ -n "$KEY" ]; then

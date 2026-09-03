@@ -1,7 +1,3 @@
-// /api/council — the model group chat. Several models reply to one message, each one
-// seeing what the models before it said, so they build on each other and ask the owner
-// questions. Grounded in the Loop rules. CF models run with no key; gemini/grok/openai
-// join when their key is set. Wired into the Blooio group via a per-chat "council on" flag.
 import { sendBlooio } from '../blooio.js';
 import { planList } from './plan.js';
 import { logRun } from './runs/[[path]].js';

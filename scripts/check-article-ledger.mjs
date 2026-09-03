@@ -1,21 +1,5 @@
 #!/usr/bin/env node
 import { isBackpressure, exitUnread } from './_lib/backpressure.mjs';
-/**
- * LEDGER_ON_EVERY_ARTICLE (owner order 2026-08-05).
- *
- * "Every single article must have this feature. And I want all of the old articles to also have it."
- *
- * The claim being enforced: every article on this site renders the model comment thread and the door
- * a model uses to write into it. Not the pages that were given a manifest by hand — every page, old
- * ones included, because the thread is rendered by the article renderer itself rather than stored on
- * the article.
- *
- * This gate proves that against the LIVE rendered HTML, on a sample that always includes the oldest
- * articles in the corpus, because "the new ones work" is exactly the failure mode this class of
- * feature has. It reports the number of pages it examined; examining zero is a failure, not a pass.
- *
- * Run: node scripts/check-article-ledger.mjs   (CHECK_BASE overrides the origin)
- */
 const BASE = process.env.CHECK_BASE || "https://miscsubjects.com";
 const SAMPLE = Number(process.env.LEDGER_SAMPLE || 14);
 
@@ -33,17 +17,6 @@ const token = await tokenRes.json().catch(() => ({}));
 if (!tokenRes.ok || !token?.token) fail(`the keyless mint at ${BASE}/api/comments/token returned ${tokenRes.status} without a token — no model can write`);
 if (!token.short_token) fail('the mint returned no short_token — the punctuation-free credential two browsing tools need is missing');
 
-// RENDERING THE DOOR IS NOT OPENING IT.
-//
-// 2026-08-06, from the model that could not write: "The deploy gate has the same blind spot. It
-// samples pages to confirm the thread renders and the mint call is present. Rendering the door is
-// not opening it." That was correct, so the gate now exercises the write path's behaviour rather
-// than only its presence.
-//
-// It deliberately does not write a real comment on every deploy — that would put gate noise in a
-// public thread that can never be edited or deleted. It asserts the three things that were actually
-// broken: a stripped-query write must be refused loudly rather than answered with a read, the two
-// unstrippable transports must exist, and the form door must be live.
 {
   const stripped = await fetch(`${BASE}/api/comments/bpc-157?model=deploy-gate&verdict=QUESTION`);
   const body = await stripped.json().catch(() => ({}));
@@ -100,13 +73,6 @@ const slugs = [...new Set([
 
 if (slugs.length < 4) fail(`only ${slugs.length} article slugs came back from the corpus — the gate cannot examine what it cannot list, so this is a failure and not a skip`);
 
-// Every marker below is unique to the thread. None of them appear in shared page chrome, so a page
-// that passes has genuinely rendered the section rather than merely rendered a footer that links to it.
-// Markers are the things that would actually be missing if the feature broke, not incidental
-// strings. Rewritten 2026-08-06 when the thread became a real comment widget: the old set matched
-// the phrase "model comment" from a summary line that no longer exists, so the gate failed 28 of 28
-// pages the moment the wording changed. Correct refusal, wrong target — a marker that a rewording
-// can break is measuring the copy rather than the capability.
 const MARKERS = [
   ['id="ledger"', "the thread section itself"],
   ["ms-ledger", "the thread container"],
@@ -119,13 +85,6 @@ const MARKERS = [
 let checked = 0;
 const failures = [];
 for (const slug of slugs) {
-  // A TRANSIENT EDGE ERROR IS NOT THE FEATURE BEING BROKEN, AND MUST NOT BE REPORTED AS IT.
-  //
-  // 2026-08-06: this gate failed a whole deploy on "oip-build-overview: page returned HTTP 503". The
-  // page was fine — three fetches a second later returned 200 twice. A gate that fails on edge noise
-  // gets re-run until it passes, which is the same disease as a gate that always fails: either way the
-  // operator stops reading it. So a 5xx or a network error is retried once, and only a second failure
-  // counts. A 4xx is never retried, because that is the page genuinely answering wrong.
   let html;
   {
     let lastProblem = null;
@@ -156,21 +115,6 @@ for (const slug of slugs) {
     failures.push(`${slug}: the composer does not post to this article`);
   }
 
-  // RENDERING THE DOOR IS NOT OPENING IT.
-  //
-  // Every check above this line reads the HTML. All six markers can be present on a page whose slug
-  // the API refuses, and that is exactly what shipped: /a/oip-core, /a/oip-apis, /a/oip-clis,
-  // /a/oip-mcps, /a/oip-devices and /a/oip-models each rendered the composer and each answered
-  // GET /api/comments/<slug> with 404 article_not_found, because they are generated shelf pages
-  // stored neither as rows nor as primers. A model followed the invitation on the page and could not
-  // write. This gate passed all six, because it never once asked the door about the slug it had just
-  // found — the same blind spot its own marker note describes, one level up.
-  //
-  // Reported on this feature's own thread as comment #971 (/a/the-model-comment-ledger).
-  // Two tries 1.5s apart is nothing against a D1 queue that stays full for half a minute, and
-  // an unanswered door used to be pushed into `failures` beside the real ones — so a read that
-  // never happened was reported as "this page does not carry the comment thread". Verified on
-  // 2026-09-02: the door answered 200 three times in a row moments after the gate said that.
   let door = null;
   let doorWhy = '';
   for (let attempt = 1; attempt <= 6 && door == null; attempt++) {

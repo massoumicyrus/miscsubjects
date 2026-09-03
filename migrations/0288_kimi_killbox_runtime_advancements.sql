@@ -1,5 +1,3 @@
--- Kimi killbox assembly, 2026-07-17: make four proposed protocol laws executable
--- and repair the structured objection ingress used by external model swarms.
 
 ALTER TABLE relay_social_posts ADD COLUMN outcome_class TEXT;
 

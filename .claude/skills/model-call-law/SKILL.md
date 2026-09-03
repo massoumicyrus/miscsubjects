@@ -5,11 +5,6 @@ description: Use before writing, editing, or invoking ANY model prompt or model 
 
 # Model Call Law
 
-Owner law, 2026-07-30. Written after a run that spent 2m11s per call against a ~125s edge
-budget, recorded 6 of 18 Cloudflare error pages as "the model said nothing", and burned
-~40 minutes of polling for ~18 seconds of actual model time — because prompts were
-embedded in JavaScript and calls were serialized behind a deploy.
-
 Numbered. Lower numbers win. No rule below overrides a rule above it.
 
 ## 1. Where a prompt lives

@@ -1,13 +1,3 @@
-// WORKSPACE OBJECT (owner order 2026-08-03: "ship this as a new type of working thing").
-// A workspace is a first-class object on the existing grammar: it IS an article whose
-// meta.extra.workspace block declares members, roles, the capability pool, policies, the
-// contained work objects and their lineage, and the receipted mutation log. Nothing here
-// is a second architecture — tokens are the same signed share tokens, receipts land on the
-// same ledger, objects are the same articles, and the human view is the same page.
-//
-// The one real authority change lives here: a pool:<workspace>:<role> token resolves AT
-// EXERCISE TIME to the rows the workspace declares for that role, bounded to the
-// workspace's own object set for slug-bearing mutations. Authority follows the work.
 
 export function parseWorkspace(metaRaw) {
   let meta = metaRaw;
@@ -65,11 +55,6 @@ export function poolObjectBoundary(tokenInfo, bodyArg) {
   return { ok: false, reason: 'pool_object_boundary', slug };
 }
 
-// THE MUTATION CONTRACT (demo-minimum by design, 2026-08-03): a structural change to the
-// workspace is a REQUEST evaluated against the workspace's declared policy — the role's
-// op list. In-policy → APPROVED and applied; out-of-policy → DENIED and recorded. Both
-// outcomes are receipts. Verbs beyond these get added when a real workspace demands them,
-// not before.
 export const MUTATION_OPS = Object.freeze(['add-object', 'propose-repair', 'file-objection']);
 
 export function evaluateMutation(ws, role, op) {

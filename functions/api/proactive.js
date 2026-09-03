@@ -1,4 +1,4 @@
-const the owner = '[OWNER_PHONE]';
+const OWNER = '[OWNER_PHONE]';
 
 function authed(request, env) {
   const a = request.headers.get('x-loop-auth') || '';
@@ -16,7 +16,7 @@ export async function onRequestPost(context) {
     } catch {}
   }
   const job = {
-    from: the owner, chat: the owner, protocol: 'imessage', isGroup: 0, channel: 'blooio',
+    from: OWNER, chat: OWNER, protocol: 'imessage', isGroup: 0, channel: 'blooio',
     messageBody: '[PROACTIVE check-in] Timer wake-up, not the owner. Review the conversation and the creative-deck mission. Decide: send him progress / start the next batch / ask one sharp question — or stay silent if he replied recently and nothing new is ready.',
     mediaUrls: [],
   };

@@ -223,11 +223,6 @@ export function tokenAllowsKey(t, key) {
   return false;
 }
 
-// ONE TOKEN, EVERY TRANSPORT (owner law, 2026-07-29). The signed share/cap token is THE
-// credential. A caller may present it as ?share=<token> in a browser URL, as
-// Authorization: Bearer <token> in curl, or as x-write-token — all three resolve here to
-// the same verified record. Browser GET and curl are interchangeable by design: web-based
-// models that fall back to curl stop failing on transport mismatch.
 export async function verifyTokenAnyTransport(request, env) {
   let candidates = [];
   try {
@@ -366,7 +361,6 @@ export function tenantAllowsKey(tenant, key) {
   const pfx = String(tenant.allow_prefixes || '').split(',').map((x) => x.trim()).filter(Boolean);
   return pfx.some((p) => p && k.startsWith(p));
 }
-// Fingerprints belonging to a tenant — used to isolate its ledger/receipts.
 export async function tenantFingerprints(env, tenantId) {
   if (!env?.LEDGER || isOwnerTenant(tenantId)) return [];
   try {
@@ -553,7 +547,6 @@ export async function shareUseCount(env, nonce) {
   return Math.max(kv, d1);
 }
 
-/** Decode tier from token payload for handoff banners (display only — verifyShareToken for auth). */
 export function parseShareTokenScope(token) {
   const t = String(token || '');
   if (!t.startsWith('sh.')) return { tier: 'unknown', scope: 'unknown', label: 'unknown token' };

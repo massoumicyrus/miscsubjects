@@ -1,23 +1,8 @@
 #!/usr/bin/env node
-// DEPLOY BLOCKER: no live task may be impossible to complete.
-//
-// 2026-08-05. WF-0001 was created by recordFailure with acceptance '[]', and runAcceptance refuses
-// any submission where zero tests ran. A finished, deployed, correct repair submitted all five
-// required evidence fields and came back accepted:false with an empty results array — a refusal that
-// named nothing. The task held priority 1 for a full day because of it.
-//
-// This gate reads the live work object and fails the ship if any task that is still expected to be
-// completed has no test that could ever close it — its own acceptance list, or the parent's, which is
-// what a repair task inherits. It reports the number of tasks it examined: a gate that examines zero
-// tasks has told you nothing, so zero is a failure here too.
 
 const BASE = process.env.WORK_BASE || 'https://miscsubjects.com';
 const TERMINAL = ['completed', 'cancelled', 'superseded', 'accepted'];
 
-/**
- * The decision, separated from the fetch so the failing path is unit-tested rather than trusted.
- * A task is impossible when neither it nor its parent declares a test — the exact WF-0001 shape.
- */
 export function findImpossible(tasks) {
   const byId = new Map(tasks.map((t) => [t.task_id || t.id, t]));
   const testsOf = (t) => (Array.isArray(t?.acceptance_tests) ? t.acceptance_tests

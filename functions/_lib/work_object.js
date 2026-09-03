@@ -1,26 +1,3 @@
-// THE CANONICAL WORK OBJECT — the project's operational authority.
-//
-// WHAT THIS REPLACES. Until 2026-08-04 the project depended on files and on one running model:
-//   CLAUDE.md      carried the rules, the priorities and the permitted actions.
-//   STATE.md       carried what work existed and what remained unfinished.
-//   AGENTS.md      carried agent instructions.
-//   a Claude session carried assignment, dependency order, acceptance and "what happens next".
-// None of that is readable by a fresh agent, a different model, or an auditor. This module moves
-// every one of those obligations into rows, and into code that governs the rows.
-//
-// THE INVARIANTS IT HOLDS
-//   1. Work exists only as a task object. If it is not a row, it is not work.
-//   2. An agent obtains work by leasing a task. It never reconstructs the project from prose.
-//   3. Only this module moves a task's state. An agent submits evidence; the infrastructure runs
-//      the task's acceptance tests and decides. Prose never completes a task.
-//   4. Every action appends one hash-chained audit row. Nothing is updated, nothing is deleted.
-//   5. A failure becomes a child task carrying its failure class, the layer that permitted it, the
-//      missing invariant, the repair, the regression test, the deploy blocker and runtime evidence.
-//   6. Dependency order, priority, retries, lease expiry and next-task selection are computed here,
-//      not decided by whichever model happens to be running.
-//
-// Two projections read this one record: /api/work (machine) and /a/the-work-object (human). They
-// are not copies; both call buildWorkProjection().
 
 import { buildNowIso } from './build_time.js';
 import { logEvent } from './event_log.js';
@@ -317,17 +294,6 @@ async function runOneTest(env, test, base) {
     }
     if (t === 'contains' || t === 'not_contains') {
       const r = await fetchText(url);
-      // MATCH THE PAGE'S OWN WORDS, NOT ITS STYLESHEET.
-      //
-      // This matched the raw response, which on an article page is mostly the shared chrome: seven
-      // <style> blocks, the navigation, the footer. A test written as not_contains "rp-fallback-mark"
-      // — meaning "no source card fell back to a blank placeholder" — could never pass, because that
-      // class name is defined in the CSS that ships with every article. WT-0041 was refused on it
-      // after passing its other five tests, and the page was correct.
-      //
-      // Stripping script and style, then narrowing to the article's own content container when the
-      // page has one, makes a `contains` test measure the article. `scope: "raw"` opts back out for
-      // a test that genuinely means to inspect markup.
       const scope = String(test.scope || 'content').toLowerCase();
       let hay = r.text;
       if (scope !== 'raw') {
@@ -374,19 +340,6 @@ async function runOneTest(env, test, base) {
   }
 }
 
-// A TASK WITH NO TESTS CANNOT BE COMPLETED, SO IT MUST NEVER EXIST SILENTLY.
-//
-// runAcceptance refuses when `results.length === 0`, which is right — an agent's word is never the
-// proof. But recordFailure created every WF task with `acceptance: '[]'`, and no caller ever supplied
-// failure.acceptance. So every failure task the build has ever opened was unsatisfiable at birth, and
-// its refusal said nothing: no failing test, no missing evidence, just accepted:false. WF-0001 sat at
-// priority 1 through a complete, correct repair for exactly that reason.
-//
-// The fix has two halves because there are two populations. New failure tasks inherit the parent's
-// tests at creation (below, in recordFailure) so the object states its own proof. Rows already written
-// with '[]' are repaired here, at evaluation time, by falling back to the parent's tests — a repair's
-// honest proof is that the tests which caught the failure now pass. No migration, and no row can hide
-// behind an empty array.
 async function effectiveTests(env, row) {
   const own = parseJson(row.acceptance, []);
   if (own.length) return { tests: own, inherited_from: null };
@@ -540,13 +493,6 @@ export async function submitEvidence(env, id, { agent, model, capability, lease_
   };
 }
 
-/**
- * Re-run acceptance on completed tasks (spec Phase 0.5). Acceptance used to run exactly once, at
- * submission — a completed task whose tests later started failing stayed "completed" forever.
- * This walks recently completed tasks, re-executes their tests against the live site, and flips
- * a newly-failing one to repair_required with an infrastructure-authored action naming the test
- * that broke. Callable on a schedule (wall-clock automation) and on demand (POST /api/work/recheck).
- */
 export async function recheckCompleted(env, base, { limit = 10, task_id = null } = {}) {
   const rows = task_id
     ? [await getTask(env, task_id)].filter((r) => r && r.state === 'completed')
@@ -685,10 +631,6 @@ const CREATE_FIELDS = new Set([
 
 export async function createTask(env, t, actor = 'owner') {
   if (!t?.objective) return { ok: false, status: 400, error: 'objective_required' };
-  // A create route that ignores what it does not recognise will happily manufacture a task from a
-  // probe. That happened: a request carrying `dry_run: true` created WT-0040 with the objective
-  // "probe", because the flag was dropped and the objective was taken at face value. An unknown
-  // field is now a refusal, so a caller who believes it is testing is told that it is not.
   const unknown = Object.keys(t).filter((k) => !CREATE_FIELDS.has(k));
   if (unknown.length) {
     return {
@@ -747,14 +689,6 @@ export async function reprioritiseTask(env, id, { agent, priority, reason } = {}
   return { ok: true, task: taskObject(await getTask(env, id)), from: before, to: p, reason };
 }
 
-/**
- * Withdraw a task by appending a revision that names it — never by deleting the row.
- *
- * The owner's requirement is explicit: no history may be overwritten, and a correction appends a new
- * revision identifying what it supersedes. The object had no way to do that, so a task created in
- * error had only two futures: sit open forever, or be reached around with direct SQL. Both are worse
- * than the mistake.
- */
 export async function supersedeTask(env, id, { agent, reason, replaced_by } = {}) {
   const row = await getTask(env, id);
   if (!row) return { ok: false, status: 404, error: 'task_not_found' };

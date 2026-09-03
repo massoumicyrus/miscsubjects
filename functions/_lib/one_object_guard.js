@@ -1,24 +1,3 @@
-// ONE OBJECT PER ARTICLE — enforced in the canonical write path, not in an instruction.
-//
-// FAILURE (2026-08-04, owner-named catastrophic): the tirzepatide page shipped titled
-// "Tirzepatide: 20.9% of body weight in 72 weeks, and nothing measured about a painful back".
-// Tirzepatide is a weight-loss drug that has never claimed anything about a back. The headline
-// denied a claim the subject never made, and it imported a condition the page is not about.
-//
-// LAYER THAT PERMITTED IT: the article write path accepted any title and body for any slug. The
-// editorial preflight checked headline length and hero briefs; nothing checked whether the prose
-// was about the article's own subject. Every client — a coding agent, a Gateway model, the admin
-// studio, the Sheets poller, curl — could publish cross-object framing.
-//
-// INVARIANT: an article whose slug names ONE object carries only that object's frame. Its title,
-// and every section heading in its body, name that object or a general property of it — never a
-// second object from another family. Cross-object writing lives only in an article whose slug
-// names both objects (bpc-157-sciatica, tb-500-herniated-disc, bpc-157-vs-nsaids).
-//
-// This module is the single source of truth for that vocabulary. The write path refuses on it,
-// scripts/check-one-object.mjs sweeps the live corpus with it, and the unit test pins the exact
-// failure above. A future agent that has never read the conversation cannot publish the same
-// class of page through any normal path.
 
 // One-object subjects: compound pages.
 export const COMPOUNDS = Object.freeze([

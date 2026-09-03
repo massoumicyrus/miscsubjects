@@ -78,25 +78,6 @@ export async function publicSecretFindingAndRevoke(value, env, context = {}) {
   return { ...finding, revoked };
 }
 
-// OWNER IDENTITY, SCRUBBED AT INGEST (owner law 2026-08-04 — root cause of "this keeps
-// happening"): the ledger mirrors every payload lane, and three lanes re-insert the owner's
-// identity STRUCTURALLY — every outbound email logs its payload with the owner BCC addresses,
-// every GitHub push webhook logs commit authorship, every terminal mirror logs local paths
-// and commands. After-the-fact scrubs lose that race forever; the strip happens here, at the
-// one choke point every ledger write passes through. Longest tokens first. Never weaken —
-// scripts/check-owner-name-leak.mjs scans the live LEDGER database and fails the deploy on
-// any hit, and scripts/check-failure-vault.mjs fails any commit that removes this block.
-// THE PLACEHOLDER MUST NOT BE PARSEABLE AS MARKUP.
-//
-// These were angle-bracketed until 2026-08-06, when the owner posted a comment signed with his own
-// first name and the redaction turned it into `<b><OWNER></b>` — which a browser parses as an unknown
-// element and renders as nothing — and into `data-reply-name="<OWNER>"`, which breaks out of the
-// attribute and corrupts the rest of the tag. The redaction was doing its job perfectly; its output
-// was simply not safe in the one format most of this site is served in.
-//
-// Square brackets are inert in HTML, in JSON, in Markdown and in a terminal. Nothing outside this
-// file matched on the old strings (checked across functions/ and scripts/), so the change is
-// contained. Never reintroduce a placeholder containing < or >.
 const OWNER_IDENTITY_REPLACEMENTS = [
   [/cc@[OWNER_HANDLE]\.com/gi, '[OWNER_EMAIL]'],
   [/the owner@theloopway\.com/gi, '[OWNER_EMAIL]'],

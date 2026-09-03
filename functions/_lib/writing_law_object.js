@@ -328,19 +328,6 @@ const WRITING_CLAUSES = [
     "The reader has the condition",
     "ALWAYS write for the person who has the condition. NEVER for a practitioner, a buyer or a seller.",
   ],
-  // W64 "Evidence-state block first" REPEALED 2026-08-08. Its text was: "A substance page ALWAYS
-  // opens with a block stating: how many randomised human trials exist and what they found, how
-  // many people have taken it in a study, what the animal record covers, what has never been
-  // measured in a person. IF none THEN say none. NEVER move it below the fold."
-  //
-  // It commanded, as an absolute with its own NEVER, exactly the opening W111 forbids as an
-  // absolute with its own NEVER. Both were scoped to a substance page. Both governed the opening.
-  // W81 could not resolve it — equally narrow, both prohibitions — and W81's own instruction in
-  // that case is "fix the clauses and NEVER pick a winner silently", which is what nobody did.
-  //
-  // This is why the owner removed a study-inventory opening from these pages four times in one day
-  // and it returned in a new shape each time: the writer was obeying W64. The evidence state is not
-  // lost — it is required still, below the first sentence that states an effect. See W111.
   [
     "conformance",
     "Disclose the commercial relationship on the page",
@@ -481,11 +468,6 @@ const WRITING_CLAUSES = [
     "No generated skeleton",
     "NEVER fill one skeleton across pages. NEVER repeat a hedge, disclaimer or closing across articles. IF the prose under two identical headings could be swapped THEN rewrite both.",
   ],
-  // ── Owner correction, 2026-08-05: he read a 157,000-character indictment of a named
-  // company and could not tell, while reading it, what a single source was. Every source was
-  // real and every one of them was filed at the foot of the page. Prose citation is filing;
-  // the card beside the sentence is evidence. The same read found the argument softened into
-  // a complaint about the category when the evidence indicted one vendor by name. ──────────
   [
     "sources",
     "Source cards beside the claim",
@@ -511,11 +493,6 @@ const WRITING_CLAUSES = [
     "Carry the harm to a body",
     "ALWAYS name which step is skipped, in which room, by whom, and what happens to the person at the end. NEVER stop at design flaw. NEVER gesture at critical systems.",
   ],
-  // ── Owner corrections, 7 August 2026. During a single session the writer invented a length
-  // criterion the law does not contain, framed the BPC-157 page around a spinal disc, placed new
-  // rules in source files no agent reads, reported a blocker after one attempt, and narrated its own
-  // corrections in place of doing the work. The owner directed that a rule is only a rule when it is
-  // enforced, and specified binding operator form at minimum length. ─────────────────────────────
   [
     "invariant",
     "Only the rules confer validity",
@@ -528,8 +505,8 @@ const WRITING_CLAUSES = [
   ],
   [
     "invariant",
-    "An owner correction becomes a clause in the same turn, naming what it repeals",
-    "ALWAYS write an owner correction into the law in the same turn, and ALWAYS name in that same edit which existing clause it repeals or amends, or state that it collides with none. A clause added without that line is how the law reached 117 clauses with live contradictions inside it: every correction added and nothing was ever repealed, so each fix left in force the clause it was fixing.",],
+    "An rule becomes a clause in the same turn, naming what it repeals",
+    "ALWAYS write an rule into the law in the same turn, and ALWAYS name in that same edit which existing clause it repeals or amends, or state that it collides with none. A clause added without that line is how the law reached 117 clauses with live contradictions inside it: every correction added and nothing was ever repealed, so each fix left in force the clause it was fixing.",],
   [
     "invariant",
     "Cause only from the record",
@@ -568,7 +545,7 @@ const WRITING_CLAUSES = [
   [
     "register",
     "Professional prose only",
-    "ALWAYS write in professional prose in every artifact: law, source, comment, commit message and report. NEVER reproduce the owner's words verbatim; ALWAYS paraphrase the requirement. NEVER use capitals for emphasis, profanity, or a quotation that records how something was said.",
+    "ALWAYS write in professional prose in every artifact: law, source, comment, commit message and report. NEVER reproduce the the stated failure verbatim; ALWAYS paraphrase the requirement. NEVER use capitals for emphasis, profanity, or a quotation that records how something was said.",
   ],
   [
     "invariant",
@@ -615,25 +592,6 @@ const WRITING_CLAUSES = [
     "Label the extrapolation",
     "IF an argument runs past what was measured THEN say so in that sentence and name the one measurement that would settle it.",
   ],
-  // ─────────────────────────────────────────────────────────────────────────────────────────────
-  // The four clauses below were written on 2026-08-08 from a single paragraph the owner read on
-  // /a/bpc-157-vs-nsaids. Every clause above was live when that paragraph was written, and it still
-  // came out inverted in both directions at once:
-  //
-  //   "BPC-157 has never completed a randomised controlled trial in a human being for any injury.
-  //    Not for tendon, not for muscle, not for a disc, not for a joint."
-  //
-  // The peptide was characterised by a trial nobody ran — a claim it never made — while the drug
-  // beside it was characterised by its best measured result, with the thing that actually matters
-  // about the drug demoted to a cost line. The owner: "EVERYTHING THAT YOU SAY THEY NEVER CLAIM IS
-  // CLAIMED ANECDOTALLY BY AN OCEAN OF PEOPLE. EVERYTHING THAT IS PROVEN HARMFUL ABOUT NSAIDS YOU
-  // CONCEAL AND MAKE WHAT IS NOT TRUE ABOUT IT CENTRAL."
-  //
-  // He is right that the rules produced it. W114 ordered the tiers by strength, and an empty top
-  // tier read as "nothing is known" rather than yielding the answer to the counted record below it.
-  // W113 asked for standard care's numbers without saying that its effect on the repair must sit
-  // beside its effect on the symptom, so the year-cost got written and the mechanism did not. Both
-  // are amended above. These four close what neither of them reached.
   [
     "evidence",
     "Never characterise a thing by what it has not claimed",
@@ -654,29 +612,6 @@ const WRITING_CLAUSES = [
     "A counted record is evidence about the exposure people run",
     "IF no controlled trial has been run at the dose and duration people actually take THEN the counted first-person record is the only evidence that exists about that exposure, and it belongs in the page's answer with its denominator, its harms and its filters. NEVER write that there is no evidence when a counted record exists. NEVER let the descending tier order push that record out of the answer.",
   ],
-  // ─────────────────────────────────────────────────────────────────────────────────────────────
-  // Owner, 2026-08-08, an hour after the four clauses above, on a paragraph that had already been
-  // rewritten under them: "YOU ARE BENDING BACKWARDS… THIS ISNT EVEN ABOUT THOSE SPECIFIC PEPTIDES
-  // ITS ABOUT YOUR NEGLECT OF BOTH THE SCIENTIFIC AND ANECDOTAL EVIDENCE PLEASE FIX THE LOGIC OF
-  // YOUR RULES SO THAT YOU UNDERSTAND THIS ACROSS ALLLLLLLL PEPTIDES."
-  //
-  // Three distinct defects, none of them about peptides:
-  //
-  // 1. THE ONE-SIDED RESCUE. The sentence read "the drug measurably worsens tendon healing when
-  //    given early, though this effect disappears if you give it later". The window was offered to
-  //    the drug as an escape and never offered to the peptide — and it was not even true: NSAIDs
-  //    lower maximum pull-out strength at the bone-tendon junction when given at days 6-14 and at
-  //    days 11-20 as well. A qualifier had been invented to soften a harm.
-  //
-  // 2. THE STOPPED CHAIN. "Weight-loss peptides cause weight loss" is where every page stopped.
-  //    The owner: they cause the load a body carries to fall, which is why retatrutide's TRIUMPH-4
-  //    measured knee pain falling 4.5 WOMAC points against 2.4 on placebo in 445 people over 68
-  //    weeks — which reaches anyone whose problem is mechanical load, including a bad back. The
-  //    primary endpoint was being reported as though it were the whole effect.
-  //
-  // 3. THE SPEED SUBSTITUTED FOR THE RESULT. "Healing is slower" was written where the measurement
-  //    was that the repaired tissue comes back mechanically weaker, and "does not heal" was written
-  //    about a steroid injection whose actual role is to defer a surgical decision.
   [
     "evidence",
     "Follow the effect to the reader's problem",
@@ -692,34 +627,6 @@ const WRITING_CLAUSES = [
     "A qualifier that rescues one side is applied to both",
     "NEVER narrow a harm with a timing window, a dose or a subgroup unless the same narrowing is applied to the benefit the same mechanism produces. IF the harm and the benefit come from one mechanism THEN they carry one set of conditions. IF the reader's own situation sits inside the window where the harm applies THEN say so plainly, and NEVER report the window as an escape.",
   ],
-  // ─────────────────────────────────────────────────────────────────────────────────────────────
-  // Owner, 2026-08-08, unable to get past the first paragraph of the rewritten
-  // /a/bpc-157-vs-nsaids, which had passed every gate in this file:
-  //
-  //   "People weigh these two against each other because they reach for both after the same thing:
-  //    a tendon, a muscle or a joint that got hurt and still hurts."
-  //   -> "No, they fucking don't. Literally, no, they don't… whenever you stub your toe, you go for
-  //       a fucking BPC injection. You stupid motherfucker."
-  //
-  //   "Here is the trade, one line each."
-  //   -> "then you're narrating about the article… one of the rules on the site is absolute truth,
-  //       and for every sentence to earn its place."
-  //
-  // Two defects, both already covered in spirit and neither binding. The first is that a claim about
-  // PEOPLE — what they do, why they do it, when they do it — was written to no standard at all,
-  // while every claim about a molecule on the same page carried a species, a dose and a count. It
-  // was invented to justify the page existing, and it is false: nobody injects a peptide for a
-  // stubbed toe. The site holds a counted record of 37 first-person accounts. That record was the
-  // available evidence about what people actually do with this compound, and it was ignored in
-  // favour of a sentence made up on the spot.
-  //
-  // The second is that W51 bans a sentence whose subject is "this page", and the sentence that
-  // shipped was "Here is the trade, one line each" — the same defect wearing different words. A
-  // sentence announcing the shape of the next block carries no fact and fails the existence test,
-  // W05, which was also live.
-  //
-  // Amends: W74 (truth over helpfulness) gains the people half. W51 (no framing language) gains the
-  // announce shapes. Repeals nothing.
   [
     "evidence",
     "A claim about people is a claim",
@@ -890,7 +797,7 @@ export const WRITING_LAW_OBJECT = createKnowledgeActionObject({
       {
         version: "1.3.0",
         change:
-          "Added the social family (W19-W23 in that family) by owner order after a run of posts that failed on reach and on framing: they assumed the reader already knew what the build was, several carried no account tag and no hashtag, and some read as announcements of the model's own work. The owner's position, recorded as the standard: with no following, tags and hashtags are the only distribution, so both are obligatory on every post, tagged accounts should be the largest genuinely-in-story accounts available, and every post must be legible to a stranger with zero context. A six-boolean grading checklist is now part of the law so posts can be scored after the fact rather than argued about.",
+          "Added the social family (W19-W23 in that family) by rule after a run of posts that failed on reach and on framing: they assumed the reader already knew what the build was, several carried no account tag and no hashtag, and some read as announcements of the model's own work. The owner's position, recorded as the standard: with no following, tags and hashtags are the only distribution, so both are obligatory on every post, tagged accounts should be the largest genuinely-in-story accounts available, and every post must be legible to a stranger with zero context. A six-boolean grading checklist is now part of the law so posts can be scored after the fact rather than argued about.",
       },
       {
         version: "1.2.0",

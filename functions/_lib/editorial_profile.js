@@ -1,17 +1,3 @@
-// EDITORIAL RESOLUTION PROFILE
-//
-// The Laws of Writing say what is true about good prose. They do not tell a fresh model which
-// clauses apply to the page in front of it, which clause wins when two pull, or what the house
-// already settled. That gap is where the contradictions came from, and it is why adding more
-// universal clauses kept making the law worse instead of better.
-//
-// This object closes it. It is derived FROM prose the owner accepted — /a/bpc-157 is the
-// reference implementation — rather than imposed on it. Where the law and the accepted prose
-// disagreed, the prose was usually right and the law was amended; the two exceptions are
-// recorded in KNOWN_DEFECTS below.
-//
-// Served at /api/articles/writing-law as `editorial_profile`. Load the profile for your page
-// class, and the clause families it names, and nothing else.
 
 export const PRECEDENCE = [
   "1. article-class rule (this profile, for your class)",
@@ -191,8 +177,6 @@ export const ARTICLE_CLASSES = {
   },
 };
 
-// Contradictions between the law and prose the owner accepted. Recorded rather than silently
-// resolved, because the accepted prose is evidence about what the law should say.
 export const KNOWN_DEFECTS = [
   {
     where: "/a/bpc-157",

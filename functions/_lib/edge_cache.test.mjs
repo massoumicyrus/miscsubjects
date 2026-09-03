@@ -4,9 +4,6 @@ import { readFileSync } from 'node:fs';
 
 import { ARTICLE_EDGE_CACHE_VERSION, edgeCacheUrls, purgeArticlePageCache } from './edge_cache.js';
 
-// The failure this file pins (live, 2026-08-08): a voxel-edit wrote /a/philosophy in D1 while
-// a plain GET kept serving the pre-edit page — the voxel verbs purged nothing, and the article
-// PUT purge deleted the unversioned URL, which the edge never stores anything under.
 
 test('edgeCacheUrls carry the version — an unversioned purge deletes nothing', () => {
   const urls = edgeCacheUrls('/a/philosophy');

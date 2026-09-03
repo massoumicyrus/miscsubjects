@@ -2,8 +2,6 @@
 
 One process, one route (`/exec`), one auth header (`x-terminal-key`), one global deny-glob, full HTTP request+response logged back to `miscsubjects.com/api/event_log_ingest` per the standing-order shape.
 
-Everything the build can do "on the owner's Mac" — run any CLI, run any agentic CLI (Claude Code, Codex, Gemini CLI, Grok CLI, Aider, Plandex, OpenInterpreter, Goose, OpenHands, browser-use, the superagent grok with macOS `computer` sub-agent, etc.) — happens through one directory row family (`LOCAL_*`, `CLI_*`, `DESKTOP_*`, `BROWSER_*`, `MCP_*`) pointing at this one endpoint.
-
 Every new CLI absorbed = one `ADD_ROW` from iMessage. No code change. See `../TERMINAL_ANNEX.md` for the full spec, executor directives, and the row catalog.
 
 ## One-time install on the Mac
@@ -30,12 +28,12 @@ cd bridge
 pkill -f "node /Users/owner/grok-agent/server.js" || true
 
 # 6. Load launchd plists for both bridge + cloudflared tunnel.
-cp launchd/com.the owner.grok-bridge.plist     ~/Library/LaunchAgents/
-cp launchd/com.the owner.cloudflared-grok.plist ~/Library/LaunchAgents/
-launchctl unload ~/Library/LaunchAgents/com.the owner.grok-bridge.plist     2>/dev/null || true
-launchctl unload ~/Library/LaunchAgents/com.the owner.cloudflared-grok.plist 2>/dev/null || true
-launchctl load   ~/Library/LaunchAgents/com.the owner.grok-bridge.plist
-launchctl load   ~/Library/LaunchAgents/com.the owner.cloudflared-grok.plist
+cp launchd/com.owner.grok-bridge.plist     ~/Library/LaunchAgents/
+cp launchd/com.owner.cloudflared-grok.plist ~/Library/LaunchAgents/
+launchctl unload ~/Library/LaunchAgents/com.owner.grok-bridge.plist     2>/dev/null || true
+launchctl unload ~/Library/LaunchAgents/com.owner.cloudflared-grok.plist 2>/dev/null || true
+launchctl load   ~/Library/LaunchAgents/com.owner.grok-bridge.plist
+launchctl load   ~/Library/LaunchAgents/com.owner.cloudflared-grok.plist
 
 # 7. Health check from the public side (must come back 200 with key_set=true).
 curl -sS https://agent.cannibal.capital/health -H "x-terminal-key: $TERMINAL_KEY" | jq .
@@ -45,8 +43,6 @@ curl -sS https://agent.cannibal.capital/exec \
   -H "x-terminal-key: $TERMINAL_KEY" -H "Content-Type: application/json" \
   -d '{"cmd":"echo","args":["hello from bridge"]}' | jq .
 ```
-
-The bridge runs unprivileged as the `[OWNER_HANDLE]` user under launchd, restarts on crash, restarts on reboot. `KeepAlive=true`. Logs at `~/.cloudflared/bridge.out.log` and `~/.cloudflared/bridge.err.log`.
 
 ## Headless permissions to grant once
 

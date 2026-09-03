@@ -94,9 +94,6 @@ export function makeConscienceFnMap({ buildNowIso }) {
         'INSERT INTO conscience_verdicts (ts,version,job,verdict,violated_clause,prohibited_consequence,causal_contribution,evidence,notes) VALUES (?,?,?,?,?,?,?,?,?) RETURNING id'
       ).bind(ts, CONSCIENCE_VERSION, job, verdict, row.violated_clause, row.prohibited_consequence, row.causal_contribution, row.evidence, String(p.notes || '') || null).all();
       const id = res.results && res.results[0] && res.results[0].id;
-      // HALT: not a refusal of one job — the build concluding its own ongoing operation violates
-      // the floor. Writes the halt flag; every outbound category refuses from this moment until
-      // the OWNER deletes KV conscience:halt. The build cannot clear its own halt.
       let halted = false;
       if (verdict === 'HALT' && env.KV) {
         try { await env.KV.put('conscience:halt', ts + ' ' + row.violated_clause + ' verdict#' + id); halted = true; } catch {}

@@ -19,10 +19,6 @@ const INGEST = process.env.MISC_INGEST_URL || "";
 const PORT = parseInt(process.env.BRIDGE_PORT || "3000", 10);
 const HOST = process.env.BRIDGE_HOST || "127.0.0.1";
 
-// The absolute "do not physically brick the Mac" floor. Per the owner's stated target
-// state (TERMINAL_ANNEX.md), permission tiers and security gating are deferred —
-// this list is brick-prevention only, not security. shutdown/halt/reboot stay
-// because a FileVault login screen kills remote access until the owner is at the Mac.
 const DENY_GLOBS = [
   /\brm\s+-rf\s+(\/|~)(\s|$|\/\s*$)/,
   /\brm\s+-rf\s+\/(usr|System|Library|bin|sbin|etc|var|private|Applications|Users)\/?(\s|$)/,

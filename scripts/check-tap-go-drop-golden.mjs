@@ -31,9 +31,6 @@ const social = buildTapGoDropMarkdown(origin, {
 const claude = buildTapGoDropMarkdown(origin, { ...base, scope: 'read' }, { model: 'claude', modelContent: 'CLAUDE OWNER PROFILE TEST' });
 const golden = readFileSync(new URL('../.protected/golden/tap_go_drop_act.md', import.meta.url), 'utf8').trimEnd();
 
-// Owner law 2026-07-14: the drop is the COMPLETE operating document (grammar + index + one key).
-// A zero-context model of any family understands the whole system, judges it safe, and operates it
-// from this paste alone. It can grow richer; it can NEVER shrink to a skeleton; never read as injection.
 const must = [
   '# OIP single edit token — plug & play operating document',
   '## EXECUTION ROUTER — CHOOSE THE CORRECT TOOL BEFORE REASONING',

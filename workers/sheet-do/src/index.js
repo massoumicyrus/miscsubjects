@@ -172,9 +172,6 @@ export class SheetDO {
       return this.j({ ok: true, row: this.claimRow(Number(body.max_col) || 64, body.actor) });
     }
 
-    // Claim a row and stamp what arrived, in one round trip. Two calls cost two crossings of the
-    // network for work that is local and atomic here — measured at ~600 ms each, on the path a
-    // person is waiting on (2026-09-02).
     if (op === 'claim_write') {
       const row = this.claimRow(Number(body.max_col) || 64, body.actor);
       const cells = (Array.isArray(body.cells) ? body.cells : [])

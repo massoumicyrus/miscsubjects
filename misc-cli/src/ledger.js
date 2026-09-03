@@ -58,11 +58,6 @@ export function receipt(cfg, row) {
   const key = terminalKey();
   if (!key) return;
   const url = cfg.gateway.replace(/\/api\/aig$/, '') + '/api/event_log_ingest';
-  // The POST is tracked so it can be awaited. It used to be fire-and-forget, and a
-  // headless or piped run called process.exit the moment the turn ended — killing the
-  // in-flight request. Tool receipts landed (they happen mid-turn) but the TURN receipt,
-  // the one carrying said_user and said_agent, did not, so misc vanished from the turn
-  // cards while its tool calls kept appearing (2026-07-27).
   const post = fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-terminal-key': key },

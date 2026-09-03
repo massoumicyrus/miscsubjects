@@ -23,12 +23,6 @@ const SITE_LINK_RE =
 // a route rather than a slug belongs here too.
 const RESERVED_WIKI = new Set(["graph"]);
 
-// Pages that render at /a/<slug> without being a row in `articles`. The laws are built
-// from code objects, so a resolver that only checks the articles table calls every link
-// to a law broken. That is the worst false positive available here: an unresolved target
-// is meant to BE a commission, a page a writer named that nobody has written, and a list
-// salted with pages that already answer 200 is a list nobody can act on.
-// Verified live 2026-08-06: each returns 200 at /a/<slug>.
 export const VIRTUAL_PAGES = new Set([
   "writing-law",
   "coding-law",
@@ -184,8 +178,6 @@ export async function graphCounts(env) {
     unresolved: Number(r?.unresolved || 0),
     linking_articles: linking,
     linked_articles: Number(r?.linked_articles || 0),
-    // The number the owner actually asked about: how much of the corpus is
-    // connected to anything at all.
     unlinked_articles: Math.max(0, published - linking),
   };
 }

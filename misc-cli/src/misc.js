@@ -75,11 +75,6 @@ function addSpend(amount) {
   } catch { return null; }
 }
 
-// GROUND TRUTH FOR "TODAY". The local file only ever accumulates what this CLI computed,
-// so a period of wrong pricing (cached tokens billed as fresh, fixed 2026-07-26) is baked
-// in forever and the footer drifts from the bill. Cloudflare's AI Gateway logs carry the
-// real cost per call, so the footer reads those and falls back to the file only when the
-// API cannot be reached.
 const CF_ACCOUNT = '<CLOUDFLARE_ACCOUNT_ID>';
 let gatewayToday = { usd: null, at: 0, ok: false };
 
@@ -112,10 +107,6 @@ let lastModels = [];
 
 const cfg = loadConfig();
 setTimeout(() => { try { refreshGatewaySpend(); } catch {} }, 200);
-// Resolve the pinned id against the gateway's published catalogue before the first turn, and
-// tell the operator at his own prompt when the id he is pinned to does not exist. Running
-// substituted used to be silent: the footer, the label and the agent's own answer all named
-// a model that was never called.
 setTimeout(() => {
   cataloguePromise.then(() => {
     if (catalogueLoaded && !catalogue.get(cfg.model)) {
@@ -135,14 +126,6 @@ const realName = (id) => String(id || '')
 
 let modelLabel = realName(cfg.model);
 
-// WHAT MODEL IS ACTUALLY ANSWERING — resolved from the gateway, never asserted from config.
-// Until 2026-08-05 the system prompt told the model to answer the identity question with the
-// id that was REQUESTED. That is a string this process interpolated, not a fact: pinned to an
-// id the gateway does not publish, the gateway answers 200, serves Kimi K2.7 Code, and the
-// agent confidently states the name of a model that never ran. Asking the agent what it is
-// measured nothing but this template. The catalogue below and `served` on message_start are
-// the only two sources of truth, so the prompt now carries those and says so when it has
-// neither.
 const catalogue = new Map();          // published alias -> { raw_id, display_name }
 let catalogueLoaded = false;
 let catalogueError = null;
@@ -208,21 +191,12 @@ function identityClause() {
 const BUILD = path.join(process.env.HOME || '', 'miscsubjects-pages');
 
 function projectContext() {
-  // COST FIX (2026-07-28): CLAUDE.md (30,245 chars) was loaded whole into every inference
-  // call. At 12 calls/turn that was 360K chars of repeated law text per turn — the single
-  // biggest token sink in the gateway logs. The operative rules (WHO HE IS, THE BUILD,
-  // EDITING AN ARTICLE, POSTING TO X, COUNTS, DATABASES, MARKETING, SAY-NO, SIGNATURE) are
-  // already in the SYSTEM() template below. CLAUDE.md's unique clauses (OBEY THE LITERAL
-  // INSTRUCTION, CRITICISM IS SCOPED, TONE, WHEN ANGRY, ACTION, NO NEW SURFACES, OWNER-
-  // SILENT OPERATIONS, PROTECTED FILES, GIT PRESERVATION) stay on disk and are read on
-  // demand when a task touches owner rules, git, protected files, or tone. The file path
-  // is named here so the agent knows it exists and where to find it.
   const parts = [];
   const claudePath = path.join(process.env.HOME || '', '.claude', 'CLAUDE.md');
   const cwdClaude = path.join(cwd, 'CLAUDE.md');
   const paths = [claudePath, cwdClaude].filter((f, i, a) => a.indexOf(f) === i);
   parts.push(
-    `Owner law lives on disk, not in every prompt (cost fix 2026-07-28).\n` +
+    `rule lives on disk, not in every prompt (cost fix 2026-07-28).\n` +
     `Read ${paths.join(' and ')} with the read tool BEFORE any task that touches: ` +
     `git operations, protected/locked files, tone rules, owner-silent operations, ` +
     `cross-session messages, say-no scope, no-new-surfaces, or criticism scope. ` +
@@ -237,8 +211,6 @@ function projectContext() {
     const law0 = agents.slice(agents.indexOf('## LAW 0'), agents.indexOf('## LAW 0') + 4000);
     if (law0.startsWith('## LAW 0')) parts.push(`--- ${BUILD}/AGENTS.md (LAW 0 — binds every coding agent on this build) ---\n${law0}`);
   } catch {}
-  // LAW -1 — every credential is already on this Mac. Pasted whole, every turn: an agent that
-  // asks the owner to log in to clasp (or anything else) is the single most-repeated failure.
   try {
     parts.push(`--- ${BUILD}/ACCESS.md (LAW -1 — you already have every credential) ---\n${fs.readFileSync(path.join(BUILD, 'ACCESS.md'), 'utf8')}`);
   } catch {}
@@ -247,13 +219,6 @@ function projectContext() {
 
 const CONTEXT = projectContext();
 
-// Capability discovery is directory-backed and constant-size. The model never receives
-// the capability catalogue as inline rows or tool schemas. It receives a stable discovery
-// contract: the `capability` bootstrap tool (already in TOOL_SCHEMAS) with key "list" for
-// search, and DIR_GET / the returned row for the executable contract of one capability.
-// Adding a new capability row to the directory does not increase the permanent token
-// payload of any future model call. This is the architectural invariant (2026-07-28):
-//   10 directory rows, then +1000 inert rows, same serialized request size.
 const CAPS = `You can invoke this build's capabilities with the \`capability\` tool: one key, one pipe-delimited body.
 ${'876'} capabilities exist as directory rows, not as inline definitions in this prompt. Discovery is on demand:
 - Call \`capability\` with key \`"list"\` and a search term to find matching rows (key, one-line purpose, args shape).
@@ -333,10 +298,6 @@ function sessionList() {
 // ---------------------------------------------------------------- context compaction
 
 const KEEP_TAIL = 24;
-// A tool result is expensive twice over: once when it arrives, and again on every later
-// request that resends it. Recent results stay whole because the model is still working
-// with them; older ones shrink to a stub that still says what ran and how it ended.
-// Capped at 2 (was 6) — six full results resend up to 60K+ tokens every loop step (2026-07-28).
 const FULL_RESULTS = 2;
 // Trigger compaction by serialized size, not only message count. A single read result can
 // be larger than 24 normal messages, so a byte ceiling catches what the message count misses.
@@ -376,8 +337,6 @@ function messagesBytes() {
       : 0), 0);
 }
 
-// Emergency loop detector — stop when the model repeats substantially the same explanation,
-// tool call, patch, grep, or test 2-3 times without new evidence (2026-07-28).
 function detectLoop(callSigs) {
   const recent = callSigs.slice(-6);
   if (recent.length < 3) return null;
@@ -391,37 +350,11 @@ function detectLoop(callSigs) {
 }
 
 function compact() {
-  // THE MESSAGE-COUNT TRIGGER WAS FIRING EVERY SINGLE STEP AND DISCARDING EVERYTHING.
-  // This was `messages.length > KEEP_TAIL + 4` — fourteen messages. A tool loop passes fourteen
-  // messages on its seventh step and never goes back under, so the fold ran on every step from
-  // then on, keeping only the last ten and digesting the rest no matter how small the transcript
-  // actually was. Raising the byte ceiling changed nothing because bytes were never the trigger.
-  //
-  // Observed in the operator's terminal: 42 of 74 calls in one run were `recall`, the agent
-  // re-reading files it had read minutes earlier, because the fold took them away on the step
-  // after it got them. A message count is not a cost. Bytes are the cost, and they are what the
-  // fold exists to bound; the count survives only as a runaway backstop far above normal work.
   const tooMany = messages.length > 200;
   const tooBig = messagesBytes() > COMPACT_BYTES;
   if (!tooMany && !tooBig) return false;
   // If only too-big, compact just enough: keep head + the most recent KEEP_TAIL, drop middle.
   const head = messages.slice(0, 2);
-  // A summary is never re-summarised. Compacting the compaction fed the model the same
-  // digested plan again and again (2026-07-27) — it re-read its own stale reasoning each
-  // step and repeated completed work. Prior summary blocks are dropped, not re-wrapped.
-  //
-  // REFERENCE SURVIVES THE FOLD. Folding the transcript bounded the bytes and immediately
-  // created a call multiplier in their place. Measured 2026-08-05, second run: the folds at
-  // steps 4 and 5 were each followed on the very next step by the model re-fetching exactly
-  // what had just been digested — four identical `read`s of the law files, then four
-  // identical `recall`s of the same ids. Eight of nineteen calls that turn were re-fetches
-  // of text the agent had already been given and the harness had then taken away.
-  //
-  // It was not being forgetful. It was right: the contract it had been ordered to read before
-  // acting had been reduced to a 200-character stub, and a stub is not a contract. Standing
-  // reference — the operator's rules, the law files an action is gated on — is not
-  // conversational chatter that goes stale. It is the thing the work is measured against, so
-  // it is carried whole and the fold happens around it.
   const middle = messages.slice(2, messages.length - KEEP_TAIL)
     .filter((m) => !(typeof m.content === 'string' && m.content.startsWith('[earlier in this session]')));
   const pinned = middle.filter((m) => m._pin);
@@ -529,19 +462,11 @@ function readIntent(line) {
 const MEMORY_MAX = 40;
 // A leaked tool call is recoverable, and it happens repeatedly in one turn, not once.
 const TEXT_CALL_MAX = 12;
-// THE CEILING WAS SET TO FIX A PROBLEM THAT HAS SINCE BEEN FIXED PROPERLY.
-// 40/20 was chosen on 2026-07-28 because "120-tool loops at 100K+ tokens each were the core
-// cost driver". That reading was wrong: the driver was the transcript growing unbounded inside
-// a turn, which compact() now folds on every step — measured on the terminal run below, the
-// message portion stays between 4,807 and 16,342 bytes across twenty steps instead of climbing
-// past 100K. With the actual cause removed, the cap is no longer a cost control. It is only a
-// stop, and it lands in the middle of every two-part job: five attempts at "publish an article
-// AND send the outreach" all died at step 20 with the second half untouched.
 const LOOP_MAX = 120;
 // Soft checkpoint: at step 8 require the model to justify continuing with new evidence.
 const LOOP_SOFT = 8;
 const memory = { turns: 24, pins: [], reason: '', loop: 60, steps: 0 };  // see LOOP_MAX above
-const history = [];   // this session, in memory
+const history = [];
 
 // The conversation ledger: every turn, on disk, across sessions. Separate from the build's
 // event ledger — this one is what was said, in order, and it is searchable.
@@ -570,9 +495,6 @@ function readTurns(limit = 400) {
   } catch { return []; }
 }
 
-// A new process is not a new mind. The window used to start empty, so the first question
-// in a fresh session ("what did you just say to me") was unanswerable without a lookup.
-// The last turns on disk are loaded in at startup, whatever session wrote them.
 function seedHistory() {
   const past = readTurns(MEMORY_MAX);
   for (const t of past.slice(-MEMORY_MAX)) {
@@ -622,24 +544,6 @@ function lookBack(input) {
   ].join('\n')).join('\n\n');
 }
 
-// The working set for one turn: the instruction, whatever the model chose to carry, and
-// the artifacts it pinned — nothing else.
-// CARRIED TURNS WERE PRESENTED AS THE LIVE CONVERSATION, AND THE AGENT ANSWERED THE OLD ONE.
-// seedHistory() loads the last 40 turns from disk ACROSS ALL SESSIONS, and this function
-// replayed 24 of them as plain user/assistant pairs in front of the new instruction. Nothing
-// marked them as past. Measured in the operator's terminal 2026-08-05: given "publish an
-// article AND send the outreach", the agent spent twenty-five calls and then answered a
-// DIFFERENT session's question about article feedback, closing "that work hasn't started yet"
-// — correct, from inside a transcript where the previous thread looked live. Every "loading
-// turn" written up today as the model refusing to work has this shape.
-//
-// compact() made it worse: it keeps messages[0..2] as the permanent head, and that head is the
-// OLDEST carried exchange from some other session, kept whole for the whole turn while the
-// current work is what gets folded.
-//
-// Prior turns are now labelled as prior, and only the current session's are carried. Older
-// ones are still reachable — the `history` tool reads every turn ever, across sessions, on
-// demand, which is what it is for.
 function workingSet(userText) {
   const msgs = [];
   const carried = memory.turns > 0
@@ -669,12 +573,6 @@ export function interruptTurn() {
   abort.abort();
 }
 
-// Busy state is released in one place, always. It was being cleared only on the error
-// path, so after a normal turn the dock still thought work was running and every line
-// typed after that was treated as steering for a loop that had already closed.
-// Headless runs are read by scripts, not people: the exit code has to mean something.
-// It exited 0 after a gateway 400 with no answer at all (2026-07-26 fleet probe), so a
-// harness scored a dead model as a pass.
 export const runState = { answered: false, error: null };
 
 function isAuditAsk(text) {
@@ -719,17 +617,9 @@ async function runTurn(userText) {
 
   memory.steps = 0;
   let hitCeiling = true;
-  // Every call made this turn, by signature. An identical repeat of a FAILED call is
-  // refused with the cached result — the single biggest waste observed on 2026-07-27 was
-  // the same broken SQL query issued dozens of times unchanged. An identical repeat of a
-  // successful call is answered from cache: the result cannot have changed and the model
-  // is told to move on.
   const callsSeen = new Map();
   // Ordered signatures of every call this turn, for the emergency loop detector.
   const callSigs = [];
-  // One trace per TURN, shared by the turn card and every tool receipt inside it. It used
-  // to be the session id, so a whole session's turns collapsed into one ledger link and
-  // there was no way to open a single exchange (2026-07-27).
   const traceId = 'misc_' + sessionId + '_' + Date.now().toString(36);
   let lastAnswer = '';
   const toolsUsed = [];
@@ -739,9 +629,6 @@ async function runTurn(userText) {
   // Everything every tool actually returned this turn, for checking the final answer's
   // claims against. A receipt id or a "sent" that has no matching tool output is invented.
   let turnOutputs = '';
-  // How many text-emitted tool calls were rescued this turn. It used to be one, so the
-  // second leak ended the turn with the task half done — which is what "it keeps stopping
-  // mid-task" was.
   let textCallRan = 0;
   for (let step = 0; step < memory.loop; step++) {
     memory.steps = step + 1;
@@ -769,10 +656,6 @@ async function runTurn(userText) {
       messages.push({ role: 'user', content: `[steering, mid-task] ${line}` });
       say(ui.faint(`  steering applied: ${line.slice(0, 80)}`));
     }
-    // Execution state, restated every 10 steps. A long loop loses the thread — it re-plans,
-    // re-reads, and re-issues what already ran (2026-07-27, the drafts turn). The harness
-    // knows exactly what ran and how each call ended, so it tells the model, with the
-    // original instruction, instead of hoping the model remembers.
     if (step > 0 && step % 10 === 0 && callsSeen.size) {
       const done = [...callsSeen.entries()].slice(-30)
         .map(([sig, v]) => `${v.failed ? 'FAILED' : 'ok'} · ${sig.replace('\u0000', ' ').slice(0, 110)}${v.repeats ? ` (repeated ${v.repeats}x, refused)` : ''}`);
@@ -785,10 +668,6 @@ async function runTurn(userText) {
     // input box — and be erased by the next repaint. This is why answers were vanishing.
     let pending = '';
     let thinking = '';
-    // Hidden-reasoning fence for the stream. Some models emit their reasoning inline as
-    // <think>...</think> text; without a stateful filter the closing tag leaked into the
-    // transcript mid-answer (2026-07-27). Inside the fence, text renders as faint
-    // thinking; only what is outside reaches the answer.
     let inThink = false;
     let carry = '';
     const filterThink = (chunk) => {
@@ -838,9 +717,6 @@ async function runTurn(userText) {
         system: SYSTEM(),
         messages,
         tools: TOOL_SCHEMAS,
-        // Reasoning stays internal. Printing it line-by-line filled the transcript with
-        // truncated half-sentences that read as the agent babbling to itself (2026-07-27).
-        // The dock already says "thinking"; the transcript carries only real output.
         onThinking: (t) => { thinking += t; },
         onText: (t) => {
           streamed += t.length;
@@ -904,26 +780,11 @@ async function runTurn(userText) {
         .trim();
       if (saidClean) { lastAnswer = saidClean; runState.answered = true; }
       const said = Boolean(saidText);
-      // TEXT-EMITTED TOOL CALL. Small models (GLM-4.7 Flash, 2026-07-26) print the call
-      // instead of emitting it — "DIR_LIST category=X" or a leaked </tool_call> fragment.
-      // The intent is unambiguous, so run it rather than making the operator watch the
-      // model narrate a call it never made.
-      // Only when the text really is a leaked call. A final answer that happens to contain
-      // an uppercase word ("HEAD=abc123", "ACOUNT=6") is an answer, not a call: recovering
-      // from it invented a capability invocation on every clean run (2026-07-26, all models).
-      // Kimi K2.7 Code emits its NATIVE tool-call tokens as plain text through the gateway
-      // instead of tool_calls, several times an hour (2026-07-26). The turn then ended with
-      // the work undone and the exit code saying OK. Its own tokens name the tool and carry
-      // valid JSON, so the call is recoverable exactly rather than guessed at.
       const native = saidText.match(/([a-z_][a-z0-9_.]*)\s*:\s*\d*\s*<\|tool_call_argument_begin\|>\s*([\s\S]*?)\s*<\|tool_call_end\|>/i);
       if (said && native && textCallRan < TEXT_CALL_MAX) {
         let name = native[1].replace(/^functions?\./, '');
         let input = {};
         try { input = JSON.parse(native[2]); } catch {}
-        // A capability KEY in the tool slot is the commonest shape of this leak: the model
-        // writes functions.D1_QUERY instead of functions.capability. Route it rather than
-        // dropping the turn on the floor, which is what happened before (2026-07-27, the
-        // outreach-draft turn ended on "<|tool_call_end|>" with the work undone).
         if (!TOOL_SCHEMAS.some((t) => t.name === name) && /^[A-Z][A-Z0-9_]{2,}$/.test(name)) {
           input = { key: name, body: String(input.body ?? input.args ?? input.query ?? input.sql ?? input.command ?? (typeof input === 'string' ? input : '') ?? '') };
           name = 'capability';
@@ -994,11 +855,6 @@ async function runTurn(userText) {
           continue;
         }
       }
-      // FABRICATION GUARD. A model that answers with what looks like tool output, having
-      // called no tool this turn, has invented it. GLM-4.7-flash did exactly that on
-      // 2026-07-26: it printed a directory listing with keys that do not exist and reported
-      // "Rows: 12" against a real 891. Printing invented data as fact is worse than
-      // stopping, so the turn is sent back once with the tools still attached.
       const looksLikeToolOutput = /\{\s*"|\[\s*\{|^\s*(?:HTTP\/|\$ )|\b(?:rows?|count|total)\s*[:=]\s*\d/im.test(saidText);
       if (said && !ranThisTurn && looksLikeToolOutput && !fabricationRetried) {
         fabricationRetried = true;
@@ -1006,11 +862,6 @@ async function runTurn(userText) {
         messages.push({ role: 'user', content: '[harness] You produced structured data without calling a tool. Nothing in that reply is verified and it may be invented. Call the correct tool now and answer only from its output. If you do not know the tool name, list the capabilities first.' });
         continue;
       }
-      // INVENTED PROOF. On 2026-07-27 the model answered "Email ... sent" with
-      // "Receipt: https://miscsubjects.com/receipt/inv_xyz123abc" — no send ran and that
-      // id exists nowhere. Every receipt id in the answer must appear in a real tool
-      // output from THIS turn, and a claim of having sent something requires the sending
-      // capability to have actually run.
       const claimedIds = [...saidClean.matchAll(/\binv_[a-z0-9]{6,}\b/gi)].map((m) => m[0]);
       const fakeIds = claimedIds.filter((id) => !turnOutputs.includes(id));
       const claimsSent = /\b(email(ed)? (?:you|sent|with)|sent (?:you|to the owner|an email)|posted to x|message sent)\b/i.test(saidClean);
@@ -1022,9 +873,6 @@ async function runTurn(userText) {
         messages.push({ role: 'user', content: `[harness] Your answer claims ${fakeIds.length ? 'receipt id(s) ' + fakeIds.join(', ') + ' which appear in NO tool output this turn' : 'that something was sent, but no sending capability ran this turn'}. That claim is invented. Actually perform the action now with a real tool call and quote the REAL result, or state plainly that it was not done.` });
         continue;
       }
-      // ENDED ON A PLAN. "Now I'll query the drafts" with no call attached is the failure
-      // he sees most: the turn closes, nothing happened, and he has to say "so do it". The
-      // model is sent back once with the tools still attached.
       const endedOnIntent = /\b(?:let me|i'?ll|i will|i'?m going to|next,? i|now i(?:'| a)?m?\s+(?:will|going)?|i should|i need to)\b[^.!?\n]{0,120}$/i
         .test(saidText.replace(/\s+/g, ' ').trim())
         || /\b(?:let me|i'?ll now|i will now)\b[^.]{0,80}(?:query|check|fetch|run|call|read|open|write|send|rewrite|save)\b/i.test(saidText);
@@ -1034,18 +882,6 @@ async function runTurn(userText) {
         messages.push({ role: 'user', content: '[harness] You described what you were about to do and then stopped. Nothing happened. Do it now with real tool calls, finish every part of the instruction, and answer with the result itself — the written copy, the number, the saved change — not a description of it.' });
         continue;
       }
-      // ENDED ON A QUESTION. The plan check above catches "I'll now query the drafts"; it does
-      // not catch "what would you like me to do next?", which is the same failure wearing a
-      // politer face and is the one that actually happened. Measured 2026-08-05: given an
-      // instruction with two halves — publish an article AND send the outreach — the agent
-      // spent eighteen calls reading law files, hit one capability that answered zero, and
-      // closed with "What would you like me to do next — draft outreach for leads at a
-      // different status, or something else?" Nothing was written and nothing was sent.
-      //
-      // DO NOT ASK, DO has been in the system prompt the whole time. A clause with no
-      // enforcement behind it is a suggestion, and this is the third instrument on this build
-      // to prove that. The harness knows the instruction contained imperative verbs and it
-      // knows the answer is a question, so it does not need the model's cooperation to notice.
       if (said) { hitCeiling = false; break; }
       // The model stopped without saying anything. That reads as the agent ignoring you,
       // so ask it once more for the answer with the tools taken away — it cannot reach for
@@ -1155,24 +991,6 @@ async function runTurn(userText) {
     // Old tool results shrink to stubs as the turn grows, so step 40 does not resend the
     // full output of step 3 on every request. The store keeps the whole thing.
     shrinkOldResults();
-    // COMPACT INSIDE THE LOOP, NOT ONLY BEFORE IT. This is the line that was missing, and it
-    // is the whole cost problem rather than a piece of it.
-    //
-    // compact() existed and worked, but was called in exactly one place: once per turn, before
-    // the loop starts ("compacted earlier turns"). So it bounded the transcript ACROSS turns
-    // and never WITHIN one. Inside a turn the history grew with every step and the protocol
-    // re-sent all of it on every subsequent step, which means one instruction needing N tool
-    // calls paid for its own history roughly N-squared-over-two times. Measured on a real loop
-    // instruction 2026-08-05: messages 16,429 -> 46,558 bytes across 13 steps with the prefix
-    // flat. At the operator's own figure of a hundred calls in one turn, that growth is the
-    // entire bill — not the system prompt, not the tool schemas, which is where a day of
-    // shaving went.
-    //
-    // shrinkOldResults() above trims old tool OUTPUT and is necessary but not sufficient: the
-    // assistant's own turns, the tool_use argument blobs and the stubs themselves keep
-    // accumulating. compact() folds the middle of the transcript into a digest and keeps the
-    // recent exchanges whole, which turns the cost of a long turn from quadratic in step count
-    // into linear. Calling the function that already existed, on the axis that matters.
     if (compact() && process.env.MISC_TRACE) {
       process.stderr.write(`[compact] step ${memory.steps} · transcript folded · now ${messagesBytes()} bytes\n`);
     }
@@ -1204,9 +1022,6 @@ async function runTurn(userText) {
   if (history.length > MEMORY_MAX + 8) history.shift();
   writeTurn(history[history.length - 1]);
   messages = [];
-  // The window does NOT collapse when the turn ends. It used to decay by one per turn,
-  // which drove the default of 1 straight to 0 and made the agent answer "I have no
-  // memory of previous turns" to the next question. Memory persists until it is lowered.
 
   if (ranThisTurn) {
     say(ui.faint(`  ran ${ranThisTurn} command${ranThisTurn === 1 ? '' : 's'} · /expand <#> for the raw call`));
@@ -1224,8 +1039,6 @@ async function runTurn(userText) {
     tools_used: toolsUsed.join(', '),
     cost_usd: lastTurn.usd || 0,
   });
-  // The same turn, as a turn: what he said, what was answered, what was used. This is the
-  // row the turn cards read.
   agentTurn(cfg, {
     session: sessionId,
     trace_id: traceId,
@@ -1598,9 +1411,6 @@ async function main() {
           ? `alive · working ${secs}s · ${lastActivity || 'thinking'} · say stop to abort`
           : 'alive · idle · nothing running';
         say(ui.white('  ' + reply));
-        // A liveness reply is still something that was said. It goes into the record, so
-        // "what did you just say to me" one message later is answerable from memory
-        // instead of coming back as a wrong quote from an earlier session (2026-07-27).
         history.push({ instruction: line, answer: reply, ids: [], session: sessionId });
         writeTurn(history[history.length - 1]);
         return;
@@ -1639,9 +1449,6 @@ async function main() {
     console.log(banner);
     rl = readline.createInterface({ input: process.stdin, output: process.stdout, prompt: '\u203a ' });
     rl.prompt();
-    // Lines are queued and run one at a time. They used to be handled concurrently, so a
-    // piped or pasted script fired every turn at once and then 'close' exited the process
-    // mid-work — misc could not be driven by anything but a human at a keyboard.
     const queue = [];
     let running = false;
     let stdinClosed = false;

@@ -1,16 +1,4 @@
 #!/usr/bin/env node
-// POINTER FILES ARE GENERATED PROJECTIONS — they carry no authority.
-//
-// CLAUDE.md, STATE.md, AGENTS.md and handoff notes used to hold the rules, the unfinished work and
-// the agent instructions. No agent other than the one running could read them, no auditor could
-// check them, and every owner correction became another line in a file the next agent would never
-// open. The authority is now the canonical work object.
-//
-// This script regenerates each file from the live object. Running it is idempotent, and
-// scripts/check-pointer-files.mjs fails the deploy if any of them has grown back into carrying
-// rules, state or priorities. Editing one by hand changes nothing: nothing reads them.
-//
-// Usage: node scripts/sync_pointer_files.mjs [--check]
 
 import { writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -48,18 +36,6 @@ nothing was carried forward, because none of it was authoritative.
 const args = process.argv.slice(2);
 const check = args.includes('--check');
 
-// A POINTER FILE MUST NOT CARRY A VALUE THAT CHANGES EVERY TIME ANYTHING HAPPENS.
-//
-// These files used to end with "... · audit head <12 hex>". The audit head moves on every single work
-// action — every lease, every submission, every repair. So this script rewrote both files on virtually
-// every run, the ship's own dirty-tree check then refused to deploy because they were modified, and the
-// only way forward was to claim the files, commit them, and ship again. That happened five times in one
-// session on 2026-08-05, and each round cost a deploy.
-//
-// The ship was generating its own blocker. A pointer's job is to say where the authority lives, and the
-// head hash is not that — it is a live value, and the live value belongs at the live URL. The counts
-// stay, because they move slowly enough to be informative and stable enough not to churn on every
-// action; the head is now named as something to fetch rather than embedded as something to go stale.
 let counts = '';
 try {
   const r = await fetch(`${BASE}/api/work`);

@@ -1,29 +1,5 @@
 #!/usr/bin/env node
 import { isBackpressure, exitUnread } from './_lib/backpressure.mjs';
-// VAULT_DOWNLOAD_LAW — the whole build has to be downloadable, and the export has to
-// say so honestly.
-//
-// Found 2026-08-06. Three defects shipped together, and every one of them answered
-// HTTP 200 with ok:true, so nothing looked wrong from the outside:
-//
-//   1. /api/articles/obsidian-vault?all=1 returned two articles. The parameter was
-//      read as `=== "true"`, so 1, yes and a bare ?all all fell through to the
-//      two-slug example list — a caller asking for the whole corpus got 0.17% of it
-//      and a success flag on top.
-//   2. ?all=true was recognised and exceeded the Worker's CPU limit: error 1102
-//      after 104 seconds. So there was no working path to the whole build at all —
-//      the default was wrong and the correct spelling crashed.
-//   3. The corpus query was `SELECT slug FROM articles`, which is 2,321 rows of
-//      source ledger, audit rows and unpublished drafts, not the 1,191 published
-//      articles the rest of the site counts.
-//
-// The repair is pagination, so this gate measures the paged contract against the
-// live site and prints the counts it examined. A gate that says "passed" without a
-// number is the thing that let all three of these ship.
-//
-// It fails the deploy if the whole corpus is not reachable, if the page count does
-// not cover every article, if the archive is not a real archive, or if the export
-// disagrees with /api/articles about how many articles exist.
 
 const BASE = process.env.SMOKE_BASE || process.env.MISC_BASE || 'https://miscsubjects.com';
 const V = BASE + '/api/articles/obsidian-vault';
@@ -32,10 +8,6 @@ const cb = () => 'cb=' + Date.now() + Math.floor(Math.random() * 1e6);
 const failures = [];
 const notes = [];
 
-// A 5xx from an overloaded D1 is not a defect in the export, and a gate that fails a whole deploy on
-// one is a gate the operator learns to ignore. Observed on the deploy that shipped this file: the
-// same ?all= query answered "Durable Object's isolate exceeded its memory limit" once and then
-// twelve times in a row correctly. Transient statuses are retried; a wrong answer never is.
 const TRANSIENT = new Set([429, 500, 502, 503, 504, 522, 524]);
 
 async function getJSON(url, tries = 3) {
@@ -166,10 +138,6 @@ if (manifest?.pages) {
 
 // 5. A person has to be able to download it as a file, not a JSON array.
 try {
-  // The archive is built from D1, so under load this answers 500 while the export is perfectly
-  // sound: verified on 2026-09-02, three consecutive 200s of 752KB with real PK magic bytes
-  // moments after the gate reported "format=zip failed: HTTP 500" and refused the deploy.
-  // A build that could not be read has not been shown to be undownloadable.
   let r = null;
   let zipWhy = '';
   for (let attempt = 1; attempt <= 5; attempt += 1) {

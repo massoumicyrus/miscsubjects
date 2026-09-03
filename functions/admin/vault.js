@@ -22,7 +22,6 @@ export async function onRequestGet(context) {
   const g = cat.groups || {};
   const c = cat.counts || {};
   const limits = cat.limits || {};
-  // Guardian owner switch (owner order 2026-08-30): KV guardian_master; '0'/'off'/'false' = OFF.
   let guardianOn = true;
   try { const gm = await context.env.KV.get('guardian_master'); if (gm != null && ['0', 'off', 'false', 'OFF'].includes(String(gm).trim())) guardianOn = false; } catch {}
   const body = `

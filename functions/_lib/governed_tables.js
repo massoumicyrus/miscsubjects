@@ -1,21 +1,3 @@
-// SOME TABLES ARE THE RECORD. YOU DO NOT WRITE TO THEM WITH A RAW STATEMENT.
-//
-// THE BYPASS THIS CLOSES (WT-0039). D1_EXEC accepts any INSERT/UPDATE/DELETE against the content
-// database, including `work_tasks` and `articles`. So the whole point of the work object — that only
-// the infrastructure moves a task's state, after running that task's acceptance tests, and that every
-// move appends one hash-chained audit row — could be walked around with a single UPDATE. The same
-// lane could rewrite `work_actions`, which is the chain itself: an audit log an agent can edit is
-// not an audit log. The bypass was listed in the canonical object as open and enforced by nothing.
-//
-// THE INVARIANT. A governed table has exactly one write path, and that path runs the invariants. A
-// raw statement against one is refused, and the refusal names the path that does work — an agent that
-// is told "no" and not told "here" tries the next bypass.
-//
-// WHAT IS STILL POSSIBLE, DELIBERATELY. Repair is real work: a bad row has to be fixable without
-// pretending the fix is a task. D1_REPAIR is that lane. It runs the same statement, but it requires a
-// stated reason and it appends a work_actions row, so a repair is on the chain like everything else.
-// The difference between the two lanes is not permission — both need the owner's key — it is whether
-// the write leaves a record. Only one of them can be silent, and that one is now closed.
 
 /** Tables whose only legitimate writer is the code that holds their invariants. */
 export const GOVERNED_TABLES = Object.freeze({

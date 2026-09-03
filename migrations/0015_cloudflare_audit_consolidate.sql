@@ -1,12 +1,3 @@
--- 0015_cloudflare_audit_consolidate.sql
--- 1. Massive Cloudflare API surface (zones, DNS, workers, pages, KV, R2, D1, vectorize, AI, queues,
---    secrets store, cache purge, analytics, email routing, access, tunnel, images, stream).
---    All rows auth=bearer:CLOUDFLARE_API_TOKEN. Wired but inert until the owner's CF token is added.
--- 2. Drop BLOOIO_NUMBERS_LIST (endpoint path not documented; 404).
--- 3. Create the second agent row BUILDER (target=grok-4.3). System prompt = minimal capability listing.
---    the owner owns the prompt and may rewrite freely at /admin/directory/BUILDER.
--- 4. Remove SEND_INVOICE_VIA_BLOOIO row content guardrail (still callable; doc updated).
--- 5. Consolidation: drop SECRETS_AUDIT (duplicate of DIRECTORY_LIST + GROUP BY).
 
 DELETE FROM directory WHERE key IN ('BLOOIO_NUMBERS_LIST','SECRETS_AUDIT');
 
@@ -155,9 +146,6 @@ $3', '2026-06-09T20:00:00Z', 'cloudflare', NULL),
 ('CF_ANALYTICS_DASH',  'http', 'GET https://api.cloudflare.com/client/v4/zones/$1/analytics/dashboard', 'bearer:CLOUDFLARE_API_TOKEN',
 '# Zone $1 traffic analytics summary (requests, bandwidth, threats, top URIs).', '2026-06-09T20:00:00Z', 'cloudflare', NULL),
 
--- ─── Second agent row — BUILDER. Capability listing; the owner owns the prompt and may freely rewrite. ───
--- target = grok-4.3 per the owner's spec. allowed_categories = '*' (everything).
--- content begins with `#` docs (kernel-stripped). The non-`#` body IS the system prompt and contains {{TOOLS}} for dynamic tool listing.
 ('BUILDER', 'agent', 'grok-4.3', 'bearer:GROK_API_KEY',
 '# Second agent row. Advanced Grok 4.3 with access to the whole directory. Capable of reading, testing, editing, and upgrading the build. the owner owns this prompt — overwrite at /admin/directory/BUILDER.
 You are connected to the miscsubjects.com build. Every row below is a callable tool. Reference a row by emitting [KEY]body[/KEY] in your reply; multiple args separate with `|`.

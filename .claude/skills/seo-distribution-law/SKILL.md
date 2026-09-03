@@ -80,7 +80,6 @@ belong in this list.
 - 2026-08-06: the homepage carried no Open Graph, no Twitter card, no canonical — while every
   article did. Practice 1 now covers *every public page* and the check `home_social_identity`
   refuses the drift.
-- 2026-08-06, owner order: distribution strategy that came back "Bluesky and Mastodon" when
   the question was the majors. Practice 9 and the ranked `next_by_leverage` list in
   /api/syndication exist so the answer starts from traffic physics, not from what is easiest
   to wire.

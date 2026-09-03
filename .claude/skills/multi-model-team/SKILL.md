@@ -28,5 +28,4 @@ Use it for: X copy and headlines (does this read human or like slop?), article h
 - Odd panel size (3 or 5) so a synthesizer isn't tie-breaking blind.
 - Providers must differ — the value is disagreement, not consensus theater.
 - Attribute in the log: which model produced the kept line. Never present a model's opinion as fact; it's one input.
-- REASONING_EFFORT=NONE for any Grok call (owner law): send `reasoning_effort: "none"`.
 - This does not replace real evidence. A panel of models agreeing is still not a source; sourced facts outrank model consensus.

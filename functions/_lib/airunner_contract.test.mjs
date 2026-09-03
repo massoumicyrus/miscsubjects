@@ -1,12 +1,3 @@
-// REGRESSION TEST BUILT FROM THE EXACT SILENT PASS, 2026-08-04.
-//
-// LEADS_SHEET_SYNC reported success and the LEADS_ENRICHED tab did not exist. The Apps Script had
-// answered with its health payload — ok:true, no tab, no row count — and every layer above read
-// ok:true and moved on. Two small tabs in the same flow returned real receipts and really were
-// written, so the failure was invisible: same flow, same run, same "success".
-//
-// This is the shape the build keeps removing: a response that answers a question nobody asked,
-// accepted as proof of work.
 
 // node:test, not vitest. Every gate in ship.mjs invoked `npx --no-install vitest`, and this repo
 // has never had vitest installed — so npx refused to fetch it and each of these regression tests

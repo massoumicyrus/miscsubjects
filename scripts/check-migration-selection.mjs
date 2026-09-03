@@ -1,10 +1,4 @@
 #!/usr/bin/env node
-// WF-0005 deploy gate + regression. Proves the migration selector picks a real new migration
-// over the 9999 reseed sentinel regardless of checkout mtimes, on any machine.
-//
-// The exact production incident: a clean worktree shipped 0354_canonical_token_manual.sql, but
-// ship.mjs selected 9999_ref_images.sql because every checkout mtime tied and the filename
-// tie-break preferred the higher name. This gate fails the deploy if that can recur.
 
 import { selectMigrationsToApply, isSentinelMigration, migrationPrefix } from './lib/migration-selection.mjs';
 

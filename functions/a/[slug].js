@@ -5,9 +5,6 @@
 
 import { renderWidgets, renderWidget } from "../_lib/widgets.js";
 import { renderProvenWorkWidget } from "../_lib/proven_work_widget.js";
-// EVERY ARTICLE CARRIES THE THREAD (owner order 2026-08-05). Not a manifest field, not a feature
-// on the pages that happened to get one — a section rendered by the article renderer itself, so a
-// page cannot exist on this site without it. scripts/check-article-ledger.mjs proves that live.
 import { renderLedgerThread, listComments, sha256Hex } from "../_lib/article_ledger.js";
 import { renderWorkspacePanel } from "../_lib/workspace_widget.js";
 import { socialStyles } from "../_lib/widgets/social.js";
@@ -61,9 +58,6 @@ async function buildObjectEmbedMap(env, body) {
       else if (spec.startsWith("card:lead:")) map[key] = await renderObjectCard(env, spec.slice(10), { publicView: true });
       else if (spec === "actions") map[key] = await renderActionSurface(env);
       else if (spec.startsWith("asset:")) map[key] = await renderAssetCard(env, spec.slice(6));
-      // LIVE METRIC (2026-07-30). A number that can drift from its own receipt must never be
-      // typed into prose. [[object:metric:grounding]] renders the corpus figures FROM the
-      // endpoint at page-render time, so the page and its cited receipt cannot disagree.
       else if (spec === "metric:grounding") {
         const r = await fetch("https://miscsubjects.com/api/metrics/grounding", { headers: { accept: "application/json" } });
         const g = await r.json();
@@ -1082,9 +1076,6 @@ function renderSelfExplain(slug, opts = {}) {
   const open = "";
   const isOip = isOipArticleSlug(slug);
   if (isOip) {
-    // THE PAGE IS THE MACHINE OBJECT. For Total Structure voxels the full traversal JSON is
-    // embedded IN-BAND — a model reading this page holds the walkable shelf immediately,
-    // with no second fetch. (Owner order 2026-07-03: the page itself must be traversable.)
     let shelfBlock = "";
     let scrollScript = "";
     try {
@@ -1198,8 +1189,6 @@ async function renderLiveLedger(env, slug) {
   if (!env.LEDGER) return "";
   try {
     const like = "%" + slug + "%";
-    // OWNER PRIVACY BAR: exclude the owner's private CLI turns (his keystrokes, cwd, name, session)
-    // in SQL, then again at egress, then scrub any owner PII from what remains.
     const rows = await env.LEDGER.prepare(
       `SELECT id, ts, source, key, actor, action, direction, status, trace_id, step, request_preview, response_preview
        FROM events
@@ -1262,12 +1251,6 @@ function readMinutes(body) {
   return Math.max(1, Math.round(words / 220));
 }
 
-// ON-PAGE SHARE ROW (owner order 2026-08-06): every article carries visible share targets on
-// the page itself — server-rendered anchors, one per network, no SDK and no script loaded, so
-// nothing phones home before the reader chooses to share. Pinterest receives the hero as the
-// pin image when the article has one (a pin without an image is dead on arrival there). The
-// floating widget stays for copy-link / copy-for-LLM; this row is the always-visible surface,
-// and it lives inside the <article> so continuous-scroll fragments each carry their own.
 function renderShareRow(slug, title, hero) {
   const u = `https://miscsubjects.com/a/${encodeURIComponent(slug)}`;
   const eu = encodeURIComponent(u);
@@ -1407,13 +1390,6 @@ async function buildPost(env, a, opts = {}) {
   // body verbatim (hero, figures, pull-quotes, claims all still render) instead of the generic
   // slot composer. Used for flagship, designed article bodies.
   const authoredBody = m.prefer_stored === true || m.render === "authored" || m.register === "essay";
-  // A hand-written body IS the article. The slot composer exists to give a page prose when the
-  // stored body is a fragment — never to bury prose somebody wrote. Before this check, 448
-  // peptide and condition pages held 3,000-24,000 characters of written prose that no reader ever
-  // saw: the composer won on every one of them, so every one of those pages rendered the same
-  // skeleton ("Regeneration vs degeneration", "What it is", "Step logic", the IF/THEN lines).
-  // That is the template-skeleton defect the owner named, and it lived here, not in the bodies.
-  // A body that is ITSELF the old skeleton keeps composing — preferring it would change nothing.
   const storedBody = String(a.body || "");
   const authoredProse =
     storedBody.length >= 2000 &&
@@ -1728,10 +1704,6 @@ export async function onRequestGet(context) {
   const fontLinkTags = Array.isArray(_prof.fontLinks)
     ? _prof.fontLinks.map((u) => `<link rel="stylesheet" href="${escapeHtml(u)}">`).join("")
     : "";
-  // INTELLIGENT CONTINUATION (owner order 2026-08-03, category-level): the infinite scroll
-  // continues into what THIS article is about — its own linked pages first, then its
-  // category/tag family newest-first — and only then falls back to the global index.
-  // Before this, every article's scroll paged the same global list regardless of subject.
   let relatedQueue = [];
   try {
     const bodyText = String(a.body || "");
@@ -2459,7 +2431,7 @@ document.addEventListener('click', function(e){
     status.textContent = t || '';
     status.hidden = !t;            // no permanent "loading" label on a page that is not loading
   }
-  // ONTOLOGICAL CONTINUATION (owner order 2026-08-11). The next page of the scroll is computed
+  // ONTOLOGICAL CONTINUATION. The next page of the scroll is computed
   // by the server from the corpus link graph around the article the reader is actually in —
   // ring by ring outward, then the category/tag family, and the flat index only when the
   // neighborhood is exhausted. The exclude list is everything already on this page, so nothing

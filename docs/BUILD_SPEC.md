@@ -112,17 +112,6 @@ Each is ONE increment at the lowest ladder level that does it. Build one, test i
 
 ---
 
-## 7. The rules every LLM follows here (iterative versioning)
-These are enforced by `AGENTS.md` (OWNER LAWS 1–9). Summary:
-1. **Proof only via real iMessage** — a feature "works" only when a real text to the build returns the real result in the ledger. Bash/curl/dispatch proves the wire, not the feature.
-2. **No lying / no hallucination** — never assert a state without a live check shown this turn.
-3. **Prompts are LLMs — tune, don't rewrite.** A bad/robotic reply is a wording/tool gap, not a code bug. Coach it. Read the prompt as if you were the model receiving it.
-4. **REST-only, no discovery-search tools** (`TOOLS_SEARCH` is banned). Resolve by known name or REST GET/POST on a group.
-5. **Debug only via {the message, the prompt, the ledger}** — in that order.
-6. **Change code last** (ladder §3); state the alternatives you tried first.
-7. **Small changes only.** One increment, test, keep/revert. *No one is taken seriously proposing anything more than a little outside the current strata.*
-8. **Ground each other** — cite the directory / ledger / this spec, never memory.
-
 ---
 
 ## 8. Worked log from the session that produced this spec (a real before/after)

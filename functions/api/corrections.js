@@ -1,21 +1,3 @@
-// THE CORRECTIONS RECORD — memorialized owner corrections and their measured consequences.
-//
-//   GET /api/corrections
-//
-// The owner's articulation (2026-08-28): "ALL the time you as Claude disregard my instructions —
-// this is a way for me to record: you did this, I changed such-and-such, it increased the
-// results." A correction's canonical form is three existing objects linked, never a new ledger:
-//
-//   1. THE OBSERVATION — a case comment with stance 'correction' on the session case where the
-//      violation is visible (POST /api/case/<id>/comments), or the failure task that recorded it.
-//   2. THE CHANGE — the skill version the correction produced, carrying the link in its
-//      formation_json: {"correction": {"observed": "<SC-…|WT-…|comment id>", "owner_change": "…"}}.
-//   3. THE CONSEQUENCE — the comparison (CMP-…) measuring before vs after, whose declared design
-//      caps what the correction may claim.
-//
-// This route is the projection that walks those links. Nothing here is stored; a correction with
-// no measured consequence prints exactly that, because "I changed it and it felt better" is the
-// claim-grade ladder's bottom rung, not its top.
 
 function json(o, status = 200) {
   return new Response(JSON.stringify(o, null, 2), {

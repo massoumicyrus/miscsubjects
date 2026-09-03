@@ -1,18 +1,4 @@
 #!/usr/bin/env node
-// SERVED_SCRIPT_PARSES_LAW — the JavaScript the browser receives must parse.
-//
-// On 2026-09-02 one lone backslash blanked the whole sheets grid. The source was valid
-// JavaScript, so `node --check` on the repo saw nothing wrong. The script ships inside a
-// template literal, which processes escapes on the way out, so the SERVED text read
-//
-//   var IMG_RE=/^https?://[^s]+...
-//
-// where the // opened a comment, the regex never closed, and the SyntaxError took every line of
-// the grid with it: no column letters, no rows, no tabs. It looked exactly like a dead back end.
-//
-// No heuristic about template literals can be trusted to catch that — the first two I wrote both
-// misjudged which blocks were inside one. This checks the only thing that actually matters: fetch
-// what the browser is served and parse it. Ground truth, no inference.
 import { spawnSync } from 'node:child_process';
 import { writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';

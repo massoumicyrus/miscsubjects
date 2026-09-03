@@ -1,14 +1,3 @@
-// sheets_store — the stored-grid engine behind /api/sheets (WT-0092).
-//
-// One user sheet = one row in user_sheets + sparse cells in sheet_cells addressed exactly
-// like Google Sheets: A1 notation, 1-based, column A = c=1. This module owns the A1 math,
-// the value reads/writes, the dimension operations (insert/delete/move rows and columns),
-// and the model-run lane, which builds one invoke spec per grid row and sends the whole
-// batch through invokeJSON — the same engine as POST /api/invoke, hard timeout included.
-//
-// D1 constraints honored here:
-// - writes are batches of SINGLE-ROW statements (multi-row VALUES lists hit the bind cap)
-// - row/column shifts use a two-step sign flip so a PK (sheet_id,r,c) never collides mid-UPDATE
 
 import { invokeJSON } from './invoke_json.js';
 import { buildNowIso } from './build_time.js';
@@ -132,8 +121,6 @@ export async function listSheets(env) {
   const r = await env.DB.prepare(
     'SELECT s.id, s.title, s.rows, s.cols, s.created_at, s.updated_at, ' +
     '(SELECT COUNT(*) FROM sheet_cells sc WHERE sc.sheet_id = s.id) AS cell_count ' +
-    // sort_order first: the tab list is an operating surface, and the sheet the owner works from
-    // has to sit at the front regardless of when it was created (migration 0371).
     'FROM user_sheets s ORDER BY s.sort_order ASC, s.created_at ASC',
   ).all();
   return r.results || [];
@@ -352,10 +339,6 @@ export async function cellHistory(env, sheetId, r, c, limit = 50) {
 // formula text, so nothing has to be declared and a fill-down needs no wiring.
 async function recalcDependents(env, sheet, changed, actor, trace, depth = 0) {
   if (depth > 3 || !changed.length) return 0;
-  // Read the expressions from the version store, not from the mirrored column. The append-only
-  // history is written on every path and is therefore the only place guaranteed to hold them:
-  // the object mirrors values and has no notion of a formula, which left sheet_cells.formula
-  // empty and every dependent silently stale (measured 2026-09-02).
   const q = await env.DB.prepare(
     'SELECT v.r AS r, v.c AS c, v.formula AS formula FROM sheet_cell_versions v ' +
     'JOIN (SELECT r, c, MAX(version) AS mv FROM sheet_cell_versions WHERE sheet_id=? GROUP BY r, c) m ' +
@@ -384,10 +367,6 @@ async function recalcDependents(env, sheet, changed, actor, trace, depth = 0) {
     next.push([row.r, row.c]);
     n++;
   }
-  // Through the object as well as D1. The object is the authoritative reader for a sheet it
-  // holds, so a recalculated value written only to the mirror is invisible: BM6 kept reporting
-  // 75 while D1 already said 21 (measured 2026-09-02). Every write path has to go through the
-  // single writer or the grid disagrees with itself.
   if (recomputed.length && await ensureAdopted(env, sheet.id)) {
     await doFetch(env, sheet.id, 'write', { cells: recomputed, actor: 'recalc' });
   }
@@ -457,10 +436,6 @@ export async function setValues(env, sheet, rangeStr, values, actor) {
   }
   if (!viaDo) await runChunkedBatch(env, stmts);
   else if (clearStmts.length) await runChunkedBatch(env, clearStmts);
-  // The object is the single writer for values and mirrors them to D1, but it has no notion of a
-  // formula — so on that path the expression never reached the column that recalculation reads,
-  // and a dependent cell silently never updated (measured 2026-09-02: BM6 stayed at 30 after its
-  // input changed to 25). The expression is written directly for exactly the cells that carry one.
   if (viaDo) {
     const withFormula = versioned.filter(([, , , f]) => f);
     for (const [r, c, value, formula] of withFormula) {
@@ -479,10 +454,6 @@ export async function setValues(env, sheet, rangeStr, values, actor) {
   } else {
     await env.DB.prepare('UPDATE user_sheets SET updated_at=? WHERE id=?').bind(ts, sheet.id).run();
   }
-  // A formula written in the same call as the cell it reads was evaluated before that cell
-  // existed, because the batch executes after the loop. One second pass over the formulas from
-  // this write fixes the intra-write order: BP3 =SEARCHCOUNT(BP2) returned 0 while BP2 already
-  // said "durable objects" (measured 2026-09-02).
   const formulaCells = versioned.filter(([, , , f]) => f);
   if (formulaCells.length > 1) {
     const ctx2 = evalContext(env, sheet, actor);

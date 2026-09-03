@@ -1,19 +1,3 @@
-// /t/<tag> — the folder, as a page.
-//
-// WHY THIS EXISTS. The trail bar on every article reads Home / <tag> / <page>, and
-// the middle crumb pointed at /t/<tag>, which was never a route: /t/peptide and
-// /t/zzzznotatag both returned the homepage, byte for byte. A breadcrumb whose
-// middle level silently lands somewhere else is worse than no breadcrumb, because it
-// asserts a hierarchy the site cannot honour.
-//
-// It is also the level the owner asked for by name: a category is a folder of page
-// folders, and it should be downloadable as one from the place that names it. Tags —
-// not meta.category — are the real grouping here: 2,235 of 2,317 published articles
-// carry no category, while tags cover 2,174, and listCollections() in
-// object_folder.js already buckets the corpus by tag. So the page, the crumb and the
-// zip all name the same set.
-//
-// Server-rendered, no JavaScript, machine formats alongside the HTML.
 
 function esc(s) {
   return String(s ?? "")

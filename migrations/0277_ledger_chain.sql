@@ -1,9 +1,3 @@
--- LEDGER TRANSPARENCY CHAIN (owner order 2026-07-17, answers obj-136): a hash chain over
--- every ledger event so an external DKIM-signed email committing to the head makes the
--- ledger's immutability verifiable by any third party. Checkpoints are periodic seals:
--- each folds the new events since the last cursor into a running head and links the prior
--- checkpoint, so the chain is append-only and cheap to publish + verify. Lives in the LEDGER
--- db (loop-shared-events) alongside the events it seals.
 CREATE TABLE IF NOT EXISTS chain_checkpoints (
   seq          INTEGER PRIMARY KEY AUTOINCREMENT,
   cutoff_ts    TEXT NOT NULL,           -- ts of the last event folded (chain order = ts,id asc)

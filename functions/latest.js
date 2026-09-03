@@ -1,7 +1,3 @@
-// /latest — the recency feed as static server-rendered HTML (owner, 2026-07-24).
-// The homepage journal loads client-side, so crawlers and LLM fetchers saw nothing.
-// This page is plain anchors, newest first, no JS required. Machine variants:
-// /latest?format=json and /latest?format=txt. RSS lives at /feed.xml.
 function esc(s) {
   return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }

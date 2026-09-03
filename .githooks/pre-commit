@@ -26,13 +26,8 @@ fi
 
 node "$ROOT/scripts/check-write-law.mjs"
 node "$ROOT/scripts/check-protected-features.mjs"
-# NO_APPROVED_COPY — a model wrote a fake "owner-accepted copy" clause into the writing-law
-# skill on 2026-07-24; two later sessions cited it as authority and shipped the sentence he
-# had rejected. He approves style, never copy. This blocks the reintroduction.
 node "$ROOT/scripts/check-approved-copy.mjs"
 node "$ROOT/scripts/check-operator-gated-copy.mjs"
-# THE FAILURE VAULT (owner order 2026-08-04): every owner-named failure mode is one entry in
-# failure-vault.json; this gate blocks any commit that reintroduces one.
 node "$ROOT/scripts/check-failure-vault.mjs"
 
 exit 0

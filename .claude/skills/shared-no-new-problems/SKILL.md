@@ -19,7 +19,6 @@ When the owner reports a failure or asks for a fix, the only acceptable output i
 Owner reports failure → Fix root cause → Verify → Report evidence only
 ```
 
-1. **Fix what the owner asked.** Do not reframe, scope down, or substitute a different problem.
 2. **Do not ask permission.** Auto-permission mode is the default. Asking permission to fix a failure is a new problem.
 3. **Do not bring new problems.** A fix that creates a new failure mode, new manual step, or new decision for the owner is not a fix.
 4. **Verify with fresh evidence.** Run the governor, run the checks, reproduce the symptom. Numbers must move before you claim success.
@@ -27,7 +26,6 @@ Owner reports failure → Fix root cause → Verify → Report evidence only
 
 ## Rules
 
-- **Permission requests are failures.** If the owner asked for a fix, you have permission. Asking again wastes a turn and restates the failure.
 - **New problems are regressions.** If your fix introduces another issue, revert the fix and try again.
 - **Evidence before claims.** Never say "fixed" until a check or count proves it.
 - **Capture the rule.** If the owner states a principle while correcting you, write it as a skill/law in the same turn.

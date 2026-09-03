@@ -1,7 +1,3 @@
--- Migration 0051 — second-opinion brains + voice + lbl.fyi GET + Cloudflare docs.
--- the owner's 2026-06-11 instruction: Grok (ROUTER/OPS/TERMINUS) gets Kimi/GPT/Gemini/Claude
--- as callable second-opinion agents; a voice agent (audio in/out over Blooio); GET access
--- to the loop data platform (api.lbl.fyi); and Cloudflare reference docs.
 
 -- ─────────────── Four second-opinion brains (callable by Grok agents) ───────────────
 -- Each is a distinct model. The asking agent emits [ASK_<X>]question[/ASK_<X>] and the

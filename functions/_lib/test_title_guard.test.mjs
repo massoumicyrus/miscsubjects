@@ -1,16 +1,3 @@
-// REGRESSION TEST FOR THE PLACEHOLDER-TITLE GUARD, built from both failures it has had.
-//
-// Failure it was written for (owner law, 2026-07-24): "Kimi Test Article" reached the top of the
-// homepage journal. A placeholder page must never publish.
-//
-// Failure it then caused (2026-08-04): the pattern was /\btest(?:ing)?\b/i, so it refused
-// "Spinal stenosis: the shopping trolley test" — a correct clinical title naming a real bedside
-// test. On a health site that word appears constantly and legitimately: blood test, nerve
-// conduction testing, straight leg raise test. A guard that refuses correct work gets renamed
-// around, and a guard that is renamed around is not enforcement.
-//
-// Both directions are pinned here: placeholder shapes must still be refused, and legitimate
-// clinical prose must publish.
 
 // node:test, not vitest. Every gate in ship.mjs invoked `npx --no-install vitest`, and this repo
 // has never had vitest installed — so npx refused to fetch it and each of these regression tests
@@ -110,7 +97,6 @@ describe("placeholder-title guard", () => {
 
   it("publishes clinical titles that name a real test", () => {
     for (const [slug, title] of [
-      // The exact title this guard wrongly refused on 2026-08-04.
       ["spinal-stenosis", "Spinal stenosis: the shopping trolley test, and the year of untreated data nobody mentions"],
       ["carpal-tunnel-syndrome", "Carpal tunnel syndrome: when nerve conduction testing changes the answer"],
       ["peripheral-neuropathy", "Peripheral neuropathy: the monofilament test every diabetes clinic should be doing"],

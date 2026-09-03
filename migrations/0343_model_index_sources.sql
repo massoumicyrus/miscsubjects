@@ -1,13 +1,3 @@
--- THE DEFINITIVE SOURCES REGISTRY — where the living model index reads from, held as rows.
---
--- The model index stores observations; this table stores the places observations come from,
--- so that "where should a model look for current truth about models, prices, agent practice
--- and emerging work" is itself an auditable object rather than a paragraph in an article.
--- A model handed the article can fetch /api/model-index/sources and pull every canonical
--- surface directly, with the machine endpoint where one exists.
---
--- Rows are never deleted. A source that dies or degrades is stamped retired_at with a reason,
--- because "we used to trust this and stopped" is information.
 
 CREATE TABLE IF NOT EXISTS model_index_sources (
   id               TEXT PRIMARY KEY,      -- slug: 'openrouter-models-api'

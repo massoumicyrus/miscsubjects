@@ -63,10 +63,6 @@ export async function normalizeDiscoveredCandidates({ taskId, query, returned = 
       decision = 'excluded';
       decisionReason = 'Excluded because no official source quote of at least 40 characters supports the qualification.';
     } else if (registrableDomain(sourceUrl) !== registrableDomain(officialUrl)) {
-      // OWN-SITE INCLUSION RULE (Table Web cold audit, WT-0090): an inclusion must be supported by a
-      // quote from the organization's OWN site, held to the same bar as an exclusion. A quote from a
-      // third-party listicle (a Forbes line, a "top VCs" blog) is not the firm saying it about itself,
-      // so the "why you were chosen" message would be quoting someone else's page about the recipient.
       decision = 'excluded';
       decisionReason = 'Excluded because the qualifying quote is from a third-party page, not the organization’s own official website; inclusions are held to the same own-site bar as exclusions.';
     } else if (!decisionReason) {
@@ -128,12 +124,6 @@ export async function bindCandidatesToInvocation(env, invocationId, resultText, 
   return bound;
 }
 
-// Recipient disclosure (owner order, 2026-08-28, for the public launch): the party being emailed is
-// a public organization, not a private person, and the whole point is that a recipient's own model can
-// confirm who was contacted and why. So the contact address is shown in full, alongside its hash and a
-// validity flag. Owner identity is never a recipient and is protected by separate laws; this only ever
-// exposes third-party business addresses. `email_redacted` is retained for any caller that still wants
-// the masked form.
 export async function publicCandidate(candidate, { revealContact = true } = {}) {
   assertDecisionComplete(candidate);
   const email = String(candidate.contact_email || '').trim().toLowerCase();

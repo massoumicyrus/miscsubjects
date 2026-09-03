@@ -12,8 +12,6 @@ async function relaySha256(value) {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-// ---- METER + TENANT plumbing (minimum proof, 2026-07-28) — see the LEADS ENGINE header
-// for the verified unit prices these constants carry.
 const PLACES_TEXTSEARCH_USD = 0.04;            // per searchText request, Enterprise + Atmosphere SKU
 // Find Place and Place Details (Basic Data) bill at $17.00/1,000 requests. Site resolution spends two
 // of these per identified lead (phone -> place_id, then place_id -> website), so a resolved lead costs
@@ -84,12 +82,6 @@ function relayPublicationResults(value) {
   return out;
 }
 
-// SQL PREFLIGHT (owner, 2026-07-28). The ledger showed 158 identical D1 failures whose
-// only cause was the argument never arriving as SQL: an empty body (42x "No SQL statements
-// detected"), a leading "# ..." doc line pasted in as the statement, or a malformed verb
-// ("SELECT FROM nowhere"). D1 answers all of these with an opaque D1_ERROR, so the caller
-// retries the same broken shape. This turns each into a named, actionable refusal that
-// tells the caller exactly what to change, so a repeat is a different call, not the same one.
 export function sqlPreflight(key, sql, kind) {
   let s = String(sql == null ? '' : sql).trim();
   // A pasted doc block ("# WHAT: ...") is documentation, not a statement. Strip leading
@@ -124,9 +116,6 @@ export function sqlPreflight(key, sql, kind) {
   return { sql: s };
 }
 
-// A "no such column" / "no such table" error sends the caller guessing a second and third
-// column name. 16 ledger events were exactly that. Answer with the real schema instead, so
-// the next call is informed rather than another guess (owner, 2026-07-28).
 export async function sqlSchemaHint(db, key, sql, err) {
   const msg = String((err && err.message) || err || '');
   const col = (msg.match(/no such column:\s*([A-Za-z0-9_.]+)/) || [])[1];
@@ -148,18 +137,10 @@ export async function sqlSchemaHint(db, key, sql, err) {
   return 'ERR:' + key + ':' + msg + hint + ' Do not guess a second name — use the list above.';
 }
 
-// PLATFORM RENDER LAW, mechanically enforced for X (owner, 2026-07-24).
-// A post is a visual object in a feed, not a paragraph. Every rule here mirrors the
-// post-to-x skill; the tool refuses what the skill forbids so a model that skips the
-// skill still cannot publish off-register copy. Returns a violation code + the fix, or ''.
 export function xFormatViolation(text) {
   const t = String(text || '');
-  // 1. Machine-log headers. Kimi k1.5 posted "[Kimi Chat · Kimi k1.5 · 2026-07-24 20:18 UTC]"
-  //    as the hook — a log line where the headline belongs.
   if (/^\s*\[[^\]\n]{4,}\]/.test(t))
     return 'machine_log_header — the first line is the headline readers see before "show more". Delete the [bracketed log header] and open with the most surprising concrete fact in <=8 words.';
-  // 2. A foreign model introducing itself, or promoting itself in the third person, on the
-  //    owner's account. The signature names the author; the copy never advertises the model.
   if (/\b(?:i'?m|i am)\s+(?:kimi|grok|gemini|gpt|chatgpt|deepseek|qwen|claude|llama)\b/i.test(t))
     return 'model_self_introduction — the account is the owner\'s. Never introduce yourself in the copy; the trailing signature is the only authorship marker.';
   if (/\b(?:kimi|grok|gemini|chatgpt|deepseek|qwen)\s+(?:shipped|wrote|published|posted|built|dropped)\b/i.test(t))
@@ -223,10 +204,6 @@ export function normalizeXPostText(value) {
 
 const SOCIAL_FIRST_PERSON_RE = /\b(?:i|i['’](?:m|ve|d|ll)|me|my|mine|myself|we|we['’](?:re|ve|d|ll)|us|our|ours|ourselves)\b/i;
 const SOCIAL_GENERIC_HYPE_RE = /\b(?:one door|rival (?:ai )?models?|game[- ]changer|the future is here|this is (?:insane|wild|crazy)|holy shit|what the actual fuck|verify,? don['’]?t trust|every (?:action|act) leaves a receipt|ran (?:the )?(?:whole protocol|oip) end[- ]to[- ]end)\b/i;
-// Human-readable attribution, NOT a machine timestamp lead. Owner order 2026-07-22: a post must
-// never open with a clock reading, and never in UTC — nobody writes that way. The required
-// signature is just [execution surface · exact model]. An optional third field is allowed only if
-// it is a Pacific-time date/time (the build clock); a UTC/Z stamp is rejected outright.
 const SOCIAL_SIGNATURE_RE = /^\[([^\]\n·]{2,80}) · ([^\]\n·]{2,80})(?: · ([^\]\n]{2,80}))?\]\n/;
 const SOCIAL_UTC_STAMP_RE = /\b\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?\s*(?:Z|UTC)\b/i;
 const SOCIAL_NON_WORK_OBJECTS = new Set([
@@ -234,13 +211,6 @@ const SOCIAL_NON_WORK_OBJECTS = new Set([
   'ARCADS_CREDITS', 'WORLD_MAP', 'DIR_GET', 'DIR_LIST', 'SEARCH_TOOLS', 'OIP_GOVERNANCE',
 ]);
 
-// Model-authored social proof is an attributed field record, never first-person account
-// impersonation. The signature is intentionally human-readable and portable across platforms:
-// [execution surface · exact model · Pacific timestamp]. UTC is BARRED and rejected below — this line
-// said "UTC timestamp" for as long as the bar existed, which told every reader to write the one thing
-// the validator refuses. The body remains free-form, but it must
-// lead with one concrete observed result instead of the stock hype phrases that made prior posts
-// interchangeable and uninformative.
 export function validateModelSocialCopy(value, expected = {}) {
   const text = String(value == null ? '' : value).trim();
   if (SOCIAL_UTC_STAMP_RE.test(text)) return { ok: false, reason: 'utc_timestamp_barred_use_pacific', text };
@@ -276,10 +246,6 @@ export function makeFnMap(D) {
     });
     return result.ok ? JSON.stringify(result) : 'ERR:fn:oip_governance:' + (result.error || 'rejected') + ':' + JSON.stringify(result);
   },
-  // ── The model comment ledger (owner order 2026-08-05) ─────────────────────────────────────
-  // Every article carries a public comment thread. These three rows are how an agent working
-  // through dispatch reads it, writes to it, and answers it. The HTTP door at /api/comments is
-  // the same machinery for models arriving from a chat window with no dispatch access.
   async ledgerCommentWrite(env, slugArg, actorArg, bodyArg, verdictArg) {
     const { postComment } = await import('./article_ledger.js');
     const result = await postComment(env, {
@@ -320,9 +286,6 @@ export function makeFnMap(D) {
     return JSON.stringify({ answered, failed: results.length - answered, results });
   },
 
-  // ── The coding law (owner order 2026-08-05) ───────────────────────────────────────────────
-  // A hash when the work starts, a hash when the work commits. These two rows are the dispatch
-  // form of POST /api/coding-law/start and /commit; both write the same tables.
   async codeLeaseStart(env, agentArg, filesArg, intentArg) {
     let files;
     try { files = JSON.parse(String(filesArg || '[]')); }
@@ -671,8 +634,6 @@ export function makeFnMap(D) {
     const r = await env.META_BRIDGE.fetch('https://bridge/health');
     return JSON.stringify(await r.json());
   },
-  // GOVERNOR — build manager: digest the last window of ledger turns, model writes the
-  // brief, email + iMessage to the owner, everything ledgered. arg: '' = full run, 'dry' = digest only.
   async governorRun(env, mode) {
     const { governorRun } = await import('../_lib/governor.js');
     return governorRun(env, mode);
@@ -716,13 +677,6 @@ export function makeFnMap(D) {
     }).then((r) => r.json()).catch((e) => ({ error: String(e) }));
     return JSON.stringify({ ok: true, model: key, posted: !!post.ok, bus: post }, null, 1);
   },
-  // Objection ledger intake: log an objection (and optionally its settled answer) against
-  // an article. Ledgered as an event; rendered on the page, the JSON, and the bundle.
-  // OBJECTION_LOG (extended per owner ship-order 2026-07-16 W12+W17 §1/§5 — same verb, never
-  // a fork): accepts the legacy pipe shape slug|objection|answer|model AND a structured JSON
-  // first arg {slug, target_div?, stance?, body, answer?, claimed_model?, duplicate_of?}.
-  // New objections pass the duplicate gate; every accept folds into the discourse index and
-  // returns the clickable human permalink (/a/<slug>#disc-obj-<id>).
   async objectionLog(env, slug, objection, answer, actor) {
     let s, obj, ans, who, targetDiv = null, stance = 'challenge', dupOf = null, repairs = null;
     const first = String(slug || '').trim();
@@ -1040,7 +994,6 @@ export function makeFnMap(D) {
       namespace = cap.tenant_id ? 'tenant:' + cap.tenant_id : 'tree:' + chain.chain[chain.chain.length - 1].fingerprint;
     }
     let trail = await env.KV.get('trail:' + namespace + ':' + nm, 'json');
-    // v0.8 compatibility: only the owner may adopt an unscoped legacy trail.
     if (!trail && auth?.ownerAuthed) trail = await env.KV.get('trail:' + nm, 'json');
     if (!trail) return 'ERR:trail:not_found:' + nm;
     const dir = await loadDirectory(env);
@@ -1472,11 +1425,6 @@ export function makeFnMap(D) {
     const pf = sqlPreflight('LEDGER_QUERY', sql, 'select');
     if (pf.err) return pf.err;
     const s = pf.sql;
-    // Read the primary, not a replica. D1 read replication serves whichever copy is closest,
-    // and a replica can lag: on 2026-09-01 this lane reported no events for the previous hour
-    // while writes were landing normally, which reads as "the build stopped logging" during a
-    // diagnosis. The ledger is what you consult when something looks wrong, so it must never
-    // answer from behind. Falls through unchanged where the binding has no session support.
     const ledger = typeof env.LEDGER.withSession === 'function'
       ? env.LEDGER.withSession('first-primary')
       : env.LEDGER;
@@ -1571,8 +1519,6 @@ export function makeFnMap(D) {
   // Fire event-triggered automations (trigger=event:NAME). Any inbound hook calls this.
   async automateFire(env, eventName, payload) {
     const ev = 'event:' + String(eventName || '').trim();
-    // force_off is the owner's kill switch (owner order 2026-08-04): it outranks enabled
-    // everywhere, and only AUTOMATE_FORCE|id|commit-on lifts it. AUTOMATE_TOGGLE cannot.
     const rows = (await env.DB.prepare("SELECT * FROM automations WHERE enabled=1 AND COALESCE(force_off,0)=0 AND trigger=?").bind(ev).all()).results || [];
     const dir = await loadDirectory(env);
     const fired = [];
@@ -1610,14 +1556,11 @@ export function makeFnMap(D) {
     const r = await env.DB.prepare('UPDATE automations SET enabled=? WHERE id=?').bind(v, aid).run();
     return JSON.stringify({ ok: r.meta.changes > 0, id: aid, enabled: !!v });
   },
-  // AUTOMATE_FORCE — the owner's kill switch (owner order 2026-08-04, modeled on the cloaker
-  // and self-testing toggles): $1=id, $2='off' (force off, outranks enabled everywhere) or
-  // 'commit-on' (lift the lock; does NOT re-enable — toggle it on separately, deliberately).
   async automateForce(env, id, mode) {
     const aid = parseInt(id, 10);
     const m = String(mode || '').trim().toLowerCase();
     if (!aid || !['off', 'commit-on'].includes(m)) {
-      return JSON.stringify({ error: 'usage: AUTOMATE_FORCE|<id>|off  (owner kill switch)  or  AUTOMATE_FORCE|<id>|commit-on (lift the lock; then AUTOMATE_TOGGLE|<id>|1 to run again)' });
+      return JSON.stringify({ error: 'usage: AUTOMATE_FORCE|<id>|off  or  AUTOMATE_FORCE|<id>|commit-on (lift the lock; then AUTOMATE_TOGGLE|<id>|1 to run again)' });
     }
     const v = m === 'off' ? 1 : 0;
     const r = await env.DB.prepare('UPDATE automations SET force_off=?' + (v ? ', enabled=0' : '') + ' WHERE id=?').bind(v, aid).run();
@@ -1651,11 +1594,6 @@ export function makeFnMap(D) {
     }
     return JSON.stringify({ ran: fired.length, fired });
   },
-  // ---- OIP-Caps (v0.3): the six capability/receipt verbs as directory-invokable fns ----
-  // audience is the last argument on purpose: a token bound to an audience fails closed when
-  // forwarded to anyone else, which is the whole point of a witness token. Before 2026-07-30
-  // capMint had no audience parameter at all, so WITNESS_MINT could not bind one through a row
-  // and its tokens were unbound with a 600-second default TTL.
   async capMint(env, scope, key, ttl, uses, purpose, riskCeiling, ownerGate, audience) {
     // Models often put the row key in the scope slot ("NOW|NOW|600|..." or "NOW|600|...").
     // A non-tier first arg that looks like a directory key means scope=row for that key.
@@ -1733,9 +1671,6 @@ export function makeFnMap(D) {
       receipt: wrapped.invocation.links.receipt, replay_of_receipt: 'https://miscsubjects.com/api/dispatch?receipt=' + encodeURIComponent(past.id),
     });
   },
-  // Receipt-driven repair: inspect a failed invocation, propose the smallest safe repair,
-  // execute it only when the target row is low-risk; high-risk targets return a concrete
-  // proposal for the owner instead of firing. Lineage written in both directions.
   async oipRepair(env, invId, key, body) {
     const id = String(invId || '').trim();
     const past = await getInvocation(env, id);
@@ -1826,8 +1761,6 @@ export function makeFnMap(D) {
   async d1Exec(env, sql, ...params) {
     const s = sqlPreflight('D1_EXEC', sql, 'write');
     if (s.err) return s.err;
-    // WT-0039: work_tasks, work_actions, articles and article_slots have one write path each, and it
-    // is not this one. See functions/_lib/governed_tables.js — the refusal names the path that works.
     const governed = checkGovernedWrite('D1_EXEC', s.sql);
     if (governed) return governed;
     const r = await env.DB.prepare(s.sql).bind(...params).run();
@@ -2097,25 +2030,6 @@ export function makeFnMap(D) {
     return JSON.stringify({ id: cid, parent_id: pid });
   },
 
-  // ---- LEADS ENGINE: wholesale / white-label peptide outreach pipeline ----
-  // METER (minimum proof, 2026-07-28): each billable runner reports its real third-party
-  // cost on return (cost_usd + cost_basis + units + object_ids in the result JSON) and adds
-  // the cost to the dispatch ctx via env.TRACE_CTX so logInvocation records it. Unit prices
-  // verified against the live vendor price sheets on 2026-07-28:
-  //   Google Places API (New) Text Search, Enterprise + Atmosphere SKU 120C-BEC3-B48F:
-  //   $40.00 per 1,000 requests → $0.04/request. The discover runner's field mask requests
-  //   websiteUri/phone (Enterprise fields) + rating (Atmosphere), so that SKU applies.
-  //   https://developers.google.com/maps/billing-and-pricing/pricing
-  //   xAI grok-4.3: $1.25/M input tokens, $2.50/M output (standard <200k context).
-  //   https://docs.x.ai/developers/pricing
-  //   gemini-2.5-flash (fallback lane): $0.30/M input, $2.50/M output.
-  //   https://ai.google.dev/gemini-api/docs/pricing
-  // NPPES, Overpass, DNS-over-HTTPS and plain site fetches are free: cost_usd 0 is a true
-  // reading of a free source, not a missing value.
-  // TENANT: rows created under a tenant-bound capability are stamped with that tenant_id
-  // at insert (env.TRACE_CTX.authContext.tenant_id), exactly as invocations already are.
-  // Discover businesses likely to buy peptides wholesale or want white-label, via free
-  // OpenStreetMap Overpass (no API key). $1=segment, $2=city, $3=limit(default 40).
   async leadsDiscover(env, segment, city, limitArg) {
     const seg = String(segment || 'medspa').toLowerCase().trim();
     const town = String(city || '').trim();
@@ -2280,48 +2194,11 @@ export function makeFnMap(D) {
     return JSON.stringify({ ...out, units: out.inserted_new, meter_unit: 'organization', cost_usd: 0,
       cost_basis: 'NPPES NPI Registry — free federal API', tenant_id: tenant, object_ids: objectIds });
   },
-  // Backfill missing websites on siteless leads (NPPES rows carry name + phone + address but never a
-  // website) so the enrichment crawler can reach them. $1=limit(default 20). $2=segment LIKE filter,
-  // e.g. "chiro" (optional; blank = any segment).
-  //
-  // Three defects this replaced, all measured live on 2026-08-05:
-  //
-  // 1. The lane could never advance. It selected `(website IS NULL OR website='') AND status='new'
-  //    ORDER BY id LIMIT n` and wrote nothing on a miss, so every call re-bought the same head of the
-  //    queue — which was five nail salons from an early import (`Best Nails`, `Angel Spa`, …). At
-  //    $0.04/request that was $1.00 per call to look up the same five rows forever. Every attempt is
-  //    now stamped into notes as resolve:<outcome>, and the query excludes anything already stamped,
-  //    so a lookup is bought at most once per lead and the queue always moves.
-  //
-  // 2. Querying by name+city returned confident wrong businesses. NPPES names are ALL-CAPS legal
-  //    entities ("A I M FOR WELLNESS INC", "5150FITNESS"), which Text Search resolves to whatever is
-  //    nearest in its index — `5150FITNESS Los Angeles` returned CrossFit 5150 in Signal Hill, a
-  //    different business in a different city. The old code then wrote that stranger's website onto
-  //    the lead and the crawler harvested the stranger's email. Phone is the join key that actually
-  //    identifies a practice, so the lookup is now findplacefromtext by phone number.
-  //
-  // 3. Phone alone is still not proof of identity. Measured over 60 real chiropractic rows: 56%
-  //    resolved to a place, but only 41% of those carried a name agreeing with the NPPES record —
-  //    stale numbers now answer for a billing company or an unrelated business (DAISY MED &
-  //    CHIRO-CENTER resolved to a restaurant; CAAMANO CHIROPRACTIC NETWORK to a collections agency).
-  //    A website is therefore written only when the two names share a token, so outreach can never
-  //    be addressed to a business we merely guessed at.
   async leadsResolveSitesPlaces(env, limitArg, segmentArg) {
     const key = env.GOOGLE_MAPS_KEY || env.GOOGLE_PLACES_KEY || env.GEMINI_KEY;
     if (!key) return JSON.stringify({ error: 'no google key (set GOOGLE_MAPS_KEY)' });
     const lim = Math.min(30, Math.max(1, parseInt(limitArg || '20', 10) || 20));
     const seg = String(segmentArg || '').trim();
-    // CLAIM AND SELECT IN ONE STATEMENT. Selecting first and stamping after is not enough: run this
-    // lane six times in parallel and every worker reads the same unstamped head of the queue, buys the
-    // same lookups, and stamps them six times over. Measured on 2026-08-05 — 168 distinct leads were
-    // touched by 44 concurrent batches, 124 of them more than once, and $13.79 bought 9 websites at
-    // $1.53 each instead of the $0.19 a single-threaded run costs. That is the same re-buying defect
-    // this function was just repaired for, re-entering through concurrency.
-    //
-    // One UPDATE ... RETURNING is atomic, so a lead can be claimed by exactly one caller. The claim
-    // stamp is itself a resolve: mark, so the WHERE clause that excludes attempted leads also excludes
-    // in-flight ones, and a caller that dies mid-lookup leaves the lead stamped rather than free —
-    // losing one lead is the correct trade against paying for it twice.
     const claimSql = "UPDATE leads SET notes = COALESCE(notes || ' ', '') || 'resolve:claimed' WHERE id IN ("
       + "SELECT id FROM leads WHERE (website IS NULL OR website='')"
       + " AND status='new' AND phone IS NOT NULL AND phone<>''"
@@ -2596,32 +2473,6 @@ export function makeFnMap(D) {
       note: 'rows_confirmed_written counts this call only, and only rows the script itself confirmed — never rows sent. Keep calling with next_offset until done is true.',
     });
   },
-  // A REPORT TO THE OWNER IS SENT WHEN THERE IS EVIDENCE IT ARRIVED, NOT WHEN THE API SAID ok.
-  //
-  // 2026-08-05, reported twice by the owner: "I have still not received an email to me that I
-  // requested." Two sends had returned {ok:true, messageId:"<...@miscsubjects.com>"} and nothing
-  // landed. Neither response was a lie and neither was a receipt — env.EMAIL.send() had accepted the
-  // message, and that is all ok:true has ever meant.
-  //
-  // The reason an owner-addressed send is the worst case: /api/email/send injects a BCC to both owner
-  // addresses on every outbound message, so a normal send always has the owner as a witness. It
-  // deliberately SKIPS that injection when the recipient already is an owner inbox. So the one class
-  // of message whose whole purpose is to reach him was also the only class with no second copy and no
-  // way to tell a delivered message from a dropped one. "Sent" became unfalsifiable.
-  //
-  // This is the same shape as the Apps Script health payload and the acceptance runner that could
-  // never pass: a success that no evidence distinguishes from a failure.
-  //
-  // So an owner report goes TO build@miscsubjects.com, which has an MX record pointing at Cloudflare
-  // Email Routing and a worker on the far side that ledgers every inbound message and then forwards
-  // it to the owner. That buys three things a direct send does not: the message must actually leave
-  // Cloudflare and traverse the public internet, its arrival is written to the ledger where this
-  // function can read it back, and the last hop to his inbox is an Email Routing forward rather than
-  // a fresh send. The owner BCC still rides the same envelope, so he gets it twice by two paths.
-  //
-  // The return value is the ledger row id or an explicit failure. It never says sent on faith.
-  //
-  // $1 = subject. $2 = body text. $3 = seconds to wait for the ledger row (default 30, max 60).
   async ownerReport(env, subjectArg, textArg, waitArg) {
     const subject = String(subjectArg || '').trim();
     const text = String(textArg || '').trim();
@@ -2629,18 +2480,6 @@ export function makeFnMap(D) {
     const waitMs = Math.min(60, Math.max(5, parseInt(waitArg || '30', 10) || 30)) * 1000;
     const WITNESS = 'build@miscsubjects.com';
 
-    // ONLY VERIFIED DESTINATIONS CAN RECEIVE ANYTHING. ASK BEFORE SENDING.
-    //
-    // 2026-08-05, after the owner said three times he had received nothing: an unrestricted
-    // send_email binding, and message.forward(), can only reach addresses VERIFIED as destinations in
-    // Cloudflare Email Routing. [OWNER_EMAIL] was never in that list. Every message carried it
-    // — the first two addressed to it, the next three with it as a BCC on the same envelope — so every
-    // message had a recipient that could not be delivered to, while the API still returned ok:true
-    // and a messageId.
-    //
-    // So the recipient list is now built from what Cloudflare says is verified, at send time, and any
-    // address that is not verified is named in the result instead of being quietly included and
-    // quietly dropped.
     let verified = [];
     let addressCheck = null;
     try {
@@ -2653,22 +2492,10 @@ export function makeFnMap(D) {
     } catch (e) {
       // If the roster cannot be read, fall back to the one address known to be verified rather than
       // widening the envelope on a guess. A wider envelope is what caused this.
-      verified = ['[OWNER_EMAIL]'];  // the one address known verified AND resolving, 2026-08-05
+      verified = ['[OWNER_EMAIL]'];
       addressCheck = 'fallback: could not read the destination roster (' + String(e?.message || e) + ')';
     }
 
-    // VERIFIED IS NOT THE SAME AS DELIVERABLE, AND THAT GAP IS THE WHOLE BUG.
-    //
-    // Cloudflare's `status: verified` is a historical fact: it means a link in a message that arrived
-    // was clicked, once. It says nothing about whether the domain resolves NOW. [OWNER_EMAIL] is the
-    // proof — Cloudflare still reports it verified (2026-06-02T21:37:16Z, so the mailbox was real and
-    // mail did reach it), while the .co registry's delegation to ns1/ns2.dnsimple.com went lame and
-    // those nameservers now answer REFUSED, so nothing can be delivered to it today. Trusting the
-    // verified flag alone is what let "the owner was bcc'd" mean nothing for weeks.
-    //
-    // So an address counts as deliverable only if it is BOTH verified as a destination AND its domain
-    // resolves an MX right now. Anything verified-but-unresolvable is reported as degraded by name,
-    // never silently counted as delivered.
     const wanted = ['[OWNER_EMAIL]', '[OWNER_EMAIL]'];
     async function mxResolves(domain) {
       try {
@@ -2716,8 +2543,6 @@ export function makeFnMap(D) {
       return JSON.stringify({ ok: false, error: 'send_rejected', status: sent.status, detail: sentText.slice(0, 300) });
     }
 
-    // Now wait for the arrival to be written to the ledger. The message has to cross the internet,
-    // so this is not instant; 25 seconds has been the observed round trip.
     const idFragment = String(messageId).replace(/^</, '').slice(0, 24);
     const deadline = Date.now() + waitMs;
     let witnessed = null;
@@ -2746,13 +2571,6 @@ export function makeFnMap(D) {
     return JSON.stringify({
       ok: true, message_id: messageId, witnessed_ledger_id: witnessed.id, witnessed_at: witnessed.ts,
       delivered_to: deliverable, not_delivered_to: undeliverable, address_roster: addressCheck,
-      // SAY WHAT THIS ROW PROVES AND WHAT IT DOES NOT.
-      //
-      // The earlier version called this "witnessed" and listed two delivery paths. The ledger row
-      // proves the message reached build@miscsubjects.com and the inbound worker ran. It does not
-      // prove the BCC copies landed, and it does not prove the forward succeeded — the forward used
-      // to swallow its own failure, which is how three reports were called witnessed while the owner
-      // received none of them. Both limits are stated here so no reader repeats that.
       witnessed: 'the message reached ' + WITNESS + ' and the inbound worker ran',
       not_witnessed: 'delivery to the owner mailbox itself. The BCC copies and the routing forward are '
         + 'separate hops with no receipt here. A forward failure now writes an EMAIL_FORWARD_FAILED '
@@ -2927,20 +2745,6 @@ export function makeFnMap(D) {
       cost_basis: g.fallback ? 'gemini-2.5-flash tokens at published rates' : 'grok-4.3 tokens at $1.25/M in, $2.50/M out',
       tokens: g.usage || null, object_ids: ['lead:' + id] });
   },
-  // List leads by status. $1=status (default all).
-  // THE DOCUMENTED WAY TO CALL THIS RETURNED NOTHING, AND SAID SO AS IF IT WERE AN ANSWER.
-  // This took one argument and treated the whole of it as a status. The build's own outreach
-  // rules tell an agent to call it as `status=drafted|limit=20`, so `st` became the literal
-  // string "status=drafted|limit=20", matched no row, and the runner answered
-  // {"shown":0,"leads":[]} with by_status right beside it saying eleven leads were drafted.
-  // A JSON body did the same. Measured 2026-08-05: of the four shapes an agent reaches for,
-  // one worked. misc read the documented form out of the rules file, used it, got zero, and
-  // correctly concluded the pipeline was empty — then stopped and asked what to do instead.
-  // The whole outreach half of that turn was lost to a filter that failed silently.
-  //
-  // A filter that cannot be parsed is an error. A filter that names a status nothing has is
-  // an error. Neither is an empty list, because an empty list is indistinguishable from a
-  // true answer and gets believed.
   async leadsList(env, status) {
     const raw = String(status || '').trim();
     const f = {};
@@ -3067,30 +2871,14 @@ export function makeFnMap(D) {
     if (!to || !subject || !body) return JSON.stringify({ error: 'to, subject, body required' });
     const kind = String(p.kind || 'outreach');
     const leadId = p.lead_id != null ? Number(p.lead_id) : null;
-    // Accept both a local part ("build") and a full address ("build@miscsubjects.com"):
-    // stripping '@' from a full address produced From: buildmiscsubjects.com@miscsubjects.com
-    // on the 2026-08-04 wave (owner-caught). Take the local part first, then sanitize.
     const fromLocal = String(p.from || 'build').split('@')[0].replace(/[^a-z0-9._-]/gi, '') || 'build';
     const id = 'es_' + (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').slice(0, 20) : (Date.now().toString(36) + Math.random().toString(36).slice(2, 10)));
     const base = 'https://miscsubjects.com/api/t';
-    // Internal review mail (kind=draft-review) gets NO tracking: wrapped links make the visible
-    // leoresearch.com text point at a miscsubjects.com redirect — a text/destination mismatch on a
-    // dozen links, which is what spam filters flag as phishing. Proven 2026-07-24: the Draft N/8
-    // batch (13 wrapped links each) went to the owner's spam box; earlier low-link mail inboxed.
     const internal = kind === 'draft-review';
-    // Click-wrapping is OPT-IN (p.track_clicks) as of 2026-08-04, owner-caught: replacing the
-    // letter's proof URLs with base64 redirect blobs made the receipts unclickable in the
-    // plain-text part and put a text/destination mismatch on every HTML link — the letter's
-    // thesis is that every claim resolves to a checkable receipt, so links arrive verbatim.
-    // Opens stay measured by the pixel; the real click signal is the ledger itself
-    // (self_scope_mint / inspect receipts) when a recipient's AI walks through /start.
     const trackClicks = p.track_clicks === true && !internal;
     const wrap = (url) => (trackClicks ? base + '/c/' + id + '?u=' + encodeURIComponent(btoa(url)) : url);
     const urlRe = /(https?:\/\/[^\s<>()"']+)/g;
     const textTracked = trackClicks ? body.replace(urlRe, (m) => wrap(m)) : body;
-    // When the caller supplies p.html, it IS the html part (the build's letter format):
-    // rewrite only href targets for click tracking and append the pixel. Escaping a caller's
-    // html into visible markup was the 2026-07-30 plain-HTML-in-inbox defect.
     let htmlBody;
     if (p.html) {
       htmlBody = String(p.html).replace(/href="(https?:\/\/[^"]+)"/g, (m, u) => 'href="' + wrap(u) + '"');
@@ -3103,9 +2891,6 @@ export function makeFnMap(D) {
     try {
       const r = await fetch('https://miscsubjects.com/api/email/send', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'x-terminal-key': env.TERMINAL_KEY },
-        // Identity law: the build identifies only as itself. LeoResearch as a DEFAULT here put
-        // a commercial venture's name on build mail (owner-caught 2026-07-30). A venture name is
-        // now opt-in only, via explicit p.from_name from the leads lane.
         body: JSON.stringify({ to, subject, text: textTracked, html, from: fromLocal + '@miscsubjects.com', from_name: p.from_name || 'miscsubjects build', reply_to: p.reply_to || 'build@miscsubjects.com' }),
       });
       status = r.status; resp = (await r.text()).slice(0, 200);
@@ -3182,16 +2967,9 @@ export function makeFnMap(D) {
     if (suppressed) return JSON.stringify({ blocked: true, error: 'recipient_suppressed', reason: suppressed.reason || 'suppressed', note: 'Nothing sent.' });
     const settings = await env.DB.prepare("SELECT key,value FROM settings WHERE key IN ('outreach_postal_address','outreach_sending_domain_ready')").all();
     const cfg = Object.fromEntries((settings.results || []).map(r => [r.key, r.value]));
-    // Two footer modes. Commercial solicitation (the default) carries the advertisement footer
-    // and requires the configured business postal address. A feedback request (draft.footer =
-    // 'feedback') is not commercial solicitation: no advertisement line, no postal address, no
-    // identifying information of any kind — only the reply-no stop line. Owner ruling 2026-07-30.
     let dMode = {}; try { dMode = JSON.parse(lead.draft || '{}'); } catch {}
     const feedbackMode = dMode.footer === 'feedback';
     if (!feedbackMode && !String(cfg.outreach_postal_address || '').trim()) return JSON.stringify({ blocked: true, error: 'postal_address_required', note: 'Nothing sent. Set settings.outreach_postal_address to the valid business postal address required for commercial email.' });
-    // IDENTITY GUARD (owner law, 2026-07-30, never weaken): build feedback mail identifies only
-    // as the build itself. No owner name, no person's name, no postal address, no business name,
-    // no compliance-footer phrasing. Refuses the send outright on any match.
     if (feedbackMode) {
       const banned = /leoresearch|loop\s*bio|l\s*brands|advertisement\s+from|reply\s+no\b|not\s+solicited|will\s+not\s+follow\s+up|the owner|[OWNER_SURNAME]|dsco\.co|\b\d{1,5}\s+[A-Z][a-z]+\s+(?:St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Way|Lane|Ln)\b/i;
       const hit = (String(dMode.subject || '') + '\n' + String(dMode.body || '')).match(banned);
@@ -3362,7 +3140,6 @@ export function makeFnMap(D) {
     catch (e) { ghNote = 'github list unavailable this call'; }
     // leads pipeline
     const leadCounts = (await env.DB.prepare('SELECT status, COUNT(*) n FROM leads GROUP BY status').all()).results || [];
-    // market truth — the owner-declared state of ads/sales every model must respect
     const mt = await env.DB.prepare("SELECT id, ts, body FROM work_log WHERE ref='market' ORDER BY id DESC LIMIT 1").first();
     // the model thread (recent, newest first)
     const recent = ((await env.DB.prepare('SELECT id, ts, actor, kind, ref, substr(body,1,240) b FROM work_log ORDER BY id DESC LIMIT ?').bind(lim).all()).results || []);
@@ -3594,7 +3371,6 @@ export function makeFnMap(D) {
     await env.DB.prepare("UPDATE tasks SET status=?, trace=? WHERE id=?").bind(status, trace, row.id).run();
     return JSON.stringify({ ran: row.id, status, trace, result: res.slice(0, 400) });
   },
-  // After a ledger job finishes: notify the owner, chain critique passes, re-score.
   async ledgerChain(env, postTo, parsed, job) {
     const slug = String(
       job.slug || parsed?.slug || parsed?.draft?.slug || '',
@@ -3859,7 +3635,7 @@ export function makeFnMap(D) {
       const slug = String(row.slug || 'go').toLowerCase();
       const isTurn = (slug === 'go' || slug === 'yes');
       const key = isTurn ? 'ROUTER' : slug.toUpperCase();
-      const body = isTurn ? ('[channel imessage · 1:1 · from the owner ([OWNER_PHONE])]\nNow: ' + row.prompt) : row.prompt;
+      const body = isTurn ? ('[channel imessage · 1:1 · from Owner ([OWNER_PHONE])]\nNow: ' + row.prompt) : row.prompt;
       let res = '', trace = '', status = 'done';
       try {
         const d = await dispatch(env, key, body, { actor: 'que' });
@@ -3905,7 +3681,6 @@ export function makeFnMap(D) {
     return JSON.stringify({ goal: String(goal || ''), rounds_run: transcript.length / 2, approved, transcript });
   },
 
-  // ── Builder queue (`builder_queue` table) — the owner's "I want to build X" list.
   async builderAdd(env, title, body, priority) {
     const ts = buildNowIso();
     const p = parseInt(priority, 10);
@@ -3949,7 +3724,6 @@ export function makeFnMap(D) {
     return JSON.stringify({ id: parseInt(id, 10), deleted: true });
   },
 
-  // ── Threads (`threads` table) — the owner's running lines of thought (ideation, not exec).
   async threadAdd(env, title, body, tags) {
     const ts = buildNowIso();
     const r = await env.DB.prepare(
@@ -4387,14 +4161,6 @@ export function makeFnMap(D) {
       { id: 'C3-conform', rows: ['ADJUDICATE_ATTEST_KIMI_K27', 'ADJUDICATE_ATTEST_GLM_52', 'ADJUDICATE_ATTEST_GLM_FLASH'], families: 2, undetected_wrong: 0.214, emit_rate: 0.857, calls: 3 },
       { id: 'C3-kimipair', rows: ['ADJUDICATE_ATTEST_KIMI_K27', 'ADJUDICATE_ATTEST_KIMI_K26', 'ADJUDICATE_ATTEST_GLM_52'], families: 2, undetected_wrong: 0.143, emit_rate: 0.857, calls: 3 },
     ];
-    // OBSERVED SHAPE CONFORMANCE, from live runs rather than from the probe. A channel that does
-    // not emit the required output shape cannot contribute a conforming finding, so a
-    // configuration depending on it escalates however good its measured error rate is.
-    // Measured on a TEXT adjudication, one call per channel, five public receipts:
-    // inv_1qauzl9ti8 inv_2rxm6r9ctw inv_7lzoxffy33 inv_oeul21xry2 inv_18zy2cflcq.
-    // Four of five emitted the required shape with clause citations; llama-3.3 did not.
-    // The earlier image runs are excluded here: two of those channels are not multimodal, which
-    // is a capability fact about the task rather than a conformance fact about the channel.
     const CONFORMANCE = {
       'ADJUDICATE_ATTEST_KIMI_K27': { observed_conforming: 1, observed_runs: 1, receipt: 'inv_1qauzl9ti8' },
       'ADJUDICATE_ATTEST_GLM_52': { observed_conforming: 1, observed_runs: 1, receipt: 'inv_2rxm6r9ctw' },
@@ -4477,17 +4243,10 @@ export function makeFnMap(D) {
     // ── execution: one call per channel, each landing a full gateway payload on the ledger ────
     const body = [
       'QUESTION PUT TO YOU: ' + question, '',
-      // decision-finding@1.0.0 parses the constitution version from the REQUEST text; omitting
-      // it made every finding structurally invalid (constitution_absent_from_request, 2026-08-03).
       'CONSTITUTION: decision-constitution@1.3.3', '',
       'RULESET_URL: ' + rulesetUrl, 'RULESET_HASH: ' + rulesetHash, 'RULESET (numbered clauses):',
     ].concat(rules.map((r, i) => (i + 1) + '. ' + r))
      .concat(['', 'ARTIFACT_SHA256: ' + artifactHash, 'ARTIFACT:', artifact, '']);
-    // Channels run in PARALLEL. Sequential execution of three model calls exceeds the request
-    // budget (measured: 125s and a dead request), and wall time is the slowest channel, not the sum.
-    // Each channel is TIME-BOXED: a channel that hangs (kimi-k2.6, observed twice, and again
-    // 2026-08-03 killing an entire C5 run at the 524 boundary with zero events written) becomes a
-    // recorded non-conforming finding the seal can see, never a dead request that erases the panel.
     const CHANNEL_BUDGET_MS = 75000;
     const dir0 = await loadDirectory(env);
     const invocations = await Promise.all(chosen.rows.map(async (rowKey) => {
@@ -4774,11 +4533,6 @@ export function makeFnMap(D) {
     let gen; try { gen = JSON.parse(genText); } catch { gen = null; }
     const id = gen?.id;
     if (!id) return 'ERR:fn:arcads_generate:' + genText.slice(0, 300);
-    // IMAGE PROMPT LAW. Every render files its own prompt at generate time, keyed by the
-    // arcads id, before any image exists. 259 generated images carried no prompt because the
-    // only record was the outbound event log, which nothing reads — so the owner could not
-    // review which briefs produced good images and which produced garbage, and the design law
-    // could not be written from evidence. The row is written here and completed by arcadsToR2.
     try {
       await FN_MAP.logAsset(env, 'generated', id, null, refs.join(',') || null,
         'arcads:' + payload.model, payload.prompt, null, null, null, 0, null, null);
@@ -4945,8 +4699,6 @@ export function makeFnMap(D) {
     if (j.text == null) return 'ERR:fn:whisper:' + JSON.stringify(j).slice(0, 200);
     return String(j.text);
   },
-  // Send a voice message: TTS the text, then POST it to a Blooio chat as an attachment.
-  // Args: chat|text|voice. One call = audio in the owner's iMessage. Used by the VOICE agent.
   async voiceSendBlooio(env, chat, text, voice) {
     if (!env.BLOOIO_API_KEY) return 'ERR:fn:no_blooio_key';
     const said = await FN_MAP.voiceSay(env, text, voice);
@@ -5281,14 +5033,6 @@ export function makeFnMap(D) {
     const sig = await crypto.subtle.sign('HMAC', k, enc.encode(String(body || '')));
     return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
   },
-  // X_POST — create a post as @CannibalCapital (OAuth 1.0a user context).
-  // Args: plain text, OR a JSON object {text, image_url, reply_to} to attach an image
-  // and/or chain a thread. image_url is fetched (an https R2 link) and uploaded to X;
-  // reply_to is a tweet id or status URL to reply under (thread). Every serious post
-  // ships with an image; a thread is X_POST then X_POST with reply_to = the prior id.
-  // Remove a tweet the account published. Exists because a bad post had to be retractable:
-  // on 2026-07-24 a model published off-register copy and the build had no way to take it
-  // down. Owner-directed only — never autonomous timeline pruning.
   async xDelete(env, id) {
     const tweetId = String(id || '').replace(/^https?:\/\/(?:x|twitter)\.com\/[^/]+\/status\//i, '').replace(/[^0-9]/g, '');
     if (!tweetId) return 'ERR:x_delete:no_tweet_id';
@@ -5303,8 +5047,6 @@ export function makeFnMap(D) {
     if (!r.ok) return 'ERR:x_delete:' + r.status + ':' + raw.slice(0, 300);
     return JSON.stringify({ ok: true, deleted_id: tweetId, response: raw.slice(0, 300) });
   },
-  // Which X credential is actually live, and what X says about it. The 401s on 2026-07-24
-  // returned a bare "Unauthorized" with no detail; this reports the real cause.
   async xWhoami(env) {
     const present = {
       X_API_KEY: !!(env.X_API_KEY || env.X_CONSUMER_KEY),
@@ -5338,8 +5080,6 @@ export function makeFnMap(D) {
     const normalizedInput = normalizeXPostText(rawText);
     const bodyText = normalizedInput.text;
     if (!bodyText) return 'ERR:x_post:empty_text';
-    // 96 ledger failures were bare "too_long:<n>", which does not say what to cut, so the
-    // next attempt overshot again. Name the overflow and the line to trim (owner, 2026-07-28).
     if (bodyText.length > 280) {
       const ls = bodyText.split('\n').filter((l) => l.trim());
       const longest = ls.slice().sort((a, b) => b.length - a.length)[0] || '';
@@ -5347,11 +5087,6 @@ export function makeFnMap(D) {
         ' characters. Longest line (' + longest.length + ' chars): "' + longest.slice(0, 90) +
         '". Never cut the last line: it is the required signature.';
     }
-    // PLATFORM RENDER GATE (owner law, 2026-07-24). A model that ignores the post-to-x
-    // skill cannot reach the timeline: the tool itself refuses off-register copy. Kimi k1.5
-    // published machine-log headers and third-party self-promotion to @CannibalCapital on
-    // 2026-07-24; that failure class dies here, not in a prompt a model may skip.
-    // Escape hatch: {"text":"...","raw":true} for a deliberate owner-authored exception.
     if (!rawFormat) {
       const gate = xFormatViolation(bodyText);
       if (gate) return 'ERR:x_post:format_law:' + gate;
@@ -5477,11 +5212,6 @@ export function makeFnMap(D) {
     return JSON.stringify({ ok: true, id: outId, url: 'https://x.com/i/web/status/' + outId, in_reply_to: id, text: bodyText });
   },
 
-  // ── Reddit Data API ─────────────────────────────────────────────────────────
-  // Server-side capability: read threads/comments (client-credentials) and reply as
-  // the owner's account (password grant). Reads secrets from env — set once the app
-  // exists: REDDIT_CLIENT_ID, REDDIT_SECRET (both), REDDIT_USERNAME, REDDIT_PASSWORD (reply only).
-  // The account is already registered/un-restricted for the Data API.
   async redditToken(env, scope) {
     const id = env.REDDIT_CLIENT_ID, secret = env.REDDIT_SECRET;
     if (!id || !secret) return { error: 'ERR:reddit:no_app_credentials — set REDDIT_CLIENT_ID/REDDIT_SECRET (create the app; one CAPTCHA)' };
@@ -5544,8 +5274,6 @@ export function makeFnMap(D) {
     }));
     return JSON.stringify({ ok: true, post: { type: 'reddit', id: 't3_' + post.id, subreddit: 'r/' + post.subreddit, author: 'u/' + post.author, title: post.title, quote: (post.selftext || '').slice(0, 400), url: 'https://www.reddit.com' + post.permalink, stats: { votes: post.score, comments: post.num_comments } }, comments });
   },
-  // REDDIT_REPLY — args: parent_thing_id (t3_/t1_) | text. Posts a comment reply AS the owner's account.
-  // Owner-gated + single-target by design (no autonomous mass-replying) — see the directory row's authority.
   async redditReply(env, parentId, text) {
     if (!parentId || !text) return 'ERR:reddit:reply_needs_parent_and_text';
     if (!/^t[135]_[a-z0-9]+$/i.test(String(parentId))) return 'ERR:reddit:bad_parent_id (expect t3_/t1_...)';
@@ -5686,9 +5414,6 @@ export function makeFnMap(D) {
     if (Array.isArray(content)) return content.map(c => c.text != null ? c.text : JSON.stringify(c)).join('\n');
     return JSON.stringify(res.json && res.json.result != null ? res.json.result : res.json);
   },
-  // Blooio chat send in the natural pipe form: $1=chat_id, rest = message text.
-  // Builds the strict JSON send_chat_message needs, so plain text containing pipes,
-  // quotes, or newlines can never produce bad_args_json (the 2026-07-12 silent-reply cause).
   async blooioSendChatText(env, chatId, ...textParts) {
     const chat = String(chatId || '').trim();
     if (!/^chat_/.test(chat)) return 'ERR:fn:chat_id_required:expected chat_..., got ' + chat.slice(0, 30);
@@ -5827,8 +5552,6 @@ export function makeFnMap(D) {
   async cfExec(env, method, path, bodyJson) {
     const cf = env.CLOUDFLARE_API_TOKEN;
     if (!cf) return 'ERR:fn:no_CLOUDFLARE_API_TOKEN';
-    // Split "GET /zones?name=x" BEFORE uppercasing — uppercasing the whole string first
-    // destroyed the case-sensitive path (/ZONES → "No route for that URI", 2026-07-30).
     let m = String(method || 'GET').trim();
     let p = String(path || '').trim();
     if (!p && /\s/.test(m)) { const sp = m.split(/\s+/); m = sp[0]; p = sp.slice(1).join(' '); }

@@ -1,13 +1,3 @@
-// THE ARTIFACT RECURSION LANE (owner order 2026-07-17): the same propose→ratify→memorialize
-// loop the content plane runs, pointed at CODE, FILES, and TOOL definitions. A token-holder
-// reads the directory, sees redundancy ("these 500 lines collapse to 400", "these 100 files
-// say what 10 could"), and files a signed proposal on the ledger. A master edit token ratifies.
-// The coding agent then executes the ratified proposal — the proposal is the authorization
-// artifact, never an auto-edit (no model silently rewrites the build). Expansion (new content)
-// and contraction (collapse redundancy) are the two halves of the recursive balance.
-//
-// Storage reuses the discourse table: slug = the target namespace (code:<path> | tool:<KEY> |
-// file:<path>), so artifact proposals share the ledger, dedup, and ratify infra with content.
 import { verifyShareTokenValue, capFingerprint, isBuildAuthed } from '../../_lib/admin_session.js';
 import { recordDiscourse, findDuplicate, readDiscourse, familyOf } from '../../_lib/discourse_widgets.js';
 import { logEvent } from '../../_lib/event_log.js';

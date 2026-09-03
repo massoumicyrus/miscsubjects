@@ -1,8 +1,3 @@
-// miscsubjects.com/robots.txt — served by this Worker via a zone route, which takes
-// precedence over both public/robots.txt and functions/robots.txt.js. Those two were made
-// permissive on 2026-07-24 while THIS file still restricted GPTBot and OAI-SearchBot to
-// /api/, so OpenAI's crawlers were forbidden from every article page. One source of truth:
-// keep this body identical to public/robots.txt.
 const BODY = `# miscsubjects.com — open to search engines and AI models.
 # Machine-readable entry points: /llms.txt  /sitemap.xml  /api/handoff  /api/dispatch  /api/articles
 # Everything readable is crawlable. Only the private admin backend is closed.

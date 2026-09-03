@@ -219,12 +219,6 @@ const REGISTERS = [
 ];
 const VERIFY_CAP = 16;
 const FETCH_TIMEOUT_MS = 6000;
-// NO_FABRICATED_LIVE_CONTENT (law, owner order 2026-07-23): live articles carry only real,
-// sourced material. Any claim or document that declares itself planted, fabricated, or filed
-// as a deliberate fallacy "for demonstration" is refused at intake, on every channel. A worked
-// example of catching a bad inference must use a genuinely bad inference found in the wild or
-// an offline fixture — never a model-authored lie on a live page. (Origin: the c11 plant in
-// openai-huggingface-hack-2026, removed 2026-07-24.)
 const PLANTED_MARKERS =
   /deliberately (?:planted|filed|false|fallacious)|planted (?:fallac|deduction|claim|lie)|plant(?:ed|ing) (?:a|one|this) (?:false|fake|fallacious)|fabricated (?:for|as) (?:a )?demo|for demonstration purposes|intentionally (?:false|wrong|fallacious|misleading)|filed here specifically so|so a challenge can demonstrate/i;
 function plantedContentViolation(...parts) {
@@ -937,17 +931,12 @@ async function outline(env, b) {
     phase: "outlined",
   };
 }
-// Known SEO-listicle / content-farm domains: allowed as color, flagged so they
-// cannot pass as documentary backing (owner brief 2026-07-24, REFERENCE_FIRST law).
 const CONTENT_FARM_RE = /\b(digitalapplied\.com|arbisoft\.com|usaii\.org|generect\.com|vrid\.ai|sourceforge\.net\/software|memeburn\.com)\b/i;
 
 async function sources(env, b) {
   const slug = slugify(b.slug);
   const existing = await getRow(env, slug);
   if (!existing) return { error: "article not found: " + slug };
-  // SOURCE_QUOTE_LAW. This route used to stamp a quote-less entry `quote_status: "na"` and store
-  // it, which is how a card came to render our description of a study where the study's own words
-  // belong. The same contract that guards PUT /api/articles guards it here — one law, both paths.
   const lawful = checkSources(b.sources);
   if (!lawful.ok) return { ...sourceLawRefusal(lawful), slug, status: 422 };
   const prevMeta = parseMeta(existing.meta);
@@ -2292,22 +2281,8 @@ async function write(env, b) {
     raw_preview: String(text).slice(0, 300),
   };
 }
-// ATOMIZE — bring an existing article into the claims+sources JSON schema WITHOUT touching
-// its body. The schema-variance repair pass: philosophy, OIP, and health content all run on
-// the same rules (atomized claims with tiers, hash-chained sources, provenance). Never a
-// rewrite: the body is read-only input; only meta.claims / meta.sources / provenance change.
-// ── VOXEL DIV PLANE (owner order 2026-07-16) ────────────────────────────────────
-// The article body divides into ordered, hashed DIVs (meta.divs). Each DIV carries its
-// own SHA-256 content hash and an append-only provenance chain. Four verbs mutate the
-// structure: voxel-divide, voxel-edit, voxel-move, voxel-consolidate. All four accept
-// the owner (x-terminal-key / admin cookie) OR a share token — the same token the owner
-// hands to a model — with scope act, or rows:/pfx: covering VOXEL_<VERB>. After every
-// mutation the body is regenerated from the ordered DIVs: the content IS the DIV list.
 const VOXEL_CORPUS_RE = /^(grain-|udst-|systems-design-|unified-philosophy-|convergence-encyclopedia-|oip-(axiom|convergence|disconfirming|v2|v3|pattern|sog|invariant|node|catalogue|appendix)-|oip-c07-feedback-cybernetics$)/;
 
-// explicitScope (owner ship-order 2026-07-16, W11/1d): content-mutating voxel verbs REFUSE
-// generic act tokens — the published drop promises the general key edits no existing content,
-// and the promise must be true. Mutation needs a key minted with rows:/pfx: covering the verb.
 async function voxelAuth(request, env, b, verbKey, explicitScope) {
   if (await isBuildAuthed(request, env)) return { ok: true, actor: "owner" };
   let raw = String(b.key || b.share || "").trim();
@@ -2386,9 +2361,6 @@ async function voxelSaveArticle(env, slug, meta, body, expected = {}) {
     ).bind(metaJson, nowIso(), slug, expected.meta ?? null).run();
   }
   const saved = Number(result?.meta?.changes || 0) === 1;
-  // Every voxel write verb saves through here, so this is the one place the page cache is
-  // made honest: without it a plain GET of /a/<slug> kept serving the pre-edit page for the
-  // full edge TTL while D1 held the new text (reproduced live on /a/philosophy, 2026-08-08).
   if (saved) await purgeArticlePageCache(env, slug);
   return saved;
 }
@@ -2963,14 +2935,6 @@ async function voxelAttestAction(env, request, b) {
   };
 }
 
-// ── THE PROLIFIC DOOR (owner order 2026-07-16 evening) ─────────────────────────────
-// One atomic call. A model with a token appends a whole session's work to the LEDGER —
-// hundreds of DIVs, claims, sources, votes, edits — in a single turn, instead of burning
-// the energy into chat. voxel-batch executes a typed op list in order (per-op receipts,
-// partial results honest); document mode hybridizes an entire markdown document into
-// ordered DIVs. voxel-vote proposes; voxel-ratify (owner / coding agent) memorializes the
-// decision on the ledger. voxel-burn retires energy that proved useless (status burned,
-// never deleted). Format precedent lives at /a/append-protocol.
 const BATCH_OP_CAP = 300;
 
 async function voxelBatchAction(env, request, b) {
@@ -3016,10 +2980,6 @@ async function voxelBatchAction(env, request, b) {
       const meta = {
         register: "model_contribution", posted_at: nowIso(), claims: [], sources: [],
         divs: divided.divs,
-        // Render the AUTHORED body, never an auto-composed claim-list. Without this a
-        // document-mode article rendered as a bare list of its claim sentences (the "AI
-        // slop" failure of 2026-07-24): the writer's prose, headers, and inline source
-        // embeds were discarded. A written document must show what was written.
         prefer_stored: true,
         voxel: { mode: "div", divided_at: nowIso(), divided_by: auth.actor, original_body_sha: await vxSha256(bodyText), atoms: divided.divs.length, version: 1 },
       };
@@ -3665,7 +3625,6 @@ async function next(env, role) {
       .bind("%" + want + "%")
       .first();
   } else {
-    // NEVER auto-run owner tasks — they are the owner's, closed only by hand (TASK_COMPLETE) or the UI.
     row = await env.DB.prepare(
       "UPDATE tasks SET status='running' WHERE id = (SELECT id FROM tasks WHERE status='open' AND LOWER(COALESCE(source,'')) != 'owner' ORDER BY id LIMIT 1) RETURNING id, body, source, created_at",
     ).first();
@@ -5791,9 +5750,6 @@ async function processOipFollowups(env, { review, slug, model, review_event_id, 
     const parsed = parseOipArticleSlug(slug);
     const { shelfFor } = await import("../../_lib/oip_articles.js");
     if (shelfFor(slug) || corpus) {
-      // VERBATIM LAW: Total Structure voxels carry the author's exact words. A failing
-      // review NEVER queues a model rewrite here — findings route to the objection ledger
-      // (Book X: the attack protocol is the intake) and amendment stays with the owner.
       try {
         await env.DB.prepare(
           "INSERT INTO oip_objections (slug, objection, actor, status) VALUES (?,?,?,'open')"
@@ -5813,7 +5769,6 @@ async function processOipFollowups(env, { review, slug, model, review_event_id, 
 }
 
 /** A model writes a missing OIP article. Append-only version 1, then straight into the review cycle. */
-/** Text the owner through the canonical NOTIFY_OWNER row. Fire-and-forget; never blocks the loop. */
 async function notifyOwner(env, text) {
   try {
     await fetch("https://miscsubjects.com/api/dispatch", {
@@ -5824,12 +5779,6 @@ async function notifyOwner(env, text) {
   } catch {}
 }
 
-/**
- * One agent from the answer forum picks up a reader question asked through the
- * iMessage/WhatsApp article widgets, answers it from the article itself, stores the
- * answer as a hash-chained user_entries row (the widget thread), ledgers the Q&A,
- * and texts the owner. Cron drains tasks.source='article-question' one per tick.
- */
 async function questionAnswer(env, b) {
   const slug = slugify2(b.slug || "");
   const q = String(b.question || "").trim();
@@ -6441,7 +6390,6 @@ async function oipReview(env, b) {
 // the compiled memory. Only material deltas promote \u2014 everything is ledgered, sludge never
 // reaches state. Verbatim law holds: thread updates NEVER touch philosophy text.
 const BRANCH_KEYWORDS = [
-  // Operator rule order (2026-07-03): first match wins.
   ['B7', /proof|hygiene|broken|\blink\b|404|receipt|surface/i],
   ['B2', /\bmcp\b|abstraction|\baccess\b|\btool\b|comparison/i],
   ['B9', /ledger|thread|\bbus\b|promot|memory|machine json/i],
@@ -6576,9 +6524,6 @@ async function handle(request, env) {
     method === "PATCH" ||
     method === "DELETE";
 
-  // THE ONE LINK. GET the same address models POST to. Paste this URL into any model
-  // conversation and the model knows exactly how to talk to the owner and exactly what to
-  // hand back. Plain words only. This page programs the conversation.
   if (method === "GET" && action === "thread-update") {
     const md = [
       '# How to talk to the owner — read this once, then follow it for the whole conversation',
@@ -6723,10 +6668,6 @@ async function handle(request, env) {
     return respond(env, action, out, out?.error ? (out.status || 400) : 200, protocolCtx(body));
   }
 
-  // VOXEL DIV verbs sit ABOVE the owner gate: voxelAuth accepts the owner OR the share
-  // token the owner hands to a model (act scope, or rows:/pfx: covering VOXEL_<VERB>).
-  // ARTICLE BOUNDARY — "is this a new article, or DIVs for an existing one?" Deterministic
-  // rule, open to any caller (advisory, read-only): POST {title, markdown}.
   if (method === "POST" && action === "article-boundary") {
     const b = await request.json().catch(() => ({}));
     const advice = await articleBoundaryAdvice(env, b || {});

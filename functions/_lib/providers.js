@@ -169,18 +169,12 @@ export function listCompanies() {
   return Object.keys(PROVIDERS).map(k => ({ company: k, label: PROVIDERS[k].label, api_key_name: PROVIDERS[k].api_key_name, model_count: PROVIDERS[k].models.length }));
 }
 
-// ── The ONE Cloudflare AI Gateway — durable facts (verified against AIG_LIST + CF docs
-// 2026-07-21). This is the single source the /admin/directory/models + /new pages render,
-// so the answers ("what models, how billing, which have web search") live in the surface.
 export const GATEWAY = {
   id: 'cloud-kernel',
   account_id: '<CLOUDFLARE_ACCOUNT_ID>',
   // One endpoint for every provider/model. model field = "provider/model".
   compat_url: 'https://gateway.ai.cloudflare.com/v1/<CLOUDFLARE_ACCOUNT_ID>/cloud-kernel/compat/chat/completions',
   gateway_auth: 'unauthenticated — provider bearer key only (BYOK). Live now.',
-  // The "default" gateway is authenticated + Unified-Billing capable but needs the owner to
-  // enable it in the dashboard (valid AI-Gateway token OR auth off, then load credits).
-  // Once done, flip CF_AIG_ID + GATEWAY.id to "default" (one line each).
   upgrade_target: 'default',
   dispatch_prefix: 'gw:provider/model  (e.g. gw:anthropic/claude-opus-4-8)',
   // Every provider the compat endpoint proxies. You can run ANY model these publish.

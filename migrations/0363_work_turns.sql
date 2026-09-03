@@ -1,10 +1,3 @@
--- PUBLIC WORK TURNS (owner order 2026-08-28): the build is going public, so the operator wants the
--- session behind a work object — his verbatim instructions, every tool call, every error — visible
--- as inspectable state cards, the same way the ledger renders turns as widgets. This is a CURATED,
--- SANITIZED, READ-ONLY projection, not the raw admin ledger: it is populated deliberately through the
--- guarded append path (which strips secrets), it is hash-chained so a reader can prove nothing was
--- edited after the fact, and it exposes no write surface. Security is the point — the raw ledger stays
--- private; only what is explicitly published here is public.
 CREATE TABLE IF NOT EXISTS work_turns (
   turn_id TEXT PRIMARY KEY,          -- turn_<hex>
   task_id TEXT NOT NULL,

@@ -85,8 +85,6 @@ for (const path of productionUrls) {
   }
 }
 
-// OWNER PRIVACY BAR — these public endpoints must NEVER expose the owner's identity, inputs, machine
-// paths, or private CLI turns. A deploy that reintroduces a leak here fails the gate.
 const LEAK_TOKENS = /\bOWNER_FIRST_NAME\b|[OWNER_SURNAME]|[OWNER_HANDLE]|\/Users\/|\/home\/user|claude-code|"turn_in"|"turn_out"|CLI_CLAUDE_CODE|agent_turns|user_input|input_kind|[OWNER_MACHINE]|JNEVER|LOOKS LIKE TRASH|turn_key/i;
 const privacyUrls = [
   '/api/articles/the-canonical-morgh-index/ledger',
@@ -110,14 +108,8 @@ for (const path of privacyUrls) {
   }
 }
 
-// WHOLE-CORPUS SCAN (owner order 2026-08-03 — the fixed URL list above missed 17 live
-// articles carrying the name; a sample is not a gate). Scan the ENTIRE stored corpus for
-// identity tokens via the remote database. Any stored hit fails the deploy: content must
-// never store the identity, independent of the egress scrubber.
 const IDENTITY_SQL = "SELECT slug FROM articles WHERE lower(body) LIKE '%the owner%' OR lower(meta) LIKE '%the owner%' OR lower(body) LIKE '%[OWNER_SURNAME]%' OR lower(meta) LIKE '%[OWNER_SURNAME]%' OR lower(body) LIKE '%dsco.co%' OR lower(meta) LIKE '%dsco.co%' OR lower(body) LIKE '%theloopway%' OR lower(meta) LIKE '%theloopway%' OR body LIKE '%[OWNER_PHONE]%' OR meta LIKE '%[OWNER_PHONE]%' OR body LIKE '%Metric Marketing%' OR meta LIKE '%Metric Marketing%' LIMIT 20";
 if (process.env.GITHUB_ACTIONS) {
-  // CI has no Cloudflare auth: the remote corpus scan runs only on the owner's machine,
-  // where every deploy actually originates (ship.mjs). CI still runs the URL probes below.
   console.error(JSON.stringify({ note: 'corpus D1 identity scan skipped in CI (no Cloudflare auth); runs on every owner-side deploy' }));
 } else {
   const { spawnSync } = await import('node:child_process');
@@ -139,16 +131,7 @@ if (process.env.GITHUB_ACTIONS) {
     }
   }
 
-  // LEDGER DATABASE SCAN (owner order 2026-08-04) — runs in the POST-PROMOTION phase only
-  // (NAME_LAW_EGRESS=1): it proves the DEPLOYED ingest scrub holds on fresh rows. Running it
-  // at commit time deadlocked: pre-fix rows blocked the very commit that fixed the writer.
   if (process.env.NAME_LAW_EGRESS === '1') {
-  // (owner order 2026-08-04 — 11,223 ledger events carried the owner's
-  // name because email sends log the owner BCC, GitHub webhooks log commit authorship, and
-  // terminal mirrors log local paths; the corpus-only scan missed the entire lane). The
-  // ingest scrub in public_secret_guard.js is the fix; this scan is the proof it holds.
-  // Only NEW rows fail the gate (last 24h): the historical backfill was scrubbed 2026-08-04,
-  // and a fresh hit means the ingest scrub regressed.
   const LEDGER_SQL = "SELECT id, key, source FROM events WHERE ts >= datetime('now','-1 day') AND (request_json LIKE '%[OWNER_SURNAME]%' OR response_json LIKE '%[OWNER_SURNAME]%' OR request_preview LIKE '%[OWNER_SURNAME]%' OR response_preview LIKE '%[OWNER_SURNAME]%' OR request_json LIKE '%the owner@dsco%' OR response_json LIKE '%the owner@dsco%' OR request_json LIKE '%the owner@theloopway%' OR response_json LIKE '%the owner@theloopway%' OR actor LIKE '%[OWNER_SURNAME]%' OR actor LIKE '%[OWNER_MACHINE]%') LIMIT 20";
   const lr = spawnSync('npx', ['wrangler', 'd1', 'execute', 'loop-shared-events', '--remote', '--json', '--command', LEDGER_SQL], { cwd: ROOT, encoding: 'utf8', env: scanEnv, shell: process.platform === 'win32' });
   const lraw = String(lr.stdout || '');
@@ -182,11 +165,6 @@ if (process.env.GITHUB_ACTIONS) {
   }
 }
 
-// EGRESS PROBES — surfaces that leaked on 2026-08-03 plus the machine views models read.
-// The middleware identity scrubber must hold on every one of these. These probes assert on
-// the DEPLOYED code, so they run post-deploy (ship.mjs sets NAME_LAW_EGRESS=1 after the
-// Functions bundle is live); pre-deploy they are skipped — the corpus scan above still
-// guards stored content unconditionally.
 const egressProbes = process.env.NAME_LAW_EGRESS !== '1' ? [] : [
   '/a/the-build-end-to-end',
   '/a/claude-code-on-cloudflare-ai-gateway',

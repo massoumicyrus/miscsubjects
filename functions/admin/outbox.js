@@ -1,24 +1,9 @@
-/**
- * /admin/outbox — the unified outbox + traffic view (owner order 2026-07-30).
- * One page, two tabulations, both projections of the ledger/D1:
- *   1. OUTBOX — every tracked send: to, subject, sent, opens (first/last), clicks
- *      (count, times, targets), and the JCI join — which visitor identity (ip:<hash>)
- *      opened/clicked, when, and that visitor's site-session footprint.
- *   2. TRAFFIC — recent visitor sessions (same session builder the traffic page uses),
- *      with a link to the full /admin/traffic for deep filtering.
- * Server-rendered, explicit high-contrast colors (owner: the Attention tab was
- * black-on-black; nothing here inherits ambiguous theme colors).
- */
 import { shellHtml } from './_layout.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const parse = (v) => { try { return JSON.parse(v || '{}') || {}; } catch { return {}; } };
 const fmtT = (t) => { if (!t) return ''; const s = String(t); return s.slice(5, 16).replace('T', ' ') + (s.length > 16 ? s.slice(16, 19) : ''); };
 
-// HONEST ENGAGEMENT (owner order 2026-08-03: "did actual people click?"). Raw counters lie:
-// corporate link scanners fire every link within seconds of the send, image proxies prefetch
-// the pixel instantly. The verdict reads the TIMING SHAPE — only late, sparse, or repeated
-// engagement is credited as human; everything machine-shaped is named for what it is.
 const tsMs = (x) => { const t = Date.parse(x || ''); return Number.isFinite(t) ? t : null; };
 export function engagementVerdict(row, clickLog) {
   const s = tsMs(row.sent_at), fo = tsMs(row.first_open_at), fc = tsMs(row.first_click_at);

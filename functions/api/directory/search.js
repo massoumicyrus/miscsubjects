@@ -43,9 +43,6 @@ export async function onRequestGet(context) {
     docs: extractDocs(x.content),
   }));
 
-  // ARTICLES ARE DIRECTORY OBJECTS (owner law, 2026-07-29). Every article is discoverable
-  // here as a PROJECTION — key article:<slug> resolving to the canonical articles row.
-  // Nothing is copied: the row carries pointers, the article stays the one source of truth.
   if (q) {
     const like = '%' + q.toLowerCase() + '%';
     const arts = await env.DB.prepare(

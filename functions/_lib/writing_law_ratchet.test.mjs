@@ -1,20 +1,3 @@
-// Regression test for the exact failure that exposed the defect.
-//
-// 2026-08-08: law_enforcement.js declared five writing clauses — W51 framing, W52 pre-argued
-// detractors, W63 hedges, W87 outcome verbs and the W87 tier-label test — as enforced by
-// subject_gate.checkWritingLawClauses "at the write path". functions/api/articles/[[path]].js
-// imported checkSubjectBoundary and nothing else. None of the five had ever run on a single article
-// write. The enforcement ratchet counted them as enforced the whole time, so the published number
-// of enforced clauses was wrong in the direction that flatters the build.
-//
-// Two things are pinned here. First, that the clause tests actually catch the shapes the corpus was
-// carrying — every one of these strings is quoted from a page that was live that morning. Second,
-// that the write path refuses a violation a write INTRODUCES and never one it inherited, because a
-// flat gate would block the very edit that repairs the article, which is the failure claim_law.js
-// already learned once with existing_claim_count.
-//
-// scripts/check-law-enforcement.mjs holds the other half: a write-path declaration whose named
-// function does not appear in the write-path source now fails the deploy.
 
 import { describe, expect, it } from "vitest";
 import { newWritingLawViolation, writingLawViolations } from "./subject_gate.js";
@@ -80,11 +63,6 @@ describe("the write path refuses what a write introduces, not what it inherited"
   });
 });
 
-// ── W118, added the same day, from the paragraph the owner read on /a/bpc-157-vs-nsaids ──
-//
-// The exhibit is the THIRD paragraph of that page, not its first sentence, which is why the W111
-// check passed it and the owner did not. The test therefore runs on the first sentence that names
-// a compound the slug names, inside the page's preamble.
 
 describe("W118 — never characterise a thing by what it has not claimed", () => {
   const EXHIBIT = "One suppresses the signal that starts repair and reliably takes the pain away.\n\n"

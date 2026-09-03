@@ -286,7 +286,7 @@ ${capabilityConsoleWidget()}
 <script>
 (function(){
   window.adminSearch=function(e){e.preventDefault();var v=document.getElementById('hdr-q').value.trim();if(v){location.href='/admin/ledger?view=turns&q='+encodeURIComponent(v);}return false;};
-  // Attention bubbles: unread comms + outstanding work, on every admin page (owner order
+  // Attention bubbles: unread comms + outstanding work, on every admin page (rule
   // 2026-07-30). Poll once per load; badge hidden at zero.
   fetch('/api/attention').then(function(r){return r.json();}).then(function(d){
     var c=document.getElementById('attn-comms'),w=document.getElementById('attn-work');

@@ -31,10 +31,6 @@ export function resetBreaker() {
 
 const MAX_ATTEMPTS = 3;
 const COOLDOWN_MS = 60000;
-// Deadlines. A trivial call to this gateway measured 8.1s on 2026-08-05, and a long
-// tool-loop step with a large transcript is legitimately slower, so these are generous —
-// they exist to end a hang, not to cut a slow answer short. Override for a deliberately
-// long-running job with MISC_CONNECT_TIMEOUT / MISC_STALL_TIMEOUT, in seconds.
 const CONNECT_TIMEOUT_MS = Math.max(30, Number(process.env.MISC_CONNECT_TIMEOUT) || 300) * 1000;
 const STALL_TIMEOUT_MS = Math.max(15, Number(process.env.MISC_STALL_TIMEOUT) || 120) * 1000;
 
@@ -60,14 +56,6 @@ async function send(cfg, body, path = '/v1/messages') {
     throw e;
   }
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    // A REQUEST WITH NO DEADLINE IS A PROCESS THAT CAN HANG FOREVER, AND IT DID.
-    // Until 2026-08-05 this file contained no timeout and no abort signal anywhere — the only
-    // setTimeout was the retry-backoff sleep. Running headless on a real repair, the agent
-    // stopped dead after three parallel reads: eight minutes at 0% CPU, no output, no error,
-    // no exit, blocked inside the response read below. Nothing recovered it because nothing
-    // was watching. An agent that can hang silently cannot be trusted to run unattended,
-    // which is the whole point of replacing the incumbent, so the transport now has both a
-    // total deadline and a mid-stream stall watchdog.
     const ac = new AbortController();
     const hard = setTimeout(() => ac.abort(new Error(`gateway did not answer within ${CONNECT_TIMEOUT_MS / 1000}s`)), CONNECT_TIMEOUT_MS);
     let r;
@@ -118,12 +106,6 @@ async function send(cfg, body, path = '/v1/messages') {
   throw new Error('rate limited');
 }
 
-// Anthropic prompt-prefix caching. The system prompt and tool schemas are stable across
-// every turn of a tool loop, but without a cache_control breakpoint Anthropic re-bills
-// the full prefix at fresh-input rates on every call — 1840 calls at ~100K tokens each
-// with cache_read=0. One ephemeral breakpoint on the system block and one on the last
-// tool definition makes the gateway serve cached input at ~10% of the fresh rate.
-// See /Users/owner/.claude/CLAUDE.md cost-failure audit 2026-07-28.
 const withCache = (block) => Array.isArray(block) && block.length
   ? block.map((b, i) => i === block.length - 1
       ? { ...b, cache_control: { type: 'ephemeral' } }

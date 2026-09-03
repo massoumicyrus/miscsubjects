@@ -71,9 +71,7 @@ Substitution runs on every text file, in this order:
 1. **Specific literals** — the account subdomain, the Cloudflare account id, non-secret Google
    identifiers, possessive forms of the owner's name.
 2. **E-mail addresses** — kept only when the domain is on an allow-list of build and vendor
-   domains; owner domains become `[OWNER_EMAIL]`, anything else becomes `[REDACTED_EMAIL]`.
 3. **Phone numbers** — the owner's and the build's numbers in every formatting, then any `+1`
-   number, become `[OWNER_PHONE]`, `[BUILD_PHONE]` or `[PHONE]`.
 4. **The owner-identity table the site itself uses** at ledger ingest
    (`functions/_lib/public_secret_guard.js`): names, handles, home directory, machine name. One
    table, two consumers, so the two can never disagree.
@@ -118,6 +116,26 @@ absence of gitleaks a failure, `--keep` to leave a failed projection on disk for
 The latest manifest is public at https://miscsubjects.com/img/projection/latest.json, and each
 export is also kept at `https://miscsubjects.com/img/projection/<source sha12>.json`. That is the
 surface the work object grades this mechanism on.
+
+## 2b. The primitive profile
+
+The public repository is the primitive of the system, not the operator's use of it. After the
+allow-list, the exporter applies a profile that decides what the repository is:
+
+| Step | What happens | Recorded in `PROJECTION.json` |
+|---|---|---|
+| Tenant integrations dropped | Modules, routes, migrations, workers, gates and spreadsheet automations for the operator's businesses (commerce, ads, leads, outreach, reporting) are excluded by name | `profile.dropped_by_profile`, `profile.dropped_paths` |
+| Stubs where the kernel imports them | For every relative import from a kept module to a dropped one, a stub is written at the dropped path. It exports the same names and throws with its path when used, so the import graph stays whole and the boundary is visible | `profile.stubbed_modules` |
+| Content data dropped | Migrations with no schema statement and more than 30 KB of literals, the protocol primer bodies, content inventories, session reports | `profile.dropped_by_profile` |
+| One-off scripts dropped | `scripts/` keeps the deploy path, the gates and the exporter; everything else was a one-time content or outreach run | same |
+| Plans, visions, experiments, doctrine dropped | `docs/` keeps the technical documents; `.claude/skills/` keeps the engineering procedures and drops the business, sales, copy and operator-doctrine skills | same |
+| Diary comments removed | A comment that records who ordered what and when, or narrates the day something failed, is removed from JavaScript, SQL, shell, YAML and TOML. Code, strings and regex literals are never touched. JavaScript is scanned with a state machine (strings, template literals, regex literals, both comment kinds); every altered file is re-parsed by Node and kept unaltered if it would no longer parse | `profile.comments_removed`, `profile.comment_strip_skipped` |
+| Diary paragraphs removed from Markdown | Blank-line-delimited blocks that match the same class of narrative are dropped; list items individually; fenced code never | `profile.markdown_blocks_removed` |
+| JSON artifacts transformed | `failure-vault.json` loses the quoted words that named each failure and keeps the mechanism; `scripts/gates.manifest.json` loses its narrative and is pruned to the gate scripts present | `profile.gates_pruned_from_manifest` |
+
+Two gates exist only for this profile: `syntax` re-parses every JavaScript file in the output as an
+ES module, stubs included; `diary` scans every text file, strings included, for the narrative
+markers and fails on any survivor.
 
 ## 3. Reading a projection
 

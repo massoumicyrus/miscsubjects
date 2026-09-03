@@ -1,7 +1,3 @@
--- Reddit Data API capability: read threads/comments + reply as the owner's account.
--- Runners live in functions/_lib/fn_runners.js (redditSearch/redditThread/redditReply).
--- Activation needs Worker secrets: REDDIT_CLIENT_ID, REDDIT_SECRET (both reads+reply),
--- REDDIT_USERNAME, REDDIT_PASSWORD (reply only). Account already registered for the Data API.
 
 INSERT OR REPLACE INTO directory (key,type,target,auth,content,updated_at,category,sensitive,enabled,planner_visible,planner_rank,created_at)
 VALUES (

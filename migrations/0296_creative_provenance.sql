@@ -71,6 +71,5 @@ VALUES ('CREATIVE_GENERATE','fn','creativeAdminGenerate','',
 ["$1+"]',
 'creative',20,1,0,1,datetime('now'));
 
--- Owner correction, permanently scored. No generation is needed to test the law.
 INSERT INTO directory_tests (key,kind,args,tier,expect_kind,expect_value,expected_text,note)
 VALUES ('ROUTER','e2e','When the build generates an image or video, what must be preserved so I can judge and version the creative?',4,'reply_ok','payload|response|channel|good|bad|version','Preserve the exact provider request payload, raw provider response and final asset/result, the generation channel/tool/model, and the owner good/bad review plus parent/child version lineage.','creative provenance law');

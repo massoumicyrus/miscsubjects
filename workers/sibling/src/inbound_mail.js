@@ -1,36 +1,4 @@
-/**
- * inbound_mail.js — the reply half of outreach.
- *
- * Until this existed the build could send 58 letters, watch 39 of them open, count 180 clicks,
- * and still not know whether a single human answered: replies forwarded to a personal inbox and
- * left no record. Every claim about outreach quality was therefore unfalsifiable.
- *
- * Every message to an address routed at this worker is stored in `lead_replies`, matched to the
- * lead and to the exact send it answers, ledgered, and then forwarded to the owner so nothing
- * he used to receive stops arriving.
- *
- * No dependency: the parser here reads only what a reply needs — the headers that identify the
- * thread and the first text/plain part. A part it cannot decode is stored raw rather than dropped,
- * because a reply recorded badly is recoverable and a reply lost is not.
- */
 
-// FORWARD TO THE ADDRESS THAT RESOLVES TODAY. THE PRIMARY ADDRESS IS NOT WRONG, ITS DNS IS BROKEN.
-//
-// This was [OWNER_EMAIL] until 2026-08-05, and the commit that changed it said dsco.co "has no DNS at
-// all — no MX, no A, no NS, no SOA, it does not exist." That was wrong about the cause. Measured:
-//
-//   - The .co registry DOES delegate dsco.co, to ns1.dnsimple.com and ns2.dnsimple.com.
-//   - Both nameservers are reachable and answer REFUSED for dsco.co — they no longer serve the zone.
-//     That is a lame delegation. Resolvers convert it to SERVFAIL; Cloudflare surfaced it to us as
-//     "invalid recipient domain: NXDOMAIN", which is what produced the wrong conclusion.
-//   - [OWNER_EMAIL] was verified as a destination at 2026-06-02T21:37:16Z. Verification requires
-//     clicking a link in a message that ARRIVED, so that mailbox was real and mail did reach it.
-//     The owner is right that the build's mail was reaching him. The delegation broke afterwards.
-//   - [OWNER_EMAIL] is NOT the owner's address — created 2026-08-05 on a guess, never verified.
-//
-// So: forward to theloopway.com, which is verified and resolves, because a forward has ONE destination
-// and it must be one that works. dsco.co stays the primary in the outbound BCC envelope (see
-// functions/api/email/send.js) and becomes the forward target again once its delegation is repaired.
 const OWNER = '[OWNER_EMAIL]';
 const OWNER_PRIMARY_PENDING_DNS = '[OWNER_EMAIL]';  // real address; restore as OWNER when dig MX dsco.co answers
 const MAX_BODY = 60000;
@@ -225,26 +193,7 @@ export async function handleInboundEmail(message, env, ctx, opts) {
     });
   } catch { /* the ledger mirror is not the record of truth for this */ }
 
-  // A FORWARD THAT FAILED IS NOT A FORWARD THAT HAPPENED.
-  //
-  // This was `try { await message.forward(...) } catch { }`. An empty catch, on the only step that
-  // actually delivers anything to the owner.
-  //
-  // What that cost, 2026-08-05: message.forward() throws when the destination is not a VERIFIED
-  // destination address in Cloudflare Email Routing. [OWNER_EMAIL] was never in that list at
-  // all. So the forward threw, the error was discarded, the ledger row was written anyway — and an
-  // agent then read that ledger row and reported to the owner three separate times that the message
-  // was "witnessed". It witnessed this worker running. It never witnessed delivery. He told us three
-  // times he had received nothing while we quoted a row id back at him as proof.
-  //
-  // The row is still written first and the forward still cannot lose it — that part was right. But the
-  // failure is now recorded as its own ledger event, so the next reader can tell a message that
-  // reached the owner from one that reached this function. A delivery step whose failure is invisible
-  // is not a delivery step, it is a claim.
   const dest = (opts && opts.dest) || env.EMAIL_FORWARD || OWNER;
-  // The destination IS the owner's address, and owner identity never enters a ledger event — the
-  // anonymity gate blocked the first version of this for exactly that, correctly, before promotion.
-  // The domain and the error carry all the diagnostic value; the local part carries none.
   const destSafe = 'owner mailbox @' + String(dest).split('@')[1] || 'owner mailbox';
   try {
     await message.forward(dest);

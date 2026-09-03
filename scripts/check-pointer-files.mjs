@@ -1,16 +1,4 @@
 #!/usr/bin/env node
-// POINTER_FILES_LAW deploy blocker.
-//
-// The failure this prevents is the one that produced the migration: an agent answers a correction by
-// adding a rule to CLAUDE.md, a warning to STATE.md or an instruction to AGENTS.md, and the project
-// slides back to depending on files a future agent never reads. This gate fails the deploy when any
-// pointer file has grown back into carrying authority.
-//
-// A pointer file is allowed to contain: the canonical URLs, the loop, and a statement that it holds
-// no authority. It is not allowed to contain rule language, task lists, priorities, unfinished work,
-// acceptance criteria or a state handoff.
-//
-// Usage: node scripts/check-pointer-files.mjs
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';

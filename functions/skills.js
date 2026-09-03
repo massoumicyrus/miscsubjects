@@ -15,16 +15,6 @@ function esc(s) {
   );
 }
 
-// NOT EVERY SKILL WAS IMPORTED FROM SOMEWHERE.
-//
-// 2026-08-05: /skills and every /skills/<name> page returned 500 the moment a skill was published
-// that had no `source` block, because the card read s.source.license directly. Every skill on the
-// page until then had been imported from an external repository and carried a licence and a repo
-// name, so the field had never been absent and the assumption had never been tested.
-//
-// The fix is not to invent a source for skills written here — a fabricated provenance on a page
-// whose whole subject is provenance would be worse than the crash. A skill with no external origin
-// says so.
 function sourcePills(skill) {
   const src = skill && skill.source;
   if (!src || (!src.license && !src.repo)) {

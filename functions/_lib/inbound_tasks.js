@@ -11,9 +11,6 @@ export async function threadInboundMessage(env, m, opts = {}) {
   const source = opts.source || 'imessage-inbound';
   const priority = opts.priority || 'P2';
   const role = opts.role || 'router';
-  // Owner texts are conversation intake answered in-line by the kernel; filing them as
-  // 'open' turned every text into permanent P1 backlog (23 accumulated by 2026-07-22),
-  // polluting the governor's backlog count and the daily outstanding email.
   const status = opts.status || (source === 'owner-imessage' ? 'logged' : 'open');
   const title = (opts.title || `Inbound ${from}`).slice(0, 200);
   const body = JSON.stringify({

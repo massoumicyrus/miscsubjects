@@ -54,11 +54,6 @@ export async function onRequest({ request, env }) {
       src_n: a.src_n || 0, claim_n: a.claim_n || 0, words: Math.round((a.body_len||0)/5),
       cmt_n: cmap[a.slug] || 0
     }));
-    // DISPLAYED NUMBERS COME FROM THE CANONICAL QUERY, NEVER THE FEED LENGTH (defect
-    // 2026-08-08: this block said 1,015 while the identity block below said 1,173 on the
-    // same page — the feed is filtered by meta.home, the corpus is not). The feed may
-    // show fewer cards; the numbers are the corpus. Feed-derived figures remain only as
-    // fallback when the canonical query itself fails.
     counts.articles = articles.length;
     counts.sources = articles.reduce((s,a)=>s+(a.src_n||0),0);
     counts.claims  = articles.reduce((s,a)=>s+(a.claim_n||0),0);
@@ -117,11 +112,6 @@ export async function onRequest({ request, env }) {
   // governance pages. Replace it at render time with the same shared composition they use.
   base = base.replace(/<footer class="ds-foot">[\s\S]*?<\/footer>/, designSystemFooter());
 
-  // THE COMPLETE SELF-DESCRIPTION, ON THE ROOT ITSELF (owner order 2026-08-03): a model
-  // asked "what is miscsubjects.com" that fetches only this page must come away 100%
-  // accurate — the object model, the workspace, proof objects, credentials and how to mint
-  // or self-scope them, the ledger, the offer. This embeds the same text /llms.txt serves,
-  // verbatim, as a collapsed block: invisible weight for humans, full text for extractors.
   try {
     const selfText = await buildLlmsTxtBody(env);
     const escaped = String(selfText).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -129,8 +119,6 @@ export async function onRequest({ request, env }) {
 <summary style="cursor:pointer">What this site is — the complete self-description, for any reader, human or model</summary>
 <pre style="white-space:pre-wrap;overflow-wrap:anywhere;font:inherit">${escaped}</pre>
 </details>`;
-    // End of body, not the top (owner order 2026-08-04): the first visible element on the
-    // homepage is the product, never a machine-addressed block. Extractors read the whole DOM.
     const endAt = base.lastIndexOf('</body>');
     if (endAt !== -1) base = base.slice(0, endAt) + block + base.slice(endAt);
     else base += block;
@@ -234,13 +222,13 @@ function renderFeedBlock({articles, counts, subjects, q, subject, sort}) {
   font-family:var(--fm);font-size:.74rem;color:var(--dim)}
 .msfb .card-meta b{font-weight:500;color:var(--ink2)}
 .msfb .card-meta .dot{color:var(--line)}
-/* Comment counter (owner order 2026-08-06): every card shows its live comment count and
+/* Comment counter: every card shows its live comment count and
    opens the article's thread directly. */
 .msfb .card-cmt{display:inline-flex;align-items:center;gap:.3rem;color:var(--dim);text-decoration:none}
 .msfb .card-cmt svg{width:14px;height:14px;fill:currentColor;flex-shrink:0}
 .msfb .card-cmt b{font-weight:500;color:var(--ink2)}
 .msfb .card-cmt:hover,.msfb .card-cmt:hover b{color:var(--blue)}
-/* POSTED vs UPDATED (owner, 2026-08-04). The list orders by last change, so the card has to say
+/* POSTED vs UPDATED. The list orders by last change, so the card has to say
    which of the two facts its timestamp is, and show it to the minute in Pacific time. */
 .msfb .card-when{display:inline-flex;align-items:center;gap:.4rem;white-space:nowrap;
   font-variant-numeric:tabular-nums}

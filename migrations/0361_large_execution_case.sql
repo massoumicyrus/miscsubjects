@@ -1,5 +1,3 @@
--- WT-0090: task-bound candidates, decisions, reviewed sends and cold audits.
--- Ambient leads and email_sends never satisfy the case: every counted row names its task.
 
 CREATE TABLE IF NOT EXISTS execution_case_candidates (
   candidate_id TEXT PRIMARY KEY,

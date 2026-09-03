@@ -5,9 +5,6 @@ import {
   knowledgeActionVoxels,
 } from "./knowledge_action_object.js";
 
-// Owner-authored clauses (2026-07-25), verbatim. This law is the selector that sits above the
-// Writing Law, Design Law, Skill Law, and OIP: it decides whether any of them should fire on
-// the present turn. Do not paraphrase clause text; amendments append.
 const LOGIC_CLAUSES = [
   [
     "objective",
@@ -89,14 +86,6 @@ const LOGIC_CLAUSES = [
     "Priority under pressure",
     "ALWAYS act in this order: prevent irreversible loss, preserve working progress, resolve ambiguity that changes the move, remove the binding constraint, complete the result, verify the result, then improve a non-binding defect ONLY IF it materially affects the objective.",
   ],
-  // ── 2.0.0 — The Thinking Law merge (owner order, 2026-08-06) ─────────────────────────────
-  // The owner: the logic law, the loop's selection edge, and say-no "aren't different skills
-  // in my head — they're a unified way of thinking." These clauses absorb shared-say-no
-  // (restraint), add the stance the build was missing (what he actually optimizes), and add
-  // the emulation + calibration loop ("if I asked you to decide as if you're me, you can —
-  // and when you miss, I revise this text until you can"). NOTE: amendments 1.1.0 / 1.2.0
-  // (opus5:fa164ae8, argument clauses, chain-committed 2026-08-06 21:11/21:23Z) are in flight
-  // in another tree and interleave above this block when they land.
   [
     "stance",
     "Rank by the delta to the optimal state",
@@ -354,12 +343,12 @@ export const LOGIC_LAW_OBJECT = createKnowledgeActionObject({
       {
         version: "2.5.0",
         change:
-          "Folded amendments 1.1.0 and 1.2.0 as the argument family, reconstructed from their coding-law chain intents: the originating session closed and its tree was lost before pushing, so the owner ordered the fold done here (2026-08-07). The original content hashes remain on the chain; these clauses are faithful rewrites of the recorded intents, not the lost text.",
+          "Folded amendments 1.1.0 and 1.2.0 as the argument family, reconstructed from their coding-law chain intents: the originating session closed and its tree was lost before pushing, so it was ordered the fold done here (2026-08-07). The original content hashes remain on the chain; these clauses are faithful rewrites of the recorded intents, not the lost text.",
       },
       {
         version: "2.6.0",
         change:
-          "OUTSTANDING is exactly one complete list: an unfinished item mentioned outside it is a violation. Exhibit: a Queued paragraph above the OUTSTANDING block (owner, 2026-08-07).",
+          "OUTSTANDING is exactly one complete list: an unfinished item mentioned outside it is a violation. Exhibit: a Queued paragraph above the OUTSTANDING block.",
       },
       {
         version: "2.7.0",
@@ -401,11 +390,6 @@ export function logicLawMarkdown() {
 }
 
 export function logicLawSkillMarkdown() {
-  // The Thinking Law skill text (2.0.0, merged 2026-08-06 on the owner's order: operational-logic
-  // + shared-say-no + the loop's selection edge + stance/emulation/calibration/objects). The repo
-  // copies at .claude/skills/thinking-law and .agents/skills/thinking-law are projections of this
-  // same text; edit here first. The prior operational-logic text (2026-07-25, owner-approved) is
-  // preserved verbatim in git history and inside this law's selection and register sections.
   return `---
 name: thinking-law
 description: The thinking law of this build — one law for how the operator decides. What matters now, what change earns the right to exist, when the answer is "No", how to decide as he would when he is not in the room, and how every decision acts on the one queue of objects. Absorbs operational-logic (selection) and shared-say-no (restraint); the loop law executes what this law selects. Load on every task before writing, designing, coding, reviewing, ranking work, giving feedback, answering any evaluative question, or predicting the owner's call.

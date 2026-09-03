@@ -1,7 +1,3 @@
--- X_DELETE + X_WHOAMI (owner, 2026-07-24).
--- On 2026-07-24 a model published off-register copy to @CannibalCapital and the build had NO
--- way to take a post down, and the 401s that followed returned a bare "Unauthorized" with no
--- diagnosable cause. Both gaps close here.
 INSERT OR REPLACE INTO directory (key,type,target,auth,content,updated_at,category,sensitive,enabled,planner_visible,planner_rank,created_at)
 VALUES (
   'X_DELETE','fn','xDelete','',

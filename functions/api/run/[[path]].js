@@ -149,9 +149,6 @@ async function runImage(env, body) {
   return json({ mode: 'image', model, out });
 }
 
-// confluence — the adversarial audition. Each model drafts; then a converging model
-// scores every draft (0-100, the "weights"), merges the best into one superior version,
-// and writes one question for the operator. the owner is voice of god: accept= promotes it.
 async function runConfluence(env, body) {
   const targets = await resolveTargets(env, body.targets);
   if (!targets.length) return json({ error: 'no targets' }, 400);

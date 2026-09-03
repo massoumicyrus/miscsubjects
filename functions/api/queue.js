@@ -1,7 +1,3 @@
-// GET /api/queue — the one-queue projection (WT-0073, spec: /a/one-queue-tasks-issues-comments).
-// Reads four sources, writes nothing, emits the eleven-field object with a COMPUTED rank whose
-// arithmetic prints on every row (rank_why). Public read: a model holding nothing can open this
-// and know what should happen next, and why that. Human view: /a/the-queue.
 function json(o, status = 200) {
   return new Response(JSON.stringify(o, null, 2), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'access-control-allow-origin': '*' } });
 }
@@ -17,7 +13,7 @@ function rankTask(t) {
   const ageDays = t.created_at ? Math.floor((Date.now() - Date.parse(t.created_at)) / 86400000) : 0;
   const age = Math.min(20, ageDays); if (age) { rank += age; why.push(`open ${ageDays}d +${age}`); }
   const owner = /owner/i.test(String(t.detail || '')) ? 15 : 0;
-  if (owner) { rank += owner; why.push('owner named it +15'); }
+  if (owner) { rank += owner; why.push('named it +15'); }
   return { rank, rank_why: why.join(' + ') };
 }
 

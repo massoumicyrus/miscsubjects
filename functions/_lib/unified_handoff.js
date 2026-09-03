@@ -1,5 +1,3 @@
-// Unified handoff — content tier + backend tier in ONE self-explaining blob for any model + share token.
-// Same philosophy as article bundle: paste without context, every URL has the token baked in.
 
 import { LLM_LEDGER_MANIFEST } from "./article_bundle.js";
 import {
@@ -178,9 +176,6 @@ export async function loadHandoffContext(env) {
   return { turns, errors, articles };
 }
 
-// The owner profile = who a fresh model is working for + how to work with him. Read from the
-// hash-chained owner_rules store (append-only, immutable, auditable). This is the statefulness
-// layer: any model handed a link reads this FIRST and instantly knows the owner, no memory needed.
 export async function loadOwnerProfile(env) {
   if (!env?.DB) return { identity: [], goal: [], preference: [], ban: [], rule: [], other: [], count: 0 };
   let rows = [];
@@ -296,12 +291,6 @@ function modelChatDispatchCurl(origin, token) {
   ].join("\n");
 }
 
-// Tap & Go drop — zero-context edit-token record. The model receives this one
-// token; the existing smaller-child-token workflow remains available but optional.
-// Keep the public OIP URL first, then server-enforced facts and interface templates.
-// Ordinary credentials carry authority but no task. The owner-minted ecosystem-proof drop
-// is the explicit exception: it restores the full edit surface and carries one standing
-// work-prove-publish-append assignment. Avoid unrelated model-addressed imperatives.
 const TAP_GO_MODELS = new Set(['chatgpt', 'claude', 'grok', 'gemini', 'kimi']);
 export function normalizeTapGoModel(value) {
   const model = String(value || '').trim().toLowerCase();
@@ -862,10 +851,6 @@ Uses: ${USES}
 Full capability: ${FULL}`;
 }
 
-// Article Tap & Go drop (owner order 2026-07-22): a self-explaining drop scoped to the
-// article corpus — verified core links (philosophy/GRAIN, OIP/technology, peptide), real
-// category counts, and one row:VOXEL_EDIT capability so a receiving model edits any
-// article's DIV (claim or body div) through the corpus's own compare-and-swap discipline.
 export function buildArticleTapGoDropMarkdown(origin, cap) {
   const O = String(origin || '').replace(/\/$/, '');
   const S = cap?.short_code || cap?.share_token || '';

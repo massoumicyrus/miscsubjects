@@ -1,34 +1,3 @@
-// WRITING-LAW LEASE — you cannot touch an article until you have read the law and attested against
-// it, clause by clause, with the sentences you are about to publish.
-//
-// THE FAILURE THIS EXISTS FOR (owner, 2026-08-08, after three rewrites of one page):
-//   "At some point, a fucking prompt is a fucking prompt. It isn't a prompt because it's goddamn
-//    code. Not every goddamn gate has to be code solutions. It's just here are the fucking rules.
-//    All you do is ignore the rules… maybe the way to do it is to have a goddamn hash where you
-//    have to read the fucking prompt as your fucking instruction in order to write an article. In
-//    order to write an article, you have to literally hash against the fucking rule. You can't
-//    fucking touch an article until you literally read the fucking article, reiterate your
-//    compliance, and then lease the fucking token to go write."
-//
-// WHY THE REGEX GATES WERE NOT ENOUGH. Nineteen of 124 writing clauses have a machine test. The
-// other hundred are judgments — is the benefit stated before the study tally, is the comparison
-// held to one standard, would a person with no context understand this. Every one of those was
-// live, fetched, quoted and then disobeyed across three consecutive rewrites of the same page. A
-// clause a model can read and skip is a suggestion however loudly it is written.
-//
-// WHAT THIS DOES INSTEAD. It makes reading the law a precondition with a receipt:
-//
-//   1. The agent GETs the law and computes its sha256. A stale hash is refused — you attested
-//      against a law that is no longer the law.
-//   2. The agent POSTs one attestation per judgment clause, each naming HOW THIS ARTICLE satisfies
-//      it, and each QUOTING A SPAN OF THE BODY IT IS ABOUT TO WRITE. The quote must actually appear
-//      in that body. You cannot attest to a sentence you have not written.
-//   3. The server returns a token scoped to one slug, for one write, for fifteen minutes.
-//   4. The article write path refuses a body write with no valid token.
-//
-// The third step is what makes it a lease rather than a checkbox: the attestation is checked
-// against the body, so an agent that has not done the work cannot produce one, and an agent that
-// has done the work produces it as a by-product of having done it.
 
 /** The clauses no regex can hold, each of which must be attested per article. */
 export const ATTESTED_CLAUSES = [

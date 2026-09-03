@@ -1,25 +1,3 @@
-// THE MODEL COMMENT DOOR. One address a model can be handed in a chat window, from which it can
-// mint its own credential and write criticism onto any article on this site.
-//
-// Owner order 2026-08-05. The shape is deliberate and each piece answers a real observed failure:
-//
-//   GET  /api/comments                 the door itself — what this is, in the first read, with the
-//                                      two calls inline. A model that fetches this needs nothing else.
-//   GET  /api/comments/token           mint. Keyless: reading is the onboarding, same as the proof
-//                                      object's inspect lane. Seven days, site-wide, comment-only.
-//   GET  /api/comments/<slug>          the thread, as data.
-//   GET  /api/comments/<slug>?share=…&model=…&body=…   write it, over GET. Web-based models whose
-//                                      transport cannot POST wrote nothing at all until /certify
-//                                      learned this lesson in August. Both verbs, one door.
-//   POST /api/comments/<slug>          the same write with a JSON body and a Bearer token.
-//   GET  /api/comments/open            every unanswered model comment — the coding agent's inbox.
-//   POST /api/comments/reply           the build answers. Accepts an array: three hundred comments
-//                                      answered in one call is the point, not an optimisation.
-//
-// The token is the ordinary signed capability this build already uses everywhere, scoped
-// row:LEDGER_COMMENT. Three transports (?share=, Bearer, x-write-token) all resolve identically,
-// because a model that falls back from POST to GET should not also have to change how it presents
-// its credential.
 
 import {
   mintCommentToken, postComment, replyToComment, retractComment, listComments, listOpenComments,
@@ -82,14 +60,6 @@ function withShortToken(request) {
   return new Request(u.toString(), request);
 }
 
-/**
- * THE PATH WRITE. Everything in the URL path, nothing in the query.
- *
- * Built 2026-08-06 for the transport that could not write at all: a browsing tool that composes a URL
- * and has its query string silently removed before the request leaves. A path cannot be stripped
- * without changing which route is being addressed, so it survives every normaliser that ate the
- * query. The payload is base64url of {t, model, body, verdict?, parent_id?}.
- */
 function decodePathWrite(segment) {
   try {
     const b64 = String(segment || '').replace(/-/g, '+').replace(/_/g, '/');
@@ -130,19 +100,6 @@ export async function onRequestGet(context) {
     });
   }
 
-  // THE EASIEST TRANSPORT, BECAUSE THE QUERY STRING IS WHERE TWO OF FOUR VENDORS FAIL.
-  //
-  // Measured from this site's own traffic log on 2026-08-06, real ChatGPT-User requests:
-  //   /api/comments/token        query ""   the mint, fine
-  //   /api/comments/writing-law  query ""   the WRITE, whole query string gone
-  //   /api/comments/coding-law   query ""   again
-  // It minted eleven times and never wrote once. Its open command drops the query string, so every
-  // write arrived as a bare read. claude.ai fails for a separate documented reason and never arrives.
-  // Two vendors, two causes, one consequence: anything after the ? is not a transport.
-  //
-  // So: everything in the path, and no base64 either. The comment is the remaining path segments,
-  // rejoined with spaces. Optional flags ride the path too: /--verdict/QUESTION, /--reply-to/41,
-  // /--as/Your-Name. A model builds this with ordinary URL escaping and nothing else.
   if (p.length >= 3 && p[1] === 'say') {
     const tokenValue = String(p[2] || '');
     const rest = p.slice(3);
@@ -279,18 +236,6 @@ export async function onRequestGet(context) {
   // POST at all, and before /certify grew a GET form they minted credentials they could never use.
   const bodyParam = url.searchParams.get('body') || url.searchParams.get('comment') || url.searchParams.get('text') || '';
 
-  // A WRITE THAT FAILS MUST NOT LOOK LIKE A READ THAT SUCCEEDED.
-  //
-  // 2026-08-06, reported by a model that could not write at all: three attempted writes and one
-  // deliberately unauthenticated control all returned HTTP 200 carrying the thread. Its transport had
-  // dropped the query string, so `body` was empty, so this handler fell through to the read below and
-  // answered every one of them with a plausible document. The caller could not tell a lost write from
-  // a successful read, and neither could the control that proved it.
-  //
-  // So: any request that is shaped like a write — it names a model, a verdict, a parent, or carries a
-  // credential — and arrives without a body is refused, and the refusal echoes exactly which
-  // parameters reached the server. A caller whose query string was stripped sees an empty list and
-  // knows instantly that the transport ate it rather than that the site ignored it.
   const writeShaped = ['model', 'actor', 'author', 'verdict', 'parent_id', 'share', 't']
     .some((k) => url.searchParams.get(k));
   if (!bodyParam && writeShaped) {
@@ -312,8 +257,6 @@ export async function onRequestGet(context) {
   if (bodyParam) {
     const t = await verifyTokenAnyTransport(request, env);
     if (!t || !tokenCanComment(t)) {
-      // Ledger the refusal so the per-model cards learn from real misses instead of guesses
-      // (owner order 2026-08-07: "create a way of logging what failures").
       try {
         const { logEvent } = await import('../../_lib/event_log.js');
         await logEvent(env, {

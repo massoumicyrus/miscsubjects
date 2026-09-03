@@ -1,21 +1,4 @@
 #!/usr/bin/env node
-/**
- * Protected-widget guardian.
- *
- * The repo working tree is chronically dirty (agents edit live), so git HEAD is NOT a valid
- * "last-good" baseline. Instead the guardian keeps its OWN snapshot of each locked file in
- * .protected/guard-baseline/ and detects changes BETWEEN snapshots — i.e. "what changed since
- * I last looked / this turn". First sight of a file = snapshot it silently (no alert). A later
- * change = quarantine the new version, ask Grok + Kimi for a verdict, text the owner, and heal on 👍.
- *
- * Modes:
- *   --baseline         snapshot all locked files now (no alerts). Run after authorized work.
- *   --check            alert on any locked file changed since its snapshot (judge + text + pending)
- *   --heal <path>      restore <path> from its snapshot; text; clear pending            (👍)
- *   --adopt <path>     accept the change: snapshot becomes current; clear pending       (👎)
- *   --list             show pending alerts
- *   --quiet            do not send texts (local testing)   --nojudge  skip Grok/Kimi (fast testing)
- */
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync, copyFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
@@ -108,13 +91,6 @@ async function notifyEnabled() {
   return true;
 }
 
-// Owner on/off for the whole guardian (owner order 2026-08-30): KV `guardian_master`.
-// '0' / 'off' / 'false' = OFF — check() reports zero drift and does nothing: no snapshot
-// diffing, no quarantine, no model judge, no text. Maintenance modes (--baseline, --adopt,
-// --heal, --list) keep working so the machinery is ready when he flips it back ON.
-// The last successful read is mirrored to .protected/guardian-master so a network failure
-// keeps the owner's setting instead of silently re-arming the watch. Flip it at
-// /admin/vault (top) or: curl -X PUT "$BASE/api/kv?key=guardian_master" -d 0.
 const OFF_VALUES = new Set(["0", "off", "false", "OFF"]);
 function mirrorPath() { return join(ROOT, ".protected", "guardian-master"); }
 async function masterOn() {

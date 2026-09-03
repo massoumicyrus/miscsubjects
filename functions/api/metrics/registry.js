@@ -1,8 +1,3 @@
-// Registry-coverage metric — the same honest-number pattern as /api/metrics/grounding,
-// applied to the tool registry (owner order, audit 2026-07-24): publish schema/example/
-// description coverage and the high-risk-without-schema count, in public, uncached-enough
-// to move as the registry improves. If grounding.js is the anti-sealed-canon tripwire,
-// this is the anti-guesswork tripwire — every gap here is a call shape a model has to guess.
 export async function onRequestGet(context) {
   const { env } = context;
   const rows = (await env.DB.prepare(

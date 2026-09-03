@@ -1,30 +1,6 @@
-// PLAIN WORDS — the shared map, and the two tests that bind W13 and W21 at the write path.
-//
-// FAILURE (owner, 2026-08-08, reading /a/bpc-157-vs-nsaids after two rewrites):
-//   "THERE IS ALREADY A RULE WHICH SAYS ASSUME ZERO CONTEXT. THERE IS ALREADY A RULE WHICH SAYS
-//    DONT USE DECORATIVE WORDING. YOU ARE IGNORING THE RULES."
-//   "You're using words like corticosteroids inhibited resorption in preclinical work. Dude, I
-//    can't fucking read your articles."
-//   "Yours opens right now: 'These two do opposite things to a healing tissue'… a zero context
-//    reader should be told, okay, here's what BPC is, here's what NSAIDs is, here's the trade-offs."
-//
-// Both clauses were live. W21 (zero context) and W01/W13 (plain words, opacity is hostility) had
-// been in the law for months. scripts/check-plain-language.mjs held a jargon map and ran at DEPLOY,
-// over a fixed corpus list — so a page could be written, published and read by the owner without
-// any of it running. The owner's instruction is the whole design note: "if you don't think that
-// you're ignoring the rules, then the rules need to change because you're ignoring them… your
-// obligation is to fix the rules to obligate you to do it in the manner specified."
-//
-// So the map moves here, where the write path can reach it, and gains the words that were actually
-// in the unreadable sentence. Two tests bind:
-//
-//   W13  a technical word may appear only with its plain words within 200 characters.
-//   W21  the first sentence names a subject the slug names. A page that opens on "these two" has
-//        not told a reader with no context what either thing is.
 
 /** Technical term -> the plain words that carry the same meaning. */
 export const JARGON = {
-  // ── the words in the sentence the owner could not read, 2026-08-08 ──
   resorption: 'the bulge shrinking on its own',
   resorb: 'shrink on its own',
   preclinical: 'animal',

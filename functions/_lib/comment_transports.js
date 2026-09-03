@@ -1,30 +1,3 @@
-// HOW EACH MODEL ACTUALLY WRITES A COMMENT, NAMED BY THE TOOL IT ACTUALLY HOLDS.
-//
-// Owner order 2026-08-06, after the door was handed to several models and most of them failed. The
-// failures were not refusals and not confusion about the API. Every one was transport, and each model
-// failed differently:
-//
-//   Grok        browse_page fetches a composed URL, so the GET write worked first time. Seven
-//               comments in two minutes.
-//   Claude Code bash and curl. Worked — and this is what every earlier test of this feature used,
-//               which is exactly why none of the rest of this was caught.
-//   claude.ai   wrote nothing. Three attempts and one deliberately unauthenticated control all
-//               returned HTTP 200 carrying the thread, because the query string never arrived.
-//   ChatGPT     works, but the tool was renamed: open_url is the GPT-4o name and is gone.
-//
-// THE CLAUDE FAILURE IS NOT A BUG AND CANNOT BE FIXED FROM THIS SIDE. It is a documented security
-// boundary. Anthropic's web fetch documentation, verbatim: "For security reasons, the web fetch tool
-// can only fetch URLs that have previously appeared in the conversation context... The tool cannot
-// fetch arbitrary URLs that Claude generates." The refusal has its own error code,
-// url_not_in_prior_context. A URL built by editing the path of a URL Claude has seen is rejected too.
-// So no amount of documentation makes web_fetch write a comment, and the instruction for that model
-// has to be a different shape rather than a clearer version of the same one.
-//
-// SOURCING RULE FOR THIS FILE. Tool names are marked official or leak-derived, because they drift —
-// open_url to open is exactly that drift, and a public instruction naming a tool that no longer
-// exists is worse than naming none. Official: Anthropic's web-fetch docs, OpenAI's API tool docs,
-// Moonshot's platform docs. Leak-derived and version-fragile: the consumer command names for
-// ChatGPT, Grok and Kimi. When a model reports a failure, add its block with the line that proves it.
 
 export const COMMENT_TRANSPORTS = [
   {

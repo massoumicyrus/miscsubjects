@@ -1,26 +1,4 @@
 #!/usr/bin/env node
-// WIDGET_CONTRAST_LAW — a widget's ink is derived from the widget's own surface, never from
-// the viewer's operating system.
-//
-// The failure this exists to stop, twice observed:
-//   2026-07-30 — one `@media (prefers-color-scheme:dark)` block in the platform-card CSS flipped
-//   card ink to cream while the card background stayed white. On a dark-mode Mac every governed
-//   finding rendered cream-on-white. It was repaired with a comment claiming it was "the ONLY
-//   dark media block on the page".
-//   2026-08-05 — it was not. A second block, forty lines earlier, set every quote to #e6e9ec.
-//   The owner opened /a/the-obedience-gap on a dark-mode machine and the verbatim quote — the
-//   entire payload of an evidence card — rendered at 1.21:1 against white. Invisible.
-//
-// A comment is not a mechanism. This is the mechanism. Two rules, both computed:
-//   1. NO `prefers-color-scheme` anywhere in widget CSS. Widget surfaces are fixed-light; the
-//      site itself renders light regardless of OS theme, so any OS-conditional ink is a
-//      guaranteed mismatch between the text and the surface under it.
-//   2. Every declared ink meets a contrast floor against the surface it actually sits on,
-//      resolved by walking the card-class prefix chain. Payload text (quote, title, body,
-//      headline, summary) needs 7:1; secondary meta text needs 4.5:1.
-//
-// The floors are not style preferences. 4.5:1 is WCAG AA for body text; 7:1 is AAA, and the
-// payload of an evidence card is the one string on the page a reader cannot afford to lose.
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';

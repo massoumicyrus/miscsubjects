@@ -286,9 +286,6 @@ export async function buildArticleBundle(env, slug, opts = {}) {
     voxel_procedure: vxProcedure(s),
   };
 
-  // MASTHEAD (W13, owner ship-order 2026-07-16): the uniform ≤500-token block that opens
-  // every bundle. Building it doubles as an audit: an article whose thesis cannot be stated
-  // as ONE falsifiable root claim is FLAGGED, never fudged.
   const masthead = await buildMasthead(env, s, row, meta, claimsRaw);
 
   const raw = {

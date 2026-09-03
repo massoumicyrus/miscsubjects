@@ -1,17 +1,4 @@
 #!/usr/bin/env node
-// GATES_ARE_WIRED — a law expressed as a gate that nobody runs is not enforcement, it is a comment.
-//
-// Found 2026-08-05: 20 of 31 scripts/check-*.mjs were never invoked by ship.mjs or by CI. Among them
-// was check-owner-bcc.mjs, so the commit that changed the owner's address and said "the gate asserts
-// the new list and passes" was describing a gate that had never run on a single deploy. And
-// check-receipt-adoption.mjs had been throwing ERR_ASSERTION on a field that was deliberately removed
-// — it crashed instead of checking, and nothing noticed, because it never ran either.
-//
-// This gate closes the whole class. Every check-*.mjs on disk must appear in scripts/gates.manifest.json
-// with a phase. ship.mjs runs the pre and post phases straight out of that manifest, so listing a gate
-// is what invokes it — the wiring cannot drift from the declaration. Gates that ship.mjs still calls by
-// name (they need special env or ordering) are marked invoked_inline and this gate verifies that literal
-// call is still present in ship.mjs.
 import { readFileSync, readdirSync } from 'node:fs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');

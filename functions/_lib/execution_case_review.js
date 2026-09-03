@@ -131,8 +131,6 @@ export async function listSends(env, taskId, status) {
   return rows;
 }
 
-/** The owner's review action: approve (or mark change/deleted) exact reviewed bodies. The caller
- *  passes the ledger event id it just wrote; every touched row records it as review_receipt. */
 export async function applyReview(env, { taskId, action, sendIds, receipt, now = new Date().toISOString() }) {
   const act = String(action || '').trim();
   if (!['approve', 'approve_all_pending', 'change', 'deleted'].includes(act)) return { error: 'unknown_action', allowed: ['approve', 'approve_all_pending', 'change', 'deleted'] };
@@ -167,8 +165,6 @@ export async function applyReview(env, { taskId, action, sendIds, receipt, now =
   return { ok: true, action: act, updated, review_receipt: String(receipt) };
 }
 
-/** Execute ONE approved send through the lawful send route. The route injects the public proof
- *  receipt and the owner BCC; this records what the provider actually answered. */
 export async function executeSend(env, { taskId, sendId, origin = 'https://miscsubjects.com', now = new Date().toISOString() }) {
   const row = await env.DB.prepare(
     `SELECT s.*, c.contact_email, c.organization_name, c.query_text, c.source_url
@@ -266,8 +262,6 @@ function esc(value) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-/** The owner's exact-review page: every pending subject and body, verbatim, with the approve
- *  action wired to the receipted review endpoint. Served only behind the admin session. */
 export function renderReviewHtml(taskId, rows) {
   const pending = rows.filter((r) => r.review_status === 'pending');
   const approved = rows.filter((r) => r.review_status === 'approved');

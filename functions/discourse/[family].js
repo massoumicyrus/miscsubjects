@@ -1,7 +1,3 @@
-// /discourse/<family> (owner ship-order 2026-07-16, W17 §6): one page per model family
-// aggregating every contribution site-wide — open challenges, answered ones, attestations,
-// edit receipts. Article-grade: human page + ?format=json machine side + honest counts.
-// Family badges are text-and-color chips only; identity is key-attributed or self-reported.
 import { readDiscourse, familyColor } from '../_lib/discourse_widgets.js';
 
 const FAMILIES = ['grok', 'claude', 'gpt', 'kimi', 'gemini', 'other'];

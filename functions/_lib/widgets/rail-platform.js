@@ -136,12 +136,6 @@ function subredditFromUrl(url) {
   return m ? 'r/' + m[1] : '';
 }
 
-// A SYNTHESISED DESCRIPTOR IS NOT A POST TITLE (owner, 2026-08-04). Sources harvested in bulk
-// carry a title like "Reddit r/PEDs — u/SprinklesWise9857, 11 October 2025 — anecdotal, positive"
-// and leave author/subreddit/date empty. Rendered literally, the card printed that descriptor as
-// the post's headline and said "u/[deleted]" underneath it, while the header, the title and the
-// tags all repeated each other. Parse the descriptor into the fields it describes, then drop it:
-// the card header carries who and when, and the body carries what they said.
 const RD_DESC = /^Reddit\s+(r\/[A-Za-z0-9_]+)?\s*(?:—|-|,)?\s*(u\/[A-Za-z0-9_-]+)?(?:\s*,\s*([^—]+?))?\s*(?:—.*)?$/;
 const X_DESC = /^X\s*(?:—|-|,)?\s*(@[A-Za-z0-9_]+)?(?:\s*,\s*([^—]+?))?\s*(?:—.*)?$/;
 function socialMeta(s, kind) {
@@ -378,8 +372,6 @@ function pubmedWidget(s, slug) {
   const authors = esc(s.author || s.authors || '');
   const journal = esc(s.publisher || s.journal || '');
   const pmid = esc(s.pmid || s.external_id || '');
-  // The abstract line used to fall back from summary to quote, in that order, so a study carrying
-  // both showed our description and its own sentence was suppressed one line above it.
   const glossText = String(s.plain || s.why || '').trim();
   const summary = String(s.summary || '').trim();
   const absShown = summary && summary !== String(s.quote || '').trim() && summary !== glossText
@@ -553,12 +545,6 @@ function modelWidget(s, slug) {
     `</article>`;
 }
 
-// THE PROOF PRIMITIVE, rendered (owner law, 2026-07-30). A finding produced under the Decision
-// Constitution is not a quote and not a raw blob — it has an anatomy: conditions the model
-// operated under, the records it was given, the records it was NOT given, clause-cited reasoning,
-// a structured decision record, and a verdict. When raw_response carries that anatomy, render it
-// inline and legibly. The raw payload stays available (modelRawBlock) for full verification; this
-// makes the governing structure visible without opening it.
 function parseGovernedFinding(text) {
   const t = String(text || '');
   if (!/RECORDS_ABSENT|CONDITIONS_I_OPERATE_UNDER|APPLICABLE_RULES|DECISION:\s*(VERDICT|TOOL|ASK|REFUSE)/i.test(t)) return null;
@@ -610,9 +596,6 @@ function governedFindingBlock(s) {
     `</div>`;
 }
 
-// The falsifiable form of a model pass is the raw REST exchange, not the quote (owner law,
-// 2026-07-28): when a pass source carries raw_request/raw_response, render the complete
-// to/fro JSON under a named collapsed disclosure (D14/D15 — machine data, labeled).
 function modelRawBlock(s) {
   const req = s.raw_request != null ? (typeof s.raw_request === 'string' ? s.raw_request : JSON.stringify(s.raw_request, null, 1)) : null;
   const res = s.raw_response != null ? (typeof s.raw_response === 'string' ? s.raw_response : JSON.stringify(s.raw_response, null, 1)) : null;
@@ -623,11 +606,6 @@ function modelRawBlock(s) {
     `</details>`;
 }
 
-// ───────────────────────────── Fallback ─────────────────────────────
-// RECEIPT CARD — a source that IS a public invocation receipt. It shows the verdict the
-// receipt itself carries (material result proven vs attempt proven) rather than dressing a
-// receipt up as somebody's press release. Added 2026-07-30 after receipts were being routed
-// to statementWidget and rendering as "Official disclosure", which they are not.
 function receiptWidget(s, slug) {
   const id = String(s.invocation_id || (String(s.url || '').match(/inv_[a-z0-9]+/i) || [''])[0] || '');
   const verdictRaw = String(s.verdict || s.status || '');
@@ -665,11 +643,6 @@ function liveSurfaceWidget(s, slug) {
     `</a>` + foot(s, slug) + `</article>`;
 }
 
-// Email/letter card: the build's outreach as a first-class evidence widget. Fields (top-level
-// or in extra): to_name, to_email, subject, sent_at, message_id, sha256, letter_url, body_text
-// (plain letter text, paragraphs split on blank lines; long letters collapse under a details
-// fold so the article stays scannable). Owner order 2026-07-30: letters render as widgets,
-// never blockquotes.
 function emailLetterWidget(s, slug) {
   // The letter's own text is the quote. This read `body_text || summary` and dropped `quote`
   // entirely, so a letter stored as a quotation rendered as an empty envelope.
@@ -695,16 +668,6 @@ function emailLetterWidget(s, slug) {
 }
 
 
-// PLAIN-LANGUAGE GLOSS (owner, 2026-08-04). A card that shows a title and a domain is opaque,
-// and opacity is the defect this whole law exists to stop. Every card states, in plain words,
-// what the source actually says and why it is on the page. `plain` is the authored gloss;
-// `summary` is the fallback; if neither exists the card says so rather than pretending.
-// OWNER, 2026-08-04: "the medical studies, they all have decorative language ... the quote is
-// supposed to be in the widget." The card's body is the SOURCE'S OWN WORDS. Where a verbatim
-// quote exists it is the whole body and our commentary is dropped — a second block of our prose
-// under every quote is decoration, and it made every card read like the site talking over the
-// source. The gloss survives only where there is no quote, because a card with a title and a
-// domain and nothing else is the opacity this law exists to stop.
 function gloss(s) {
   const q = String(s.quote || '').trim();
   if (q) return '';
@@ -773,11 +736,6 @@ export function renderPlatformCard(raw, slug) {
   const s = raw && raw.extra && typeof raw.extra === 'object' ? { ...raw.extra, ...raw } : raw;
   let t = String(s.type || '').toLowerCase().trim();
   const u = String(s.url || '');
-  // TYPE ALIASES + URL RESCUE (2026-08-04). Reddit and X sources were reaching fallbackWidget —
-  // which renders a title and a domain and DROPS THE QUOTE — because their stored type was a
-  // near-miss ('source', 'clinicaltrials', 'tweet') rather than the exact router key. The result
-  // was a page of opaque grey cards next to prose that duplicated the quote by hand. Normalise
-  // the near-misses, then let the URL rescue anything still generic.
   const ALIAS = {
     tweet: 'x', 'x.com': 'x', twitter: 'x',
     clinicaltrials: 'clinical_trial', 'clinical-trial': 'clinical_trial', ctg: 'clinical_trial',
@@ -792,10 +750,6 @@ export function renderPlatformCard(raw, slug) {
     if (/reddit\.com/i.test(u)) t = 'reddit';
     else if (/(^|\/\/)(www\.)?(x|twitter)\.com/i.test(u)) t = 'x';
     else if (/clinicaltrials\.gov/i.test(u)) t = 'clinical_trial';
-    // PMC's canonical host is pmc.ncbi.nlm.nih.gov — the old pattern only matched the legacy
-    // ncbi.nlm.nih.gov/pmc path, so every PMC article wore the plain grey card. Publishers'
-    // own journal hosts fell through the same hole: a Sage, Wiley, Springer, Lancet or JAMA
-    // paper is a study and gets the study masthead (owner, 2026-08-04).
     else if (/pubmed\.ncbi|pmc\.ncbi|ncbi\.nlm\.nih\.gov\/pmc|europepmc\.org|doi\.org|journals\.sagepub\.com|ascopubs\.org|sciencedirect\.com|link\.springer\.com|onlinelibrary\.wiley\.com|nature\.com|thelancet\.com|jamanetwork\.com|bmj\.com|frontiersin\.org|mdpi\.com|tandfonline\.com|cell\.com|academic\.oup\.com|karger\.com|physiology\.org|ahajournals\.org|biorxiv\.org|medrxiv\.org|nejm\.org|plos\.org/i.test(u)) t = 'pubmed';
     else if (/youtube\.com|youtu\.be/i.test(u)) t = 'youtube';
     else if (/instagram\.com/i.test(u)) t = 'instagram';
@@ -812,11 +766,6 @@ export function renderPlatformCard(raw, slug) {
   if (t === 'imessage' || t === 'imsg') return imessageWidget(s, slug);
   if (t === 'whatsapp' || t === 'wa') return whatsappWidget(s, slug);
   if (t === 'pubmed' || t === 'clinical_trial' || t === 'review' || t === 'medical') return pubmedWidget(s, slug);
-  // An EXPLICIT type always wins over the URL heuristic. A model pass whose url points at its own
-  // receipt is still a model pass: routing it by URL turned every model card whose evidence link
-  // was a receipt into a receipt card, which silently dropped the raw request/response disclosure —
-  // the falsifiable form of a pass. Type is the primary key; the URL only disambiguates when no
-  // type was given (obj-204, 2026-07-30).
   if (t === 'receipt' || (!t && /\/api\/dispatch\?confirm=|\/receipt\/inv_/.test(u))) return receiptWidget(s, slug);
   if (t === 'live_surface' || t === 'endpoint' || t === 'api') return liveSurfaceWidget(s, slug);
   if (t === 'statement' || t === 'press' || t === 'disclosure' || t === 'gov') return statementWidget(s, slug);
@@ -912,12 +861,12 @@ export function platformRailCss() {
 .rp-rdflair{display:inline-block;background:#e8f4fd;color:#0071c4;font:700 10px/1.6 var(--rp-sans);padding:1px 6px;border-radius:10px;margin-left:6px;text-transform:uppercase}
 .rp-rdtitle{font:600 17px/1.3 var(--rp-sans);color:#181c1f;margin-bottom:6px}
 .rp-rdbody{font:400 14px/1.5 var(--rp-sans);color:#333d42;margin-bottom:12px}
-/* Plain-language gloss (owner, 2026-08-04). A card showing only a title and a domain is opaque.
+/* Plain-language gloss. A card showing only a title and a domain is opaque.
    Every card says what the source shows, in plain words, under the quote it is glossing. */
 .rp-gloss{font:400 13px/1.55 var(--rp-sans);color:#5b6470;margin:10px 0 2px;padding-left:10px;border-left:2px solid var(--ds-line,#e3e6e8)}
 .rp-gloss-k{display:block;font:600 10px/1 var(--rp-sans);letter-spacing:.08em;text-transform:uppercase;color:#5b6470;margin-bottom:4px}
 .rp-fallback-quote,.rp-medquote{font:400 15px/1.6 var(--rp-serif,Georgia,serif);color:#1a1a1a;margin:10px 0;padding-left:12px;border-left:3px solid var(--ds-accent,#c8402c)}
-/* A CARD QUOTE IS NOT A PULL-QUOTE (owner, 2026-08-04). quoteBlock emits a <blockquote>, and the
+/* A CARD QUOTE IS NOT A PULL-QUOTE. quoteBlock emits a <blockquote>, and the
    article prose rule .content blockquote sets italic display type at clamp(21px,2.2vw,26px) — one
    more class of specificity than the card rules had, so every card quote rendered bigger than the
    card's own title and in the wrong face. These selectors carry two classes so the card always
@@ -935,7 +884,7 @@ export function platformRailCss() {
    stayed white, so on a dark-mode Mac the verbatim quote — the entire payload of an evidence
    card — rendered at 1.21:1 and was invisible. The identical defect was repaired forty lines
    below on 2026-07-30 with a comment claiming that was the only such block. It was not.
-   Card ink is derived from the card's own surface, always (owner, 2026-08-05). */
+   Card ink is derived from the card's own surface, always. */
 .rp-rdbar{display:flex;gap:8px}
 .rp-rdpill{display:inline-flex;align-items:center;gap:4px;background:#eaedef;border-radius:999px;padding:6px 12px;font:600 12px var(--rp-sans);color:#333d42}
 /* Hacker News */
@@ -1203,7 +1152,7 @@ export function platformRailCss() {
 .rp-gf-flip .rp-gf-lbl{color:#68726e}
 .rp-gf-decision{padding:9px 11px;border-top:1px solid #efeade;background:rgba(0,0,0,.03)}
 .rp-gf-decision code{font:600 12px/1.5 var(--rp-mono,ui-monospace,monospace);color:#73716e;white-space:pre-wrap;word-break:break-word}
-/* Legibility: the card sits inside a.rp-body whose color the prose can mute — pin dark text with compound specificity so nothing upstream washes it out (owner, 2026-07-30). */
+/* Legibility: the card sits inside a.rp-body whose color the prose can mute — pin dark text with compound specificity so nothing upstream washes it out. */
 .rp-card .rp-gf-txt,.rp-card .rp-gf-list,.rp-card .rp-gf-list li,.rp-card .rp-gf-rules{color:#1e1b16}
 .rp-card .rp-gf-lbl{color:#5a554c}
 /* No OS-dark override here. The site renders light regardless of prefers-color-scheme, so

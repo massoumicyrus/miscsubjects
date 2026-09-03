@@ -1,15 +1,3 @@
--- WT-0039: THE DIRECT-SQL BYPASS IS CLOSED, AND REPAIR GETS ITS OWN LANE.
---
--- D1_EXEC accepted any write to the content database, so `UPDATE work_tasks SET state='completed'`
--- closed a task without running one acceptance test or appending one audit row, and a write to
--- work_actions could edit the hash chain that exists to prove nothing was edited. That is now refused
--- at functions/_lib/governed_tables.js.
---
--- Refusing without offering anything would only push the next agent to a worse bypass: a bad row has
--- to be fixable without pretending the fix is work. D1_REPAIR is that lane. Same statement, same
--- tables — but it states why, and it lands on the audit chain as a `repair` action. The difference
--- between the two lanes is not permission (both need the owner's key), it is whether the write leaves
--- a record. Only one of them could be silent, and that one is closed.
 
 INSERT OR REPLACE INTO directory (key, type, target, auth, content, category, enabled, sensitive, planner_visible, planner_rank, input_schema, updated_at, created_at)
 VALUES (

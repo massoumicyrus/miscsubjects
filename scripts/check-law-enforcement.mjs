@@ -1,16 +1,4 @@
 #!/usr/bin/env node
-// LAW_ENFORCEMENT — a clause with no enforcement is a suggestion, and a suggestion is one more
-// thing that gets ignored.
-//
-// The owner directed that enforceability be checked for every clause, after a session in which the
-// writing law was fetched, quoted, and broken clause by clause: the subject boundary on a compound
-// page, framing language, and a length criterion invented outright. Reading a clause is not obeying
-// it, and only a check makes compliance the default rather than the outcome of good behaviour.
-//
-// check-gates-wired.mjs already closed this class at the level of gates: nothing named check-*.mjs
-// may exist without being declared in the manifest that runs it. This is the same gate at the level
-// of clauses. It fails the deploy when a clause exists in any law object with no declaration of how
-// it binds, so nobody can add law text without saying what enforces it.
 import { readFileSync } from 'node:fs';
 import { enforcementReport, enforcementSummary, redundancyReport, ACCEPTED_DISTINCT } from '../functions/_lib/law_enforcement.js';
 
@@ -60,17 +48,6 @@ for (const r of rows) {
   }
 }
 
-// 2b. A DECLARED SURFACE MUST ACTUALLY CALL THE CHECK IT NAMES.
-//
-// FAILURE (2026-08-08). Five writing clauses declared `subject_gate.checkWritingLawClauses` at the
-// write path. functions/api/articles/[[path]].js imported checkSubjectBoundary and nothing else, so
-// none of the five ran on any write, for as long as the declaration stood — and rule 2 above passed
-// it, because rule 2 only asks whether enforced_by names *something*. A register that counts an
-// uncalled function as enforcement makes the ratchet a decoration.
-//
-// So: for every write-path declaration naming `<module>.<fn>`, the write-path source must contain
-// that function's name. It is a coarse test — presence, not a call graph — and it is exactly the
-// test that would have caught this, which is the standard a regression check is held to.
 const WRITE_PATH_SOURCES = ['functions/api/articles/[[path]].js'];
 {
   const sources = WRITE_PATH_SOURCES.map((p) => {

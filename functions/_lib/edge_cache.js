@@ -1,19 +1,3 @@
-// EDGE CACHE INVALIDATION — the one shared truth for how a rendered /a/ page is cached
-// and how a write makes it fresh again.
-//
-// The failure class this kills (reproduced live 2026-08-08): a voxel-edit wrote /a/philosophy
-// in D1, but a plain GET of https://miscsubjects.com/a/philosophy kept serving the pre-edit
-// page while a cache-busted GET served the current one. Two mechanisms allowed it:
-//   1. The voxel write verbs (voxel-edit/-move/-consolidate/-divide/-batch/-void) never
-//      purged anything — the edge copy and the KV last-good snapshot both outlived the write.
-//   2. The article PUT/PATCH purge deleted the PLAIN URL (/a/slug), but the middleware caches
-//      under a VERSIONED key (/a/slug?__edge_v=…), so the delete never matched anything.
-// Every write path now purges through this module, and the cache key version lives here —
-// a single constant that the middleware reads and every purger reads, so key and purge
-// cannot drift apart again.
-//
-// ARTICLE_EDGE_CACHE_VERSION: bump it when the rendered page shape changes in a way that
-// must invalidate every previously cached copy at once (see _middleware.js edgeCacheKey).
 export const ARTICLE_EDGE_CACHE_VERSION = "2026-08-09-public-collaboration-1";
 
 // The exact cache keys the middleware stores a path under: one for browsers, one for the

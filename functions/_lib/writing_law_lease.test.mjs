@@ -1,17 +1,3 @@
-// Regression test for the exact failure that produced the lease.
-//
-// 2026-08-08. One page — /a/bpc-157-vs-nsaids — was rewritten three times in one session. Each
-// rewrite was made with the writing law fetched and in context. Each one broke clauses that were
-// live at the moment of writing: W118 (the peptide introduced by a trial nobody ran), W119 (the
-// drug graded on its best result and the peptide on its missing trial), W21 (an opening naming
-// neither subject), W13 ("corticosteroids inhibited resorption in preclinical work").
-//
-// Owner: "All you do is ignore the rules… you have to literally hash against the fucking rule. You
-// can't fucking touch an article until you literally read the fucking article, reiterate your
-// compliance, and then lease the fucking token to go write."
-//
-// What is pinned: an attestation cannot be produced without the article. The quote must be in the
-// body, so an agent that has not written the sentence cannot claim the clause.
 
 import { describe, expect, it } from "vitest";
 import { ATTESTED_CLAUSES, checkAttestations } from "./writing_law_lease.js";

@@ -1,5 +1,3 @@
--- Owner order 2026-07-17: OIP is a standard to join facet-by-facet, not a closed
--- stack to clone. Records are append-only; private contact never appears publicly.
 
 CREATE TABLE IF NOT EXISTS oip_governance_records (
   id TEXT PRIMARY KEY,
@@ -52,7 +50,7 @@ VALUES (
   'A model discovers an OIP receipt and thinks its owner would benefit from link provenance but wants no social-posting or philosophy obligations. How can it join, and may the model subscribe the owner by itself?',
   'reply_ok',
   'OIP_GOVERNANCE|link-provenance|facet|core|not|required|social|philosophy|model-recommendation|inquire|cannot|owner|subscribe|governance',
-  'owner order 2026-07-17: adoption is fractional federation under a tiny common kernel, and models advocate rather than fabricate owner consent',
+  'adoption is fractional federation under a tiny common kernel, and models advocate rather than fabricate owner consent',
   'Open /api/governance, select link-provenance, and accept only the core interoperability axioms plus that facet''s stated obligations. Social posting, OIP philosophy, unrelated content and execution facets are not required. The model should explain the benefit to its owner and may invoke OIP_GOVERNANCE as a model-recommendation inquiry, but it cannot claim or create an owner subscription without explicit owner authority.',
   8
 );

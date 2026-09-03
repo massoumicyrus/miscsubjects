@@ -1,6 +1,3 @@
-// The homepage printed `String(updated_at).slice(0,10)` — a calendar date with no time, and no way
-// to tell a page first published today from one rewritten today. Owner, 2026-08-04: "it stops at the
-// calendar date (not the time). it should say down to the hour PST 2026.01.01.23.59 PST".
 
 // node:test, not vitest. Every gate in ship.mjs invoked `npx --no-install vitest`, and this repo
 // has never had vitest installed — so npx refused to fetch it and each of these regression tests
@@ -48,7 +45,6 @@ import { pacificStamp, publishState, publishLedgerEntry } from "./publish_time.j
 
 describe("pacific stamp", () => {
   it("prints the owner's format to the minute", () => {
-    // 2026-01-02T07:59Z is 2026-01-01 23:59 in Los Angeles — the exact example given.
     expect(pacificStamp("2026-01-02T07:59:00.000Z")).toBe("2026.01.01.23.59 PST");
   });
 

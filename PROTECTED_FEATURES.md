@@ -7,24 +7,20 @@ This file is the human-readable manifest for feature locks beyond the article wi
 - Article widgets: `PROTECTED_WIDGETS.md`
 - Vault catalogue API: `functions/api/vault/[[path]].js`
 - Vault admin page: `functions/admin/vault.js`
-- GUARDIAN OWNER SWITCH (owner order 2026-08-30): the drift guardian (`scripts/guard.mjs`
   --check) obeys KV `guardian_master` — '0'/'off'/'false' means OFF: no snapshot diffing, no
   quarantine, no model judge, no texts, and the pre-commit staged-drift block sees zero drift.
-  The owner set it OFF on 2026-08-30; no agent re-arms it — only the owner flips it, at the
   top of `/admin/vault` or `PUT /api/kv?key=guardian_master`. Maintenance modes (--baseline,
   --adopt, --heal, --list) keep working while OFF. The lock manifests and the commit-msg
   backtick block are separate mechanisms and remain in force regardless of this switch.
 - Vault widget renderer: `functions/_lib/vault_widgets.js`
 - Vault session-scan cron: `.github/workflows/vault-session-scan.yml`
 - Local mutation hooks: `.githooks/pre-commit`, `.githooks/commit-msg`
-- QUADSYNC (owner order 2026-07-03, for all of posterity): `functions/_lib/ledger_sync.js`,
-  `scripts/quadsync.sh`, the launchd job `com.the owner.miscsubjects.quadsync`, the `sync:*` KV
+  `scripts/quadsync.sh`, the launchd job `com.owner.miscsubjects.quadsync`, the `sync:*` KV
   stamps, and the `ledger-mirror/` path on GitHub. The four corners — Cloudflare (source of
   record) ↔ GitHub ↔ local Mac ↔ Google Drive — sync in unison; every ledger event mirrors
   to GitHub; the governor flags any stale corner URGENT. No agent may disable, throttle, or
   narrow the sync without the owner authorizing that exact change in the same instruction window.
   quadsync NEVER auto-commits owner-locked files — it reports them dirty to the ledger instead.
-- TAP & GO / TOKEN DROP (owner order 2026-07-12, after butchery): `buildTapGoDropMarkdown` in
   `functions/_lib/unified_handoff.js`, mint path `formatOwnerTokenDrop` in
   `functions/_lib/webhook_intake.js`, goldens `.protected/golden/tap_go_drop_*.md`, checker
   `scripts/check-tap-go-drop-golden.mjs`. No agent may rewrite the drop shape without the
@@ -32,7 +28,6 @@ This file is the human-readable manifest for feature locks beyond the article wi
   goldens + pass the checker in the same turn. Lead must stay the public OIP docs URL
   followed by `# OIP delegated capability record` (owner drop law 2026-07-14, recorded in
   AGENTS.md: neutral third-person capability record, never model-directed imperatives).
-  **EXACT VERSION VAULT (owner order 2026-07-15):** the canonical token-drop generator is
   `buildTapGoDropMarkdown` in `functions/_lib/unified_handoff.js`, SHA-256
   `67b03de8b8fde69e09f58859dffcef0675feba92c46366df0e9685dcf9bc669d`.
   `scripts/check-tap-go-drop-golden.mjs` hashes that exact function boundary and must fail if it changes. A request to
@@ -40,9 +35,7 @@ This file is the human-readable manifest for feature locks beyond the article wi
   modernization, safety commentary, examples, Stripe/payment/shell commentary, or any other
   model-authored wording. The generated act/read goldens are the vaulted output fixtures.
   Changing any byte requires the owner's literal `approve drop rewrite` in the same instruction.
-  **2026-07-16: owner gave `approve drop rewrite` (P0a, GUM directive) — canonical source is now
   the owner-profile-anonymized version, SHA-256 `67b03de8b8fde69e09f58859dffcef0675feba92c46366df0e9685dcf9bc669d`.**
-- SELFTEST MASTER LOCK (owner order 2026-07-14, after Codex re-armed group selftest): KV
   `selftest_master` (default OFF). While OFF: no e2e run, no graph_run, no sibling
   `/wf/selftest/trigger`, no `selftest_autorun=1`. Re-enable only via
   `POST /api/selftest {action:"set_master",value:"1",confirm:"ENABLE SELFTEST"}` from the
@@ -51,13 +44,11 @@ This file is the human-readable manifest for feature locks beyond the article wi
   `ENABLE SELFTEST AUTORUN`. Kill forces master OFF. Surfaces: `functions/api/selftest.js`,
   `functions/admin/selftest.js`, `functions/_lib/fn_runners.js` kvPut, `functions/api/kv.js`,
   `workers/sibling/src/index.js` trigger.
-- BACKEND NAVIGATION IS FULLY VISIBLE (owner order 2026-07-21, after repeated `More +`
   regressions): `functions/admin/_layout.js` renders every `PRIMARY_TABS` destination as a
   direct visible anchor on every admin page. Desktop and mobile wrap the same complete list.
   No `More`, overflow dropdown, collapsed subset, hidden secondary container, or runtime
   width-based omission exists. `scripts/check-backend-navigation.mjs` is the deterministic
   release gate and remains protected with the renderer.
-- SHEETS WORKBOOK IS THE DEFAULT ADMIN GRID (owner order 2026-08-29, WT-0092): a bare GET of
   `/admin/directory` and `/admin/ledger` renders the Sheets workbook
   (`functions/admin/sheets/index.js`) — a Google-Sheets-style grid with cell editing, column
   drag/resize, filters, sorts, A1 addressing, a bottom tab strip where each tab is one sheet,
@@ -70,7 +61,6 @@ This file is the human-readable manifest for feature locks beyond the article wi
   that URL); model runs go through the invoke lane only, with receipts on the ledger.
   Removing the workbook default, the classic views, or the `/api/sheets` values/run lanes is
   a regression.
-  Amended by owner order 2026-08-29 (second round): on workbook surfaces the admin
   destinations render as sheet tabs in the sticky footer strip (every destination, one
   visible click each; the shell's own tab row is hidden there and unchanged everywhere
   else); the Directory sheet is the FULL corpus in the classic grouped order with `used`
@@ -79,7 +69,6 @@ This file is the human-readable manifest for feature locks beyond the article wi
   own address; Turns and Forum are their own read-only sheets; the Ledger sheet scrolls
   infinitely via the `before` cursor on `?data=1`; double-clicking a column header cycles
   its sort. Losing any of these is a regression.
-  Amended by owner order 2026-08-30 (third round, WT-0097): every view state is a link —
   the workbook's view-state params (`kind`, `sort`, `cell`, `id`, `field`, `f.<field>`,
   `v.<field>`) pass through to the workbook on `/admin/directory` and `/admin/ledger`
   (every JSON mode still routes past it); kind-tab taps, filter applies, sorts and tab
@@ -92,13 +81,11 @@ This file is the human-readable manifest for feature locks beyond the article wi
   own state in the URL (`view=classic` plus `tab`, `q`, `cat`, `sort`, `use`, `page`, `id`),
   with clicked rows naming their object id. The public `/api/sheets` contract documents the
   `url_state` lanes. Losing any of these is a regression.
-- DIRECTORY FILTERS + WHOLE-BUILD AUDIT DROP (owner order 2026-07-21):
   `functions/admin/directory/index.js`, `functions/admin/content-map.js`,
   `functions/api/opos.js`, `functions/opos/index.js`, `functions/build-audit/index.js`,
   `.github/workflows/vault-protection.yml`, and `scripts/check-directory-audit-drop.mjs`.
   Content rows retain real creation dates; primary-section changes clear stale secondary
   filters; article subjects do not become thousands of categories. Grouped-by-kind is the default
-  order (owner order 2026-07-22, after a flat-by-date default read as scrambled): capabilities
   first, corpus last — Agents, Tools (HTTP/FN), Flows, Pages, Meta, Content, Files, each under its
   own labeled section header, each capped at 200 rows so a huge section cannot freeze the page.
   Newest-added remains a selectable sort and displays date plus time. A capability's kind is its
@@ -147,7 +134,6 @@ This file is the human-readable manifest for feature locks beyond the article wi
   Public discourse stays open; draft/write/ingest/source/claim/atomize/contribute/repair mutations
   use owner auth or the existing explicit `VOXEL_EDIT` capability. Domain profiles extend evidence
   classes and axes without creating another store, ledger, writing system, or edit protocol.
-- LEDGER + CODEX CONTINUITY (owner order 2026-07-21, after a deployed Codex lens disappeared):
   `functions/admin/ledger/index.js`, `functions/_lib/agent_turn_log.js`,
   `functions/_lib/ledger_event_view.js`, `functions/api/agent_log.js`,
   `hooks/codex-turn-log.js`, `hooks/_lib/agent-turn-common.js`, `.codex/hooks.json`, and
@@ -157,7 +143,6 @@ This file is the human-readable manifest for feature locks beyond the article wi
   marking an unsent turn complete. The hook includes historical backfill.
   Ledger view cards, service filters, and format controls render selected state as black with
   white text. `scripts/check-ledger-contrast.mjs` blocks unreadable black-on-black active controls.
-- SOURCE CONVERGENCE + DEPLOYMENT LINEAGE (owner order 2026-07-21, after an unmerged feature
   branch was deployed and a later main deploy erased its features): `scripts/ship.mjs`,
   `scripts/quadsync.sh`, `scripts/check-protected-features.mjs`, `.githooks/pre-commit`,
   `.githooks/pre-push`, and `.github/workflows/vault-protection.yml`. Production deploys run only

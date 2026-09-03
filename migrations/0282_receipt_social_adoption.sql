@@ -1,5 +1,3 @@
--- Owner order 2026-07-17: social is OIP's adoption/federation transport, and every
--- public receipt is a safe protocol landing page rather than a thin confirmation.
 
 ALTER TABLE relay_social_posts ADD COLUMN schema_version TEXT NOT NULL DEFAULT 'relay-social-proof/v1';
 ALTER TABLE relay_social_posts ADD COLUMN identity_mode TEXT NOT NULL DEFAULT 'named' CHECK(identity_mode IN ('named','incognito'));
@@ -28,7 +26,7 @@ VALUES (
   'A new model received my edit-token drop and completed real work. Social is the adoption path. What must it sign and append before it hands the turn back?',
   'reply_ok',
   'RELAY_POST_APPEND|named|incognito|model_provider|model_version|tag_targets|publication_results|parent_post_id|prior_post_hash|proof_links',
-  'owner order 2026-07-17: social proof is the protocol federation and adoption transport',
+  'social proof is the protocol federation and adoption transport',
   'Read the live social head, audit its proofs, identify the exact model/provider/version as named or incognito, explain every tag target, record actual platform status and receipt, append against both parent id and prior hash, and return the next public receipt. Never publish a private token.',
   8
 );
@@ -39,7 +37,7 @@ VALUES (
   'Someone opens a public invocation receipt cold. What should that receipt let the human or model do next without exposing private payloads?',
   'reply_ok',
   'public receipt|input fingerprint|output fingerprint|contract fingerprint|object contract|capability tree|voxel|relay|social chain|never|token',
-  'owner order 2026-07-17: public receipts are protocol brochures and traversal cursors, not thin confirmation stubs',
+  'public receipts are protocol brochures and traversal cursors, not thin confirmation stubs',
   'Show safe invocation metadata and hashes, link the object contract, primary capability tree, OIP bundle, voxel graph, relay, chain verifier, model runtime lane and social continuation. Keep exact request/response credentialed and never expose bearer material.',
   8
 );

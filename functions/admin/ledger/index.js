@@ -103,7 +103,6 @@ async function buildAllServiceChips(env) {
   }
   await mergeAgentCounts(env, counts);
   const chips = serviceChipsFromCounts(counts);
-  // Pin the agent chips even when low-volume — he wants to filter by Claude Code / Grok CLI / etc.
   for (const label of ['codex-cli', 'claude-cli', 'grok-cli', 'kimi-cli', 'misc-cli', 'grok API']) {
     if (counts[label] && !chips.some((c) => c.id === label)) {
       chips.push({ id: label, label, count: counts[label] });
@@ -114,9 +113,6 @@ async function buildAllServiceChips(env) {
 
 export async function onRequestGet(context) {
   const { request, env } = context;
-  // DEFENSE IN DEPTH: this endpoint serves the owner's raw ledger (his machine, sessions, inputs).
-  // The middleware adminGate should already have blocked unauth callers, but a routing quirk
-  // (/ADMIN, //admin) once bypassed it — so this handler independently requires the owner/admin token.
   if (!(await isBuildAuthed(request, env))) {
     return new Response(JSON.stringify({ error: 'unauthorized', login: '/admin/login' }), {
       status: 401,
@@ -127,11 +123,6 @@ export async function onRequestGet(context) {
   const params = url.searchParams;
   const dataMode = params.get('data');
 
-  // The Sheets workbook is the default view of this surface (owner order 2026-08-29).
-  // Every JSON/data mode and the classic page with all its views remain below: any other
-  // query parameter routes to them, and ?view=classic reaches the classic page explicitly.
-  // The workbook's own view-state params (owner order 2026-08-30: every view state is a
-  // link) pass through so a pasted sheet link restores the exact view.
   {
     const passthrough = ['view', 'share', 'terminal_key', 'tk', 'tab', 'kind', 'sort', 'cell', 'id', 'field'];
     const paramKeys = [...params.keys()].filter(
@@ -515,8 +506,6 @@ export async function onRequestGet(context) {
     return jsonResp({ keys: r.results || [] });
   }
 
-  // ── ?categories=1 — the parent→child category tree with live counts.
-  // The higher-level groups the owner asked for; drill into any leaf via ?cards=1&category=.
   if (params.get('categories')) {
     if (!env.LEDGER) return jsonResp({ groups: [], error: 'LEDGER binding missing' });
     const dmap = await dirTypeMap(env);
@@ -609,9 +598,6 @@ export async function onRequestGet(context) {
         }
       }
       if (params.get('html')) {
-        // ?cards=1&html=1 is the fragment the styled page fetches into itself. Opened as a
-        // top-level navigation it renders bare and reads as the site being broken
-        // (2026-07-27). A human navigation goes to the styled turns view instead.
         if ((request.headers.get('sec-fetch-mode') || '') === 'navigate') {
           const q = new URLSearchParams({ view: 'turns' });
           const agent = params.get('agent') || '';
@@ -643,12 +629,6 @@ export async function onRequestGet(context) {
     }
   }
 
-  // ── ?turns=1 — one clean JSON object PER inbound message, for Google Apps Script.
-  // Groups the raw events by trace_id and returns, per turn: the message you sent, every
-  // tool the router ran (in -> out), where it routed, and the reply it sent. This is the
-  // GAS-facing view the owner asked for: point a GAS UrlFetchApp.fetch at it and read what
-  // happened to each inbound iMessage. Filters: ?trace_id= (one turn) · ?limit= (turns) ·
-  // ?q= (text in the message). No key required (same as the rest of this endpoint).
   if (params.get('turns')) {
     if (!env.LEDGER) {
       return new Response(JSON.stringify({ turns: [], error: 'LEDGER binding missing' }), { headers: { 'content-type': 'application/json' } });
@@ -732,7 +712,6 @@ export async function onRequestGet(context) {
     const traceId  = params.get('trace_id') || '';
     const statusS  = params.get('status')   || '';
     const q        = params.get('q')        || '';
-    // Cursor for infinite scroll (owner order 2026-08-29): rows strictly older than this ts.
     const before   = params.get('before')   || '';
     const hideNoise = params.get('hide_noise') !== '0';
     const limit    = Math.min(parseInt(params.get('limit') || '100', 10), 1000);

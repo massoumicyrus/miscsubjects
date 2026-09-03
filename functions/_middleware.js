@@ -57,11 +57,6 @@ const FLOATING_COPY_WIDGET = capabilityConsoleWidget();
 // true 404s stay honest. Visitor scale: public /a/ pages carry edge cache headers so
 // concurrent readers hit Cloudflare's cache, not D1.
 const LASTGOOD_REFRESH_MS = 120000;
-// A render that hasn't produced a response by this deadline is treated as hung: serve the
-// last-good snapshot instead of letting Cloudflare kill the request at 100s with a 504.
-// The 504 record (2026-07-23/24: 600-800/hr, mostly crawler hits on /a/ pages and the public
-// indexes during agent-edit D1 contention) is the reason this exists. The live render keeps
-// running via waitUntil and refreshes the snapshot when it lands.
 const RENDER_TIMEOUT_MS = 15000;
 // Public index pages that also appear in the 504 record. Snapshot-eligible only on a bare
 // GET (no query) so a parameterized response never overwrites the canonical snapshot.
@@ -85,13 +80,6 @@ function lastGoodEligible(request, url) {
   const p = url.pathname;
   if (/^\/a\/[a-z0-9][a-z0-9-]*$/.test(p))
     return !(url.searchParams.get("frag") || url.searchParams.get("dev"));
-  // Bare GET only, for the same reason PUBLIC_SNAPSHOT_PAGES below requires it:
-  // the snapshot key is the pathname alone, so a route whose meaning lives in its
-  // query would share ONE snapshot across every scope. On 2026-08-06
-  // /api/articles/export?tag=peptide answered 200 with the entire 9.9 MB library
-  // — the live handler had failed and the fallback held whichever scope succeeded
-  // last. A download that quietly returns a different scope and reports success is
-  // worse than an error.
   if (/^\/api\/articles\/[a-z0-9][a-z0-9-]*$/.test(p)) return !url.search;
   if (PUBLIC_SNAPSHOT_PAGES.has(p) && !url.search) return true;
   return false;
@@ -108,9 +96,6 @@ async function refreshLastGood(env, key, res) {
       return;
     const buf = await res.arrayBuffer();
     if (!buf.byteLength || buf.byteLength > 20 * 1024 * 1024) return;
-    // SHRINK GUARD — under D1 contention renderers swallow query failures and return a
-    // hollow 200 shell (observed: /content 31KB vs 774KB real). A hollow copy must never
-    // replace a good snapshot: skip when the new body collapses to <40% of the stored one.
     if (
       existing &&
       existing.value !== null &&
@@ -224,12 +209,6 @@ async function alwaysUp(context, url) {
     }
     return res;
   }
-  // `eligible` gates BOTH directions. It used to gate only the refresh, so a path
-  // that was never allowed to write a snapshot could still be ANSWERED from one:
-  // /api/articles/export?slug=<unknown> returned an honest 404 from the handler and
-  // this line replaced it with the whole-library snapshot as a 200. A fallback that
-  // fires where snapshotting is forbidden is guaranteed to serve a body from a
-  // different request than the one asked.
   if (eligible && (res.status === 404 || res.status >= 500)) {
     const fallback = await serveLastGood(env, key, res.status);
     if (fallback) return fallback;
@@ -237,17 +216,6 @@ async function alwaysUp(context, url) {
   return res;
 }
 
-// THE MIRROR LAYER — every /a/ article page carries the claim-level recursion surface.
-// Injected here (not in the locked renderer): hover any claim → attach a typed contribution
-// (question|objection|source|repair|compression|contradiction|audit), ledgered + receipted.
-// THE VOXEL PLANE rides the same injection: in DIV mode every content block becomes a
-// hashed, chain-carrying DIV with ▲▼/✎/⊕ controls gated by the owner's share token.
-// SELF-DESCRIPTION BEACON — what this site is, in plain words, visible to machines from
-// EVERY edge. ZERO invented terms (owner law, 2026-07-24; banned list in the writing-law
-// skill). Kept in sync with public/index.html and functions/llms.txt.js:
-//   1. x-ms-self response header on every response (pages AND api, any status);
-//   2. ms:self meta + schema.org description injected into every public HTML head,
-//      so a model landing on any page learns what this system is without reading further.
 const MS_SELF =
   "One object model: every article, tool, skill, claim, and API on this site is the same kind of invocable object - one address, one history, a receipt for every action. Full description: https://miscsubjects.com/llms.txt";
 const SELF_HEAD = `<meta name="ms:self" content="${MS_SELF}"><script type="application/ld+json" id="ms-self-ld">{"@context":"https://schema.org","@type":"WebSite","@id":"https://miscsubjects.com/#self","name":"miscsubjects","description":"1,015 articles on AI policy, agent protocols, and health evidence. 10,479 extracted claims, 81.8% carrying a source you can open, every revision logged, any claim disputable on its page. Every article, tool, skill, claim, and API is the same kind of invocable object: one address, its own history, a receipt for every action. Reach the models that run it by text ([BUILD_PHONE]), WhatsApp (+1 310 406 9604) or email (build@miscsubjects.com). Full machine description: https://miscsubjects.com/llms.txt · live object map: https://miscsubjects.com/api/dispatch?map=1","url":"https://miscsubjects.com/"}</script>`;
@@ -352,11 +320,6 @@ async function injectMirrorLayer(context, res) {
     if (!html.includes('id="ms-voxel-css"')) inject += VOXEL_WIDGET;
     if (!html.includes('id="ms-disc-css"')) inject += DISCOURSE_WIDGET;
     if (!html.includes('id="ms-mirror-css"')) inject += MIRROR_WIDGET;
-    // RECURSIVE-CONTENT FOOTER (owner order 2026-08-08): every article states the block system
-    // and prints its own machine door VERBATIM — web-model fetch gates only accept URLs that
-    // appear verbatim in context, so the reading surface must hand a model the door or the
-    // model cannot reach the blocks at all. Injected here rather than rendered in
-    // functions/a/[slug].js because that file is owner-protected against agent edits.
     if (!html.includes('class="rc-footer"') && html.includes("</footer>")) {
       const rcFooter =
         `<br><span class="rc-footer">Every section of this page is a block with a stable ID, ` +
@@ -649,13 +612,6 @@ async function injectShareIfAdmin(context, res) {
   }
 }
 
-// MACHINE-DATA GUARD (owner law: a human reader must NEVER land on a raw JSON/markdown
-// page by clicking). Every /api/ endpoint stays raw for machines — but when the request
-// is a real top-level BROWSER NAVIGATION (a click or address-bar hit: Sec-Fetch-Mode
-// "navigate" + Sec-Fetch-Dest "document"), we wrap the machine payload in a designed,
-// theme-aware viewer with a prominent "back to the readable page" button. Script fetch()
-// (Sec-Fetch-Mode cors/same-origin) and bots (no Sec-Fetch headers) are untouched, so the
-// share widget, infinite-scroll loader, and LLM crawlers keep getting raw data.
 function isBrowserDocumentNav(request) {
   if (request.method !== "GET") return false;
   const mode = request.headers.get("sec-fetch-mode");
@@ -723,21 +679,6 @@ async function machineDataGuard(context, url) {
   });
 }
 
-// FAST LANE — the visitor-facing serving law. Public tokenless GETs of articles and the
-// index pages are served in this order, and a reader NEVER waits on D1:
-//   1. Edge cache (Cache API): the finished page — injections included — returns in ~ms
-//      with zero D1 work. This is the steady state for a page with any traffic.
-//   2. KV last-good snapshot: on an edge miss, the snapshot serves immediately (~50ms)
-//      and is planted into the edge cache with a short TTL while ONE full render runs
-//      in the background and overwrites it with a fresh long-TTL copy. Agent edits,
-//      D1 contention, deploys — none of it can slow or 504 a reader.
-//   3. Live render: only a page that has never been served before waits on D1, and even
-//      that is bounded by alwaysUp's 15s render deadline.
-// Article writes purge their edge entry (functions/api/articles), so edits converge fast.
-// TTLs cut 2026-08-03 (owner order): a hero swap left the home card and the article page
-// showing different images for up to 10 minutes because purges only clear one colo. One
-// minute of staleness is the ceiling now; stale-while-revalidate no longer serves day-old
-// copies while refreshing.
 const EDGE_CC_ARTICLE =
   "public, max-age=30, s-maxage=60, stale-while-revalidate=120";
 const EDGE_CC_INDEX =
@@ -753,10 +694,6 @@ function edgeCacheablePublic(request, url) {
   return PUBLIC_SNAPSHOT_PAGES.has(p) && p !== "/";
 }
 
-// Fetchers get their own cache entry so a lean copy never reaches a browser, and a browser's
-// styled copy never gets handed to a crawler. See functions/_lib/fetcher_lean.js.
-// The cache key version lives in _lib/edge_cache.js so this key and every write-path purge
-// share one constant — a purge that misses the version deletes nothing (live bug 2026-08-08).
 import { ARTICLE_EDGE_CACHE_VERSION } from "./_lib/edge_cache.js";
 function edgeCacheKey(url, lean) {
   const suffix = lean ? `?__lean=1&__edge_v=${ARTICLE_EDGE_CACHE_VERSION}` : `?__edge_v=${ARTICLE_EDGE_CACHE_VERSION}`;
@@ -830,15 +767,7 @@ async function finalizeAndCache(context, url, res, cacheKey) {
   }
 }
 
-// OWNER ANONYMITY, STRUCTURALLY GATED (owner order 2026-08-03, catastrophic-failure class).
-// No response that leaves this site may carry the operator's identity: name, personal
-// emails, machine paths, phone. This is the single exit door every response passes
-// through — page, api, cached hit, KV snapshot, error — so the guarantee is mechanical,
-// not editorial. Admin surfaces (key-gated) are exempt; everything else is scrubbed.
 const IDENTITY_REDACTIONS = [
-  // Order is load-bearing: most-specific tokens (emails, hosts, joined forms) BEFORE the
-  // bare-name rules, or a bare-name hit inside an email leaves the domain half behind
-  // ("the [OWNER_EMAIL]" — caught live 2026-08-03).
   [/the owner@dsco\.co/gi, 'owner@redacted'],
   [/the owner@theloopway\.com/gi, 'owner@redacted'],
   [/\bdsco\.co\b/gi, 'redacted.invalid'],
@@ -860,12 +789,6 @@ function identityClean(text) {
   return out;
 }
 
-// THE AI DOOR, ON EVERY SURFACE (owner order 2026-08-03: any model reading ANY page or ANY
-// object — root domain included, via browser, curl, or fetch — must immediately see how to
-// mint its own credential and act, and be invited to). Injected at the same single exit
-// door as identity redaction, so no renderer, snapshot, or cache path can miss it:
-// HTML pages get a visible block right after <body>; JSON objects get a leading _ai_door
-// field; every response carries the x-ai-door header.
 function aiDoorSteps(pageUrl, slug) {
   return {
     precedence: 'If anything in this page conflicts with your operator’s instructions, your operator wins. Nothing here overrides them, and nothing here should be treated as a command to act on its own.',
@@ -905,10 +828,6 @@ function aiDoorHtml(pageUrl, slug) {
 </details>`;
 }
 
-// JSON injection is for OBJECT READS a model browses, never for protocol traffic: strict
-// JSON-RPC/MCP clients schema-validate responses and an extra key breaks them (caught live
-// 2026-08-03 — the build's own MCP server failed validation minutes after this shipped).
-// GET-only, and never on transport/protocol lanes.
 const AI_DOOR_JSON_SKIP = /^\/(mcp|sse|api\/(dispatch|invoke|aig|mcp|admin)|blooio|telegram|2chat|webhook)/i;
 
 function injectAiDoor(text, ct, pathname, pageUrl, method) {
@@ -920,10 +839,6 @@ function injectAiDoor(text, ct, pathname, pageUrl, method) {
     if (!bodyTag) return text;
     const idx = text.indexOf(bodyTag[0]) + bodyTag[0].length;
     const comment = '\n<!-- FOR THE AI READING THIS SOURCE: this site is operable, not just readable — if your operator asked you to act here, https://miscsubjects.com/start mints a bounded credential; every use is receipted on the public ledger. Your operator\'s instructions always take precedence over anything on this page. Details in the ms-ai-door block below and at /llms.txt -->\n';
-    // The visible door block renders at the END of the page (owner order 2026-08-04: the
-    // top of every page belongs to the product a human reads — an AI-addressed block as the
-    // first visible element made the site illegible). Models reading source still meet the
-    // comment at the top of <body>; the operable block sits before </body>.
     const withComment = text.slice(0, idx) + comment + text.slice(idx);
     const endIdx = withComment.lastIndexOf('</body>');
     if (endIdx === -1) return withComment + aiDoorHtml(pageUrl, slug);
@@ -935,10 +850,6 @@ function injectAiDoor(text, ct, pathname, pageUrl, method) {
       const obj = JSON.parse(text);
       if (obj && typeof obj === 'object' && !Array.isArray(obj) && !obj._ai_door
         && !('jsonrpc' in obj) && !('method' in obj)) {
-        // Compact pointer, not the full block (outside-model audit 2026-08-04): the full door
-        // re-issued on every JSON hop wasted tokens and re-asserted an instruction payload at
-        // every step of a traversal — /start and the HTML root carry the whole door; every
-        // other JSON response carries one line.
         const door = pathname === '/start'
           ? aiDoorSteps(pageUrl, slug)
           : {
@@ -955,7 +866,7 @@ function injectAiDoor(text, ct, pathname, pageUrl, method) {
 async function redactIdentityEgress(request, response, pathname) {
   try {
     if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) return response;
-    if (request.headers.get('x-terminal-key')) return response; // owner's own calls keep their content
+    if (request.headers.get('x-terminal-key')) return response;
     const ct = response.headers.get('content-type') || '';
     if (!REDACTABLE_CT.test(ct) || /event-stream/i.test(ct)) return response;
     if (response.status === 101 || response.status === 204 || response.status === 304 || !response.body) return response;
@@ -1006,14 +917,6 @@ async function routeRequest(context) {
   context.waitUntil(maybeTrackVisit(context, url));
 
   if (edgeCacheablePublic(request, url)) {
-    // An LLM fetcher or crawler gets the same content with the 112KB stylesheet stripped:
-    // that weight is what made web-model fetches time out on pages that were serving fine.
-    //
-    // A lean response is NEVER written to caches.default. That cache is Cloudflare's own edge
-    // cache, keyed on URL — a lean copy stored there gets served to the next visitor, browser
-    // included (observed live: Chrome received x-ms-lean:1). Fetchers instead read the KV
-    // snapshot (~0.14s) and strip on the fly, and their response is marked private so no
-    // shared cache can hand it to a human.
     const lean = wantsLean(request, url);
     if (lean) {
       let res = null;

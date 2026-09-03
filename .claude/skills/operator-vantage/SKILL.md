@@ -15,7 +15,6 @@ Your `Bash` tool, your `curl`, your preview pane, your MCP fetch, your exit code
 
 A test happens where the operator's inputs happen:
 
-- **A CLI agent** is tested by opening **Terminal.app on his Mac**, in a window he can see and type into, and giving it the kind of input he gives it. Not by `node` from your shell. Not by piping a string into it. Not by importing its module.
 - **A web surface** is tested by loading the public URL in a real browser at his viewport and asserting on rendered content — not by the write API returning `ok:true`.
 - **A capability** is tested by calling it the way the build calls it in production, with the token the build actually holds, on the schedule it actually runs.
 - **An email or message** is tested by its arrival in the destination inbox, not by the send API returning a message id.

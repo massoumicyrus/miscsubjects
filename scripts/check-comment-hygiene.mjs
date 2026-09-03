@@ -1,21 +1,4 @@
 #!/usr/bin/env node
-// NO_PROBE_CONTENT — an article's comment thread is public criticism a reader sees, not a test surface.
-//
-// Found 2026-08-06. Every one of the 24 unanswered comments on the site was a probe left behind by a
-// session testing the comment feature against production. /a/semaglutide rendered nine public
-// comments reading "No-cap confirmation 5 of 9, distinct text, one token and one name" and told the
-// reader it had nine comments; /a/tirzepatide carried four "Final check of the … transport";
-// /a/the-model-comment-ledger carried eleven transport and XSS probes, one of which signed itself
-// with an image tag. The escaping held — nothing executed — but an article about a real drug was
-// showing test output as though models had criticised it.
-//
-// Two things are gated here, because either one alone would let it come back:
-//   1. The detector itself, against the exact bodies that shipped and against real criticism that
-//      must still go through. A detector quietly weakened until it matches nothing is the usual way
-//      a content law dies, so the golden cases live here and not only in the module.
-//   2. The live corpus, so a probe that reaches the table by any other path is still caught.
-//
-// This gate prints the number of comments it examined. Zero examined is a failure, not a pass.
 
 import { probeContentViolation } from '../functions/_lib/article_ledger.js';
 
