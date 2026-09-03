@@ -240,9 +240,6 @@ const CLAUSE_CHECKS = [
       + 'standard care has not proven is said in the same words and at the same length.',
   },
   {
-    // W21 ZERO CONTEXT. Owner: "there is already a rule that assumes zero context… a zero context
-    // reader should be told, here's what BPC is, here's what NSAIDs is." The opening that shipped
-    // was "These two do opposite things to a healing tissue" — it names neither thing.
     id: 'W21',
     code: 'opening_names_no_subject_W21',
     scope: 'slug+body',
@@ -261,13 +258,6 @@ const CLAUSE_CHECKS = [
       + '. Use the plain words instead, or put the plain meaning in the same sentence.',
   },
   {
-    // A CLAIM ABOUT PEOPLE IS A CLAIM. The shipped sentence: "People weigh these two against each
-    // other because they reach for both after the same thing: a tendon, a muscle or a joint that
-    // got hurt and still hurts." Owner: "No, they fucking don't. Literally, no, they don't…
-    // whenever you stub your toe, you go for a fucking BPC injection." No source, no count, and
-    // false. Every claim about a molecule on the same page carried species, dose and count. This
-    // carried nothing, because nothing required it to — and the page holds a counted record of 37
-    // first-person accounts that was the actual evidence about what people do.
     id: 'W74p',
     code: 'unsourced_claim_about_people',
     scope: 'body',

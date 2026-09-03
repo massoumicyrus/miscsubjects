@@ -157,10 +157,9 @@ if (PROFILE?.stub_excluded_imports) {
 
 // ───────────────────────────── 2 + 3. substitution ─────────────────────────────
 const binaryExt = new Set(CFG.binary_extensions || []);
-// Source and document extensions are ALWAYS text, whatever bytes they contain. A module in this tree
-// carries a literal NUL byte inside a string, git calls it binary, and the first export copied it
-// through unsubstituted and unscanned — the one identity hit a fresh clone then showed. A NUL sniff
-// decides only for extensions this list does not know.
+// Source and document extensions are always text, whatever bytes they contain: a source file can hold
+// a literal NUL byte inside a string, and a byte sniff would class it binary, skip substitution and
+// skip the string gate. The sniff decides only for extensions this list does not know.
 const textExt = new Set(CFG.text_extensions || ['.js', '.mjs', '.cjs', '.ts', '.json', '.jsonc', '.md', '.txt', '.sql', '.sh', '.yml', '.yaml', '.toml', '.html', '.css', '.svg', '.xml', '.plist', '.gs', '.py', '.csv', '.env.example', '.gitignore']);
 function isBinary(path, buf) {
   const ext = extname(path).toLowerCase();
@@ -324,7 +323,7 @@ function jsComments(src) {
       if (c === '"' || c === "'") { readString(c); lastSig = c; lastWord = ''; continue; }
       if (c === '`') { readTemplate(); lastSig = '`'; lastWord = ''; continue; }
       if (c === '/') {
-        const isRegex = regexPrev.has(lastSig) || regexWords.has(lastWord) || (lastSig === ')' ? false : /^[\s]*$/.test(lastSig) && lastSig === '');
+        const isRegex = regexPrev.has(lastSig) || regexWords.has(lastWord);
         if (isRegex) { readRegex(); lastSig = '/'; lastWord = ''; continue; }
         lastSig = c; lastWord = ''; i += 1; continue;
       }
@@ -387,25 +386,31 @@ function stripDiaryLines(src, marker) {
 const MD = PROFILE?.markdown_filter || null;
 const diaryMdRe = MD ? new RegExp(MD.diary_re, MD.flags || 'i') : null;
 function filterMarkdown(src) {
-  // Blank-line-delimited blocks. A list block is filtered line by line; any other block that matches
-  // is dropped whole; fenced code is never touched.
+  // Blank-line-delimited blocks. In a list block each item (its bullet line plus any continuation
+  // lines) is judged on its own; any other block that matches is dropped whole; fenced code is never
+  // touched. Placeholders left by identity substitution are then written as words, because a document
+  // is read by people and a bracketed token is not a word.
   const blocks = src.split(/\n{2,}/);
   const out = []; let removed = 0; let inFence = false;
+  const bullet = /^\s*([-*+]|\d+\.)\s/;
   for (const b of blocks) {
     const fences = (b.match(/^```/gm) || []).length;
     if (inFence || fences) { out.push(b); if (fences % 2) inFence = !inFence; continue; }
     const lines = b.split('\n');
-    const isList = lines.every((l) => /^\s*([-*+]|\d+\.)\s/.test(l) || /^\s{2,}\S/.test(l) || !l.trim());
-    if (isList) {
-      const keep = lines.filter((l) => !diaryMdRe.test(l));
-      removed += lines.length - keep.length;
-      if (keep.length) out.push(keep.join('\n'));
+    if (bullet.test(lines[0])) {
+      const items = [];
+      for (const l of lines) { if (bullet.test(l) || !items.length) items.push([l]); else items[items.length - 1].push(l); }
+      const keep = items.filter((it) => !diaryMdRe.test(it.join('\n')));
+      removed += items.length - keep.length;
+      if (keep.length) out.push(keep.flat().join('\n'));
       continue;
     }
     if (diaryMdRe.test(b)) { removed += 1; continue; }
     out.push(b);
   }
-  return { text: out.join('\n\n').replace(/\n{3,}/g, '\n\n'), removed };
+  let text = out.join('\n\n').replace(/\n{3,}/g, '\n\n');
+  for (const [token, words] of Object.entries(PROFILE?.markdown_placeholders || {})) text = text.split(token).join(words);
+  return { text, removed };
 }
 
 const phraseRules = (PROFILE?.string_phrase_replacements?.rules || []).map(([re, flags, rep]) => [new RegExp(re, flags || 'g'), rep]);
@@ -468,7 +473,9 @@ for (const src of kept) {
       } else if (stripExt.has(ext)) {
         const s = stripDiaryLines(text, '#'); if (s.removed) { text = s.text; subs.diary_comments = s.removed; }
       } else if (ext === '.md' && diaryMdRe) {
-        const s = filterMarkdown(text); if (s.removed) { text = s.text; subs.diary_paragraphs = s.removed; }
+        const s = filterMarkdown(text);
+        if (s.removed) subs.diary_paragraphs = s.removed;
+        if (s.text !== text) { text = s.text; subs.markdown_words = 1; }
       }
       // Narrative markers that live inside strings and values, in every text file.
       if (phraseRules.length) {

@@ -5,8 +5,6 @@ description: Use before testing anything, before saying a thing works, and befor
 
 # The vantage law
 
-Two rules, one principle: **a claim is only worth what the vantage point behind it is worth.** Both were stated by the owner on 2026-08-05 after the same failure recurred for the fifth time.
-
 ## Rule 1 — Never test from your own sandbox. Test in a window he controls.
 
 Your `Bash` tool, your `curl`, your preview pane, your MCP fetch, your exit code, your subagent — **none of these is a test.** They are the agent's own user experience, and the agent's user experience has never once been the thing that was broken.

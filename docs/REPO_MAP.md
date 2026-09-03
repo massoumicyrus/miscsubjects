@@ -22,7 +22,7 @@ is generated from. Counts are live in `PROJECTION.json`.
 | `hooks/` | Turn-logging hooks for each coding-agent CLI so every agent turn lands on the ledger |
 | `.githooks/` | `pre-commit`, `commit-msg`, `pre-push`: write law, protected paths, failure vault, approval tokens |
 | `.github/workflows/` | Deploy lane, remote ship, conformance check, chain witness, protected-path guard, the mirror exporter |
-| `misc-cli/` | `misc`, the terminal agent for the build |
+| `misc-cli/` | `misc`, the terminal agent for the system |
 | `scripts/` | `ship.mjs` is the only deploy path; `check-*.mjs` are the deploy and commit gates; `gates.manifest.json` lists which gate runs in which phase; `publish-mirror.mjs` produces this repository |
 
 ## Rules, prompts, skills
@@ -45,9 +45,9 @@ is generated from. Counts are live in `PROJECTION.json`.
 | `README.md` | Front door |
 | `SECURITY.md` | Where credentials live, configuration names, gates, reporting |
 | `API.md` | Human mirror of `/api/manual` |
-| `docs/ARCHITECTURE.md`, `docs/BUILD_SPEC.md`, `docs/OIP.md` | Infrastructure, the operating spec, the invocation protocol |
-| `docs/CF_*.md`, `docs/CLOUDFLARE_STACK.md`, `docs/WRANGLER_ROWS.md`, `docs/CRON_SETUP.md` | Cloudflare inventory and wiring |
-| `docs/SITE_DESIGN_SCHEMA.*`, `docs/CAPABILITY_MAP.md`, `docs/MCP_INVENTORY.md`, `docs/ROUTER_API_KNOWLEDGE.md`, `docs/CLI_AGENT_WIDGET_REST_GUIDE.md` | Design schema, capability and tool inventories |
+| `docs/ARCHITECTURE.md` | How the system is built, from request to receipt |
+| `docs/OIP.md` | The Object Invocation Protocol: identify, explain, invoke, ledger, yield |
+| `docs/SITE_DESIGN_SCHEMA.md`, `.json` | The design schema the renderer and the design gates enforce |
 | `docs/PUBLISHING.md` | How this repository is produced and checked |
 | `docs/REPO_MAP.md` | This file |
 

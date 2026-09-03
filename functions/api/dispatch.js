@@ -2862,11 +2862,11 @@ async function onRequestGetInner(context) {
     if (!t) return dispatchJson({ error: 'unknown tenant', tenant: p.get('tenant') }, 404);
     return dispatchJson(tenantExplain(new URL(request.url).origin, t));
   }
-  if (p.get('tenants') != null) {                      // owner: list all tenants
+  if (p.get('tenants') != null) {
     if (!(await isBuildAuthed(request, env))) return dispatchJson({ error: 'unauthorized', note: 'listing tenants is owner-only.' }, 401);
     return dispatchJson({ ok: true, count: (await listTenants(env)).length, tenants: await listTenants(env) });
   }
-  if (p.get('tenant_create') != null) {                // owner: provision a tenant
+  if (p.get('tenant_create') != null) {
     if (!(await isBuildAuthed(request, env))) return dispatchJson({ error: 'unauthorized', note: 'provisioning a tenant is owner-only.' }, 401);
     const evId = await ledgerCapEvent(env, { key: 'TENANT', action: 'provision', actor: 'owner',
       request: { name: p.get('tenant_create'), allow_keys: p.get('keys'), allow_prefixes: p.get('prefixes'), risk_ceiling: p.get('risk') }, response: { provisioning: true } });
@@ -2878,7 +2878,7 @@ async function onRequestGetInner(context) {
     if (!t) return dispatchJson({ error: 'create_failed' }, 500);
     return dispatchJson({ ok: true, tenant: t, explain: new URL(request.url).origin + '/api/dispatch?tenant=' + t.tenant_id });
   }
-  if (p.get('tenant_mint') != null) {                  // owner: mint a token BOUND to a tenant
+  if (p.get('tenant_mint') != null) {
     if (!(await isBuildAuthed(request, env))) return dispatchJson({ error: 'unauthorized', note: 'minting a tenant token is owner-only.' }, 401);
     const tid = normalizeTenantId(p.get('tenant_mint'));
     const t = await getTenant(env, tid);
@@ -2893,7 +2893,7 @@ async function onRequestGetInner(context) {
     out.note = 'This token is BOUND to tenant ' + tid + '. It can invoke only ' + (t.allow_keys === '*' ? 'all keys' : (t.allow_keys || '(none)')) + (t.allow_prefixes ? ' + prefixes ' + t.allow_prefixes : '') + ', reads only its own ledger, and is denied everything else with tenant_scope_denied.';
     return dispatchJson(out);
   }
-  if (p.get('tenant_suspend') != null || p.get('tenant_resume') != null) {   // owner: kill/restore a tenant
+  if (p.get('tenant_suspend') != null || p.get('tenant_resume') != null) {
     if (!(await isBuildAuthed(request, env))) return dispatchJson({ error: 'unauthorized', note: 'suspending a tenant is owner-only.' }, 401);
     const suspend = p.get('tenant_suspend') != null;
     const tid = normalizeTenantId(suspend ? p.get('tenant_suspend') : p.get('tenant_resume'));

@@ -12,14 +12,6 @@ Verify failure exists → Fix root cause → Add mechanical gate → Write skill
 ```
 
 1. **Verify the failure with fresh evidence.** Do not trust a summary that says "done". Run the governor, read the ledger, or reproduce the failure yourself.
-   anything, write one sentence answering: *which input, rule, affordance, or default made the
-   wrong choice feel natural to the model that made it?* Not "I forgot" — the actual mechanism
-   (a harness prompt nudging toward private memory; a doc that says the old thing; an API that
-   silently accepts the bad shape; a missing refusal). If you cannot name the machinery, you have
-   not found the root cause and you may not proceed to the fix. The fix must change THAT surface —
-   the goal is a system that must be right, not a model that promises to remember. Moving the
-   artifact to the right place without changing the machinery is the banned half-fix: it waits
-   for the owner to lose his composure again.
 3. **Fix the root cause, not the symptom.** One fix. If the fix touches shared files, claim them first.
 3. **Add a mechanical gate** so the failure is blocked automatically:
    - Code pattern failures → pre-commit check or protected-feature check.

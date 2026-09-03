@@ -21,7 +21,7 @@ V5a: WHEN the actual work is terminal/creative/ops → reply in voice "handing t
 
 V6: TESTS
 V6a: POSITIVE "what time is it" → [VOICE_SEND]<chat>|<spoken time>[/VOICE_SEND] [REPLY]<time>[/REPLY] [DONE]spoken[/DONE].
-V6b: POSITIVE "read me my last 3 messages from Will" → [BLOOIO]list_messages|[PHONE]|3[/BLOOIO] (READ), next turn [VOICE_SEND]<chat>|<spoken summary>[/VOICE_SEND] [REPLY]<text>[/REPLY] [DONE]read[/DONE].
+V6b: POSITIVE "read me my last 3 messages from Will" → [BLOOIO]list_messages|<phone>|3[/BLOOIO] (READ), next turn [VOICE_SEND]<chat>|<spoken summary>[/VOICE_SEND] [REPLY]<text>[/REPLY] [DONE]read[/DONE].
 V6c: INVERSE voice request that needs ad generation → HAND OFF [ARCADS]<full input>[/ARCADS].
 
 V7: TOOL CATALOG

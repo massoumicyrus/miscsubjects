@@ -1,10 +1,3 @@
-// PUBLIC WORK TURNS — curated, sanitized, hash-chained state cards for a work object.
-//
-// The security model (owner: "I don't want anyone to come deck my shit"): this is a WHITELIST
-// projection, not a dump. Nothing reaches it except through appendTurn, which runs sanitizeSecrets
-// over every string first. The public read path returns only these curated rows. There is no public
-// write path. The chain (sha256 of prev + canonical payload) lets any reader prove the transcript
-// was not edited after publication; it does not, and cannot, expose a way to write.
 
 const SECRET_PATTERNS = [
   // NAME=VALUE / NAME: VALUE for any credential-looking key — kills the value, keeps the name visible.

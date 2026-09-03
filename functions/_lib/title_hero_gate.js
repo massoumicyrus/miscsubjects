@@ -110,16 +110,8 @@ const GENERIC_AI = /\b(generic (?:ai|artificial intelligence)|glowing (?:robot|b
 
 const LAB_ANIMAL_SUBJECT = /\b(mouse|mice|rat|rats|rodents?|cage|vivarium|lab animal|laboratory animal|guinea pig|zebrafish|petri dish|test tube rack|pipette)\b/i;
 
-// A vial, a tray, a loading dock: things that could illustrate any compound and therefore
-// illustrate none. Owner on /a/wolverine-stack: "what the fuck does that have to do with wolverine
-// stack… there's lots of different things that could have two peptide vials for an image." On
-// /a/tirzepatide: "you got a fucking image for a weight loss drug that looks like a loading dock."
 const INTERCHANGEABLE_COMPOUND_PROP = /\b(vials?|ampoules?|syringes? on a (?:tray|table)|silver tray|loading dock|warehouse shelf|pallet|shipping crate|pill bottles?|blister pack|stock photo)\b/i;
 
-// One good image became a template. Owner: a hero of four robots at a table with a red wax seal and
-// red string was approved, and afterwards "every subsequent image just has red seal, red string, and
-// gold robot… it became insane until it looks like the site is, like, an insane gold robot is the
-// mascot." A reference image sets the CRAFT LEVEL. It does not donate its props to the next brief.
 const OVERAPPLIED_MOTIF = /\b(gold robot|golden robot|red wax seal|wax seal|red string|red thread)\b/i;
 
 export function checkHeroSubjectFit(brief, opts = {}) {

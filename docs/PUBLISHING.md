@@ -1,22 +1,21 @@
-# Publishing the build: how the code reaches a repository that can be made public
+# Publishing: how the code reaches a repository that can be made public
 
 This document is the plan and the mechanism in one place. It answers four questions: why the
 operating repository cannot simply be made public, what the publishable thing is instead, how it is
-produced and checked, and what remains before the visibility switch is flipped.
+produced and checked, and what the operator verifies before publishing it.
 
 ## 1. Why the operating repository is never published
 
-An audit of the operating repository on 2026-09-02 found that it is a working ledger as much as a
-codebase. It holds, tracked in git:
+The operating repository is a working ledger as much as a codebase. Tracked in git, it holds:
 
 | Class | Where | Why it blocks publication |
 |---|---|---|
-| Operational ledger data | `ledger-mirror/` (thousands of daily event files, the bulk of the tracked bytes) | Full request and response bodies from before identity scrubbing existed: phone numbers, addresses, message text, and credential material captured in transit |
+| Operational ledger data | `ledger-mirror/` (thousands of daily event files, the bulk of the tracked bytes) | Operational payloads from before identity scrubbing existed: personal data and configuration values that a public repository must never carry |
 | Guard baselines | `.protected/` | Byte copies of protected files at every version, including versions that carried identifiers since removed |
 | Session notes and handoffs | `HANDOFF_*.md`, `AUDIT_*.md`, `BUILD_STATE.md`, `ACCESS.md`, hundreds of root scratch files | Written for one operator by one agent; they name people, machines, accounts and credential locations |
-| Legacy consoles | `grok-console/`, `operator-console/` | Hardcoded provider keys from an earlier design; rotated, but a key that was ever committed stays in history |
+| Legacy consoles | `grok-console/`, `operator-console/` | Provider credentials written into code by an earlier design; a value that was ever committed stays in history |
 | A signing key | `.witness/` | A private JSON web key committed as a file |
-| Identity in code | about 280 code, prompt and doc files outside the ledger mirror | The operator's name, emails, phone and home directory used as literals in prompts, defaults and comments |
+| Identity in code | about 280 code, prompt and doc files outside the ledger mirror | The operator's name, e-mail addresses, phone number and home directory used as literals in prompts, defaults and comments |
 | A licensed font | `public/font/URW-*` | Served by the site under license; not redistributable in source |
 
 Rewriting history to remove this is not a repair. The repository has more than fourteen thousand
@@ -40,7 +39,7 @@ the operating repository's history can be in it.
  projection directory  ──►  PROJECTION.json (source commit, counts, gates, what was substituted)
         │
         ▼  one commit: "projection of <source sha> (<n> files, <k> gates passed)"
- mirror repository  [OWNER_HANDLE]/miscsubjects   (private today; a visibility toggle publishes it)
+ mirror repository  miscsubjects   (publication is one visibility setting on it)
 ```
 
 The script is [`scripts/publish-mirror.mjs`](../scripts/publish-mirror.mjs). Its configuration is
@@ -70,8 +69,6 @@ Substitution runs on every text file, in this order:
 
 1. **Specific literals** — the account subdomain, the Cloudflare account id, non-secret Google
    identifiers, possessive forms of the owner's name.
-2. **E-mail addresses** — kept only when the domain is on an allow-list of build and vendor
-3. **Phone numbers** — the owner's and the build's numbers in every formatting, then any `+1`
 4. **The owner-identity table the site itself uses** at ledger ingest
    (`functions/_lib/public_secret_guard.js`): names, handles, home directory, machine name. One
    table, two consumers, so the two can never disagree.
@@ -102,13 +99,16 @@ Each gate reports how many files it examined, because a gate that examined nothi
 that can write to the mirror only. The vault is not in CI, so the `vault_values` gate runs on the
 operator's machine and the pattern, identity, path and gitleaks gates run in both places.
 
+GitHub Actions are disabled on the mirror repository. Its workflow files travel as part of the
+system's description and run only in the operating repository.
+
 To run it by hand from the operating repository:
 
 ```bash
 node scripts/publish-mirror.mjs --out .tmp/projection/mirror
 ```
 
-adds `--push` to commit and push, `--announce` to publish the manifest to the build's own public
+adds `--push` to commit and push, `--announce` to publish the manifest to the system's own public
 surface (needs `TERMINAL_KEY`), `--json` for one-line output, `--require-gitleaks` to make the
 absence of gitleaks a failure, `--keep` to leave a failed projection on disk for inspection, and
 `--report <path>` to write every gate hit with a masked context window.
@@ -128,7 +128,7 @@ allow-list, the exporter applies a profile that decides what the repository is:
 | Stubs where the kernel imports them | For every relative import from a kept module to a dropped one, a stub is written at the dropped path. It exports the same names and throws with its path when used, so the import graph stays whole and the boundary is visible | `profile.stubbed_modules` |
 | Content data dropped | Migrations with no schema statement and more than 30 KB of literals, the protocol primer bodies, content inventories, session reports | `profile.dropped_by_profile` |
 | One-off scripts dropped | `scripts/` keeps the deploy path, the gates and the exporter; everything else was a one-time content or outreach run | same |
-| Plans, visions, experiments, doctrine dropped | `docs/` keeps the technical documents; `.claude/skills/` keeps the engineering procedures and drops the business, sales, copy and operator-doctrine skills | same |
+| Plans, visions, inventories, doctrine dropped | `docs/` keeps the documents that describe the system as it is: architecture, the invocation protocol, the design schema, this document and the repository map. Dated inventories and surveys are dropped. `.claude/skills/` keeps the engineering procedures and drops the business, sales, copy and operator-doctrine skills | same |
 | Diary comments removed | A comment that records who ordered what and when, or narrates the day something failed, is removed from JavaScript, SQL, shell, YAML and TOML. Code, strings and regex literals are never touched. JavaScript is scanned with a state machine (strings, template literals, regex literals, both comment kinds); every altered file is re-parsed by Node and kept unaltered if it would no longer parse | `profile.comments_removed`, `profile.comment_strip_skipped` |
 | Diary paragraphs removed from Markdown | Blank-line-delimited blocks that match the same class of narrative are dropped; list items individually; fenced code never | `profile.markdown_blocks_removed` |
 | JSON artifacts transformed | `failure-vault.json` loses the quoted words that named each failure and keeps the mechanism; `scripts/gates.manifest.json` loses its narrative and is pruned to the gate scripts present | `profile.gates_pruned_from_manifest` |
@@ -144,20 +144,20 @@ tracked files were dropped and for which reasons, the list of substituted files 
 counts, every gate with its examined count and result, and a content hash over every path and byte
 so two projections can be compared. The commit message names the source commit as well.
 
-## 4. Going public: the checklist
+## 4. Before publication
 
-The mirror is private today. Publishing it is one setting on that repository. Before flipping it:
+Publishing the mirror is one setting on that repository. Before changing it, the operator:
 
-1. Run the exporter locally so the `vault_values` gate has run against the exact tree being
-   published, and read `PROJECTION.json`.
-2. Rotate any credential that was ever committed to the operating repository, even though that
+1. Runs the exporter locally so the `vault_values` gate has run against the exact tree being
+   published, and reads `PROJECTION.json`.
+2. Rotates any credential that was ever committed to the operating repository, even though that
    repository stays private. The classes are listed in section 1; the operating repository's own
    records name the keys.
-3. Decide the license and add `LICENSE` to the allow-list. Until then the projection states that all
-   rights are reserved.
-4. Read the projection's `README.md`, `SECURITY.md` and `docs/REPO_MAP.md` as a stranger would; the
+3. Decides the license and adds `LICENSE` to the allow-list. Until then the projection states that
+   all rights are reserved.
+4. Reads the projection's documents as a stranger would, and has other models read them too; the
    exporter checks strings, not sense.
-5. Flip visibility on the mirror repository. Nothing about the operating repository changes.
+5. Changes the visibility of the mirror repository. Nothing about the operating repository changes.
 
 ## 5. What this plan deliberately does not do
 
