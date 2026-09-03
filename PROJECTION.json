@@ -2,11 +2,11 @@
  "_what": "This repository is a generated projection of a private operating repository. Every file here was produced by scripts/publish-mirror.mjs from the source commit below, with identity substituted and gates run against the output. See docs/PUBLISHING.md.",
  "source": {
   "repository": "the private operating repository",
-  "commit": "8393a66fc6aea43422b81f9ce06245f58c5e942b"
+  "commit": "28d6fbe64b3d56c43ebee986088ecd017227654a"
  },
- "generated_at": "2026-09-03T03:21:59.385Z",
+ "generated_at": "2026-09-03T03:25:53.924Z",
  "files": 1186,
- "bytes": 9666501,
+ "bytes": 9666374,
  "tracked_in_source": 5772,
  "dropped": {
   "not in allow-list": 4117,
@@ -2827,7 +2827,8 @@
     "literal": 1,
     "identifier": 1,
     "owner_identity": 1,
-    "diary_paragraphs": 15
+    "diary_paragraphs": 15,
+    "diary_phrases": 1
    }
   },
   {
@@ -3699,8 +3700,8 @@
   ],
   "comments_removed": 752,
   "markdown_blocks_removed": 94,
-  "narrative_phrases_removed": 149,
-  "dated_strings_remaining": 244,
+  "narrative_phrases_removed": 150,
+  "dated_strings_remaining": 243,
   "comment_strip_skipped": [],
   "gates_pruned_from_manifest": [
    "check-owner-bcc.mjs",
@@ -3729,10 +3730,10 @@
   },
   {
    "name": "vault_values",
-   "examined": 0,
+   "examined": 1183,
    "hits": 0,
    "ok": true,
-   "skipped": "no vault on this machine (CI); the pattern gates and gitleaks still ran"
+   "note": "62 vault values searched for (4 public resource names exempt)"
   },
   {
    "name": "size",
@@ -3762,5 +3763,5 @@
   }
  ],
  "all_gates_ok": true,
- "content_hash": "b37b7454f755c365eac775a2827c2777bdf2819dd218017546a9ef36bd426553"
+ "content_hash": "1911f47684590099c5932fe73d19e3a10871a2d1626fbd928f1839019a5c0903"
 }

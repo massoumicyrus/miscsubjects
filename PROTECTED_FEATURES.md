@@ -26,8 +26,7 @@ This file is the human-readable manifest for feature locks beyond the article wi
   `scripts/check-tap-go-drop-golden.mjs`. No agent may rewrite the drop shape without the
   literal owner phrase `approve drop rewrite` in the same instruction window, then update
   goldens + pass the checker in the same turn. Lead must stay the public OIP docs URL
-  followed by `# OIP delegated capability record` (owner drop law 2026-07-14, recorded in
-  AGENTS.md: neutral third-person capability record, never model-directed imperatives).
+  followed by `# OIP delegated capability record`.
   `buildTapGoDropMarkdown` in `functions/_lib/unified_handoff.js`, SHA-256
   `67b03de8b8fde69e09f58859dffcef0675feba92c46366df0e9685dcf9bc669d`.
   `scripts/check-tap-go-drop-golden.mjs` hashes that exact function boundary and must fail if it changes. A request to
