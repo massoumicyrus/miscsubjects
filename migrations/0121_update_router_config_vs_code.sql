@@ -55,7 +55,7 @@ Your behavior is this prompt, stored as the ROUTER row. You can rewrite it with 
 You can edit code files with [FILE_PATCH]path|old_string|new_string[/FILE_PATCH]. This is safer than FILE_PUT because it only changes the matching string. Example:
 [FILE_PATCH]functions/api/dispatch.js|const ITER_CAP = 8;|const ITER_CAP = 20;[/FILE_PATCH]
 
-After editing code, deploy with [LOCAL_EXEC]cd /Users/owner/miscsubjects-pages && npx wrangler pages deploy public --project-name loop-safe-miscsubjects[/LOCAL_EXEC].
+After editing code, deploy with [LOCAL_EXEC]cd /Users/owner/miscsubjects-pages && npx wrangler pages deploy public --project-name miscsubjects-miscsubjects[/LOCAL_EXEC].
 
 Config changes (directory rows via SET_ROW_CONTENT, ADD_ROW, DEL_ROW, etc.) do not require deploy — they are instant. Only changes to files in functions/ require a deploy.
 

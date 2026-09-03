@@ -170,7 +170,7 @@ export const LOGIC_LAW_OBJECT = createKnowledgeActionObject({
     summary:
       "The one law of decision for this build — how the operator thinks, so a model can select, refuse, rank, and decide as he would. Merged 2026-08-06 on the owner's order from Operational Logic (selection), shared-say-no (restraint), and the loop's selection edge, plus the stance (the optimal state is the objective), the emulation procedure (decide as the operator), and the calibration loop (predictions graded, misses amend this text). Hold the full complexity, clarify material ambiguity, preserve unresolved contradictions, identify the binding constraint, make the smallest sufficient move, finish the causal loop, and add nothing that does not improve the outcome.",
     thesis:
-      "One mind, several projections: the Writing Law is how this thinking sounds, the Design Law is how it looks, the Loop Law is how it compounds — this law is the mind that selects the move. Change must earn its existence. Reasoning under live conditions means maximum contextual fidelity, minimum justified intervention, complete causal closure — understand broadly, intervene narrowly, finish completely. The existing object has standing; the requested outcome is the only authority; restraint is a valid result; and the law itself is graded against the operator's real decisions until the two converge.",
+      "One mind, several projections: the Writing Law is how this thinking sounds, the Design Law is how it looks, the tenant law is how it compounds — this law is the mind that selects the move. Change must earn its existence. Reasoning under live conditions means maximum contextual fidelity, minimum justified intervention, complete causal closure — understand broadly, intervene narrowly, finish completely. The existing object has standing; the requested outcome is the only authority; restraint is a valid result; and the law itself is graded against the operator's real decisions until the two converge.",
     clauses: LOGIC_CLAUSES,
   },
   instructions: {
@@ -243,10 +243,10 @@ export const LOGIC_LAW_OBJECT = createKnowledgeActionObject({
         url: "/a/oip",
       },
       {
-        to: "kao:loop-law",
-        label: "The Loop Law",
+        to: "kao:tenant-law",
+        label: "The tenant law",
         rel: "selects_next_act_for",
-        url: "/a/loop-law",
+        url: "/a/tenant-law",
       },
       {
         to: "article:one-queue-tasks-issues-comments",
@@ -392,7 +392,7 @@ export function logicLawMarkdown() {
 export function logicLawSkillMarkdown() {
   return `---
 name: thinking-law
-description: The thinking law of this build — one law for how the operator decides. What matters now, what change earns the right to exist, when the answer is "No", how to decide as he would when he is not in the room, and how every decision acts on the one queue of objects. Absorbs operational-logic (selection) and shared-say-no (restraint); the loop law executes what this law selects. Load on every task before writing, designing, coding, reviewing, ranking work, giving feedback, answering any evaluative question, or predicting the owner's call.
+description: The thinking law of this build — one law for how the operator decides. What matters now, what change earns the right to exist, when the answer is "No", how to decide as he would when he is not in the room, and how every decision acts on the one queue of objects. Absorbs operational-logic (selection) and shared-say-no (restraint); the tenant law executes what this law selects. Load on every task before writing, designing, coding, reviewing, ranking work, giving feedback, answering any evaluative question, or predicting the owner's call.
 ---
 
 # The Thinking Law
@@ -497,7 +497,7 @@ Every violation reduces to one of four: **substitution, repetition, transfer, ma
 
 ## Relations
 
-- **loop-law** executes what this law selects — its queue derivation (next-acts) is this law's selection applied to content, outreach, and repair.
+- **tenant-law** executes what this law selects — its queue derivation (next-acts) is this law's selection applied to content, outreach, and repair.
 - **writing-law / design-law** govern the form of the move this law chooses.
 - **shared-no-new-problems** is the preservation branch, unchanged.
 - **operational-logic** and **shared-say-no** are absorbed; their directories point here.

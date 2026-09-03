@@ -4,7 +4,7 @@ const SITE = "https://miscsubjects.com";
 const INSTALLED = [
   {
     channel: "X (Twitter)",
-    what: "Posts and threads publish to @CannibalCapital via the build's X_POST tool; every post is a ledger row.",
+    what: "Posts and threads publish to @<x-handle> via the build's X_POST tool; every post is a ledger row.",
     surfaces: [`${SITE}/api/x-posts`, `${SITE}/.claude/skills — post-to-x`],
     automatic: false,
     note: "Posting is operator-triggered per the self-promotion law, not fired blindly on every publish.",

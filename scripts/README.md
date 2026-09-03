@@ -21,7 +21,7 @@ Cron (launchd `com.owner.guard`): `node scripts/guard.mjs --check --nojudge` eve
 
 ## ship.mjs
 
-Canonical deploy path for the Pages build: apply the newest D1 migration to `loop-content-spine` first, then deploy `public/` to `loop-safe-miscsubjects`. Pass explicit `.sql` files to apply those instead, or `--no-migrations` for a code-only redeploy.
+Canonical deploy path for the Pages build: apply the newest D1 migration to `miscsubjects-content` first, then deploy `public/` to `miscsubjects-miscsubjects`. Pass explicit `.sql` files to apply those instead, or `--no-migrations` for a code-only redeploy.
 
 Run:
 ```bash

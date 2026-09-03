@@ -9,7 +9,7 @@ VALUES (
   '# WHAT: Send an email through Cloudflare Email Sending via the sibling worker.
 # WHEN_TO_USE: the owner asks to send/write/reply/forward an email.
 # ARGS: to | subject | text
-# EX: [EMAIL_SEND][OWNER_EMAIL]|OIP proof|This email was sent by the build.[/EMAIL_SEND]
+# EX: [EMAIL_SEND]the owner@<operator-domain>|OIP proof|This email was sent by the build.[/EMAIL_SEND]
 {"to":"$1","subject":"$2","text":"$3+","from":"build@miscsubjects.com"}',
   'email',
   1,

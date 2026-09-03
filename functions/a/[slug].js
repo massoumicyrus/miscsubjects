@@ -951,9 +951,9 @@ function renderContributions(m, slug) {
         `<div class="mc-meta"><span class="mc-act">${escapeHtml(c.action)}</span><span class="mc-date">${date}</span></div>` +
         `<div class="mc-out">${out}${claimsN ? ` · ${claimsN} claims` : ""}${srcN ? ` · ${srcN} sources` : ""}</div>` +
         `<details class="mc-ins"><summary>inspect — what it was prompted &amp; output</summary>` +
-        `<div class="mc-lbl">prompted with</div><pre class="mc-pre">${promptT}${inputT ? `\n\ninput: ${inputT}` : ""}</pre>` +
+        `<div class="mc-tenant">prompted with</div><pre class="mc-pre">${promptT}${inputT ? `\n\ninput: ${inputT}` : ""}</pre>` +
         (respT
-          ? `<div class="mc-lbl">it output</div><pre class="mc-pre">${respT}</pre>`
+          ? `<div class="mc-tenant">it output</div><pre class="mc-pre">${respT}</pre>`
           : "") +
         `</details>` +
         `<div class="mc-foot"><span class="mc-hash">${escapeHtml(String(c.hash || "").slice(0, 16))}</span></div></div>`;
@@ -2043,7 +2043,7 @@ ${platformRailCss()}
 .mc-out{font:600 15px/1.4 ui-sans-serif,system-ui,sans-serif;color:${soft};margin:10px 0}
 .mc-ins{margin-top:auto}
 .mc-ins summary{cursor:pointer;font:700 11px/1.5 ui-sans-serif,system-ui,sans-serif;letter-spacing:0.04em;text-transform:uppercase;color:${accent}}
-.mc-lbl{font:700 9px/1.5 ui-sans-serif,system-ui,sans-serif;letter-spacing:0.06em;text-transform:uppercase;color:${dim};margin:10px 0 4px}
+.mc-tenant{font:700 9px/1.5 ui-sans-serif,system-ui,sans-serif;letter-spacing:0.06em;text-transform:uppercase;color:${dim};margin:10px 0 4px}
 .mc-pre{margin:0;font:11.5px/1.55 ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto;background:rgba(0,0,0,0.03);border:1px solid ${line};border-radius:8px;padding:10px;color:${soft}}
 .mc-foot{margin-top:12px;padding-top:10px;border-top:1px dashed ${line}}
 .mc-hash{font:10px ui-monospace,monospace;color:${dim}}

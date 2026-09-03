@@ -26,6 +26,6 @@ BLOOIO_TURN_PHASE_A:$1', 'routing', datetime('now'), 1, 1),
 ('AGENT_BRIDGE', 'flow', '', '# Route a message from one agent to another. $1=source_agent, $2=target_agent, $3=message. Creates a turn that appears to come from the source agent, routed to the target agent.
 BLOOIO_TURN_PHASE_A:[agent_bridge from $1 to $2] $3', 'routing', datetime('now'), 1, 1),
 ('CRON_LIST', 'flow', '', '# List existing cron jobs by querying the Cloudflare API. Returns scheduled jobs for this account.
-CF: cron_triggers_get|<CLOUDFLARE_ACCOUNT_ID>|loop-safe-miscsubjects', 'cron', datetime('now'), 1, 1),
+CF: cron_triggers_get|<CLOUDFLARE_ACCOUNT_ID>|miscsubjects-miscsubjects', 'cron', datetime('now'), 1, 1),
 ('PEPTIDE_ROUTER', 'flow', '', '# Before replying about a peptide, check if an internal article exists. $1=peptide name (e.g., bpc-157, tb-500, ara-290). Use when user asks about peptides or supplements.
 D1_QUERY: SELECT slug, title, body_html FROM pages WHERE slug LIKE ''%$1%'' OR title LIKE ''%$1%'' LIMIT 1', 'content', datetime('now'), 1, 1);

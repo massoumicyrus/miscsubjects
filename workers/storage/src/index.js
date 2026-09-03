@@ -1,4 +1,4 @@
-// loop-safe-storage — the storage agent. Owns reference sprawl (vendored API docs, the
+// miscsubjects-storage — the storage agent. Owns reference sprawl (vendored API docs, the
 // old build, any bulk reference) so the kernel's deploy artifact stays lean. Bytes live
 // in R2; a small queryable index lives in D1. Reached only via the STORE service binding
 // from the Pages project (functions/api/store/[[path]].js) — no public route. Writes

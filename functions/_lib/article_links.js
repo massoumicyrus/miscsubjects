@@ -28,7 +28,7 @@ export const VIRTUAL_PAGES = new Set([
   "coding-law",
   "logic-law",
   "design-law",
-  "loop-law",
+  "tenant-law",
   "outreach-law",
   "skill-law",
   "agent-work-law",

@@ -1,4 +1,4 @@
--- THE MIRROR LAYER (loop-content-spine / DB) — claim-level recursion over every article.
+-- THE MIRROR LAYER (miscsubjects-content / DB) — claim-level recursion over every article.
 -- A page is finished only provisionally. Every reader (human or model) may attach a TYPED
 -- contribution to an exact claim: question | objection | source | repair | compression |
 -- contradiction | audit. Contributions are ledgered with provenance and a receipt; they

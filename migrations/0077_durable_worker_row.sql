@@ -1,5 +1,5 @@
 -- 0077: directory row for the bound Durable Object worker (DirectoryDO,
--- script loop-safe-directory-do). Reached at the production hostname via the Pages
+-- script miscsubjects-directory-do). Reached at the production hostname via the Pages
 -- front door functions/api/durable/[[path]].js. type=http; $1 = the read op.
 INSERT OR REPLACE INTO directory
   (key, type, target, auth, content, category, allowed_categories, seq, enabled, planner_visible, planner_rank, updated_at)
@@ -8,7 +8,7 @@ VALUES (
   'http',
   'GET https://miscsubjects.com/api/durable/$1',
   '',
-  '# Durable Worker — the bound Durable Object (class DirectoryDO, script loop-safe-directory-do). One strongly-consistent instance ("main") that owns the SLUG REGISTRY (every declared internal position: slug -> kind+target) and an append-only MUTATION-INTENT LOG.
+  '# Durable Worker — the bound Durable Object (class DirectoryDO, script miscsubjects-directory-do). One strongly-consistent instance ("main") that owns the SLUG REGISTRY (every declared internal position: slug -> kind+target) and an append-only MUTATION-INTENT LOG.
 # INVOKE (read ops, $1 = op):
 #   [DURABLE_WORKER]ping[/DURABLE_WORKER]        -> {ok, do, id, ts}
 #   [DURABLE_WORKER]slug.list[/DURABLE_WORKER]   -> every declared slug

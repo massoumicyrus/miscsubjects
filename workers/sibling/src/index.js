@@ -280,7 +280,7 @@ export default {
       return new Response(JSON.stringify({ ok: true, sent: false, ...result }, null, 2), { headers: { 'content-type': 'application/json' } });
     }
     if (url.pathname === '/health') {
-      return new Response(JSON.stringify({ ok: true, name: 'loop-safe-sibling', ts: buildNowIso() }), { headers: { 'content-type': 'application/json' } });
+      return new Response(JSON.stringify({ ok: true, name: 'miscsubjects-sibling', ts: buildNowIso() }), { headers: { 'content-type': 'application/json' } });
     }
     if (url.pathname === '/do/expert/ping') {
       const id = env.CF_EXPERT_DO.idFromName(url.searchParams.get('name') || 'default');
@@ -366,7 +366,7 @@ export default {
       }
       return new Response(JSON.stringify({ killed: true, imessage_autorun: '0', loops_off: loopOff, lock_cleared: true, terminated }), { headers: { 'content-type': 'application/json' } });
     }
-    return new Response('loop-safe-sibling: /health, /do/expert/ping?name=X, /do/expert/chat?name=X (POST {messages,model}), /wf/deliver/trigger (POST), /wf/deliver/status?id=X, /wf/selftest/trigger (POST), /wf/selftest/status?id=X', { status: 200 });
+    return new Response('miscsubjects-sibling: /health, /do/expert/ping?name=X, /do/expert/chat?name=X (POST {messages,model}), /wf/deliver/trigger (POST), /wf/deliver/status?id=X, /wf/selftest/trigger (POST), /wf/selftest/status?id=X', { status: 200 });
   },
 
   async scheduled(event, env, ctx) {
@@ -495,7 +495,7 @@ export default {
     const messageId = message.headers.get('message-id') || null;
     const from = cleanAddr(message.from);
     const preview = `${message.from} → ${message.to}: ${subject}`.slice(0, 240);
-    const dest = env.EMAIL_FORWARD || '[OWNER_EMAIL]';
+    const dest = env.EMAIL_FORWARD || 'the owner@<tenant-domain>';
 
     // Read the raw message once and check for an OIP envelope.
     const raw = await streamToText(message.raw);

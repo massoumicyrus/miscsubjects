@@ -1,4 +1,4 @@
-name = "loop-safe-sibling"
+name = "miscsubjects-sibling"
 main = "src/index.js"
 compatibility_date = "2026-03-24"
 compatibility_flags = ["nodejs_compat_v2"]
@@ -16,7 +16,7 @@ binding = "AI"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "loop-content-spine"
+database_name = "miscsubjects-content"
 database_id = "298eb858-37fb-4c73-8be4-135e8feb73fe"
 
 [[kv_namespaces]]
@@ -58,10 +58,10 @@ binding = "MYBROWSER"
 
 [[queues.producers]]
 binding = "TASKS"
-queue = "loop-tasks"
+queue = "miscsubjects-tasks"
 
 [[queues.consumers]]
-queue = "loop-tasks"
+queue = "miscsubjects-tasks"
 max_batch_size = 10
 max_batch_timeout = 5
 

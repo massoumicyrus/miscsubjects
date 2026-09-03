@@ -1,4 +1,4 @@
--- OIP v1.1 — FEDERATION: audience binding (LEDGER db: loop-shared-events).
+-- OIP v1.1 — FEDERATION: audience binding (LEDGER db: miscsubjects-events).
 -- A capability MAY name the exact remote agent it is minted for (a caveat, ocap/Macaroon style).
 -- An audience-bound token is valid ONLY inside a verified oip-message/1 invoke whose signed
 -- sender matches the audience (its full agent id, or its domain). Presenting it directly, or

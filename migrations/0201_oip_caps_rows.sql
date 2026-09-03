@@ -1,4 +1,4 @@
--- OIP v0.3 — OIP-Caps directory rows (loop-content-spine / DB).
+-- OIP v0.3 — OIP-Caps directory rows (miscsubjects-content / DB).
 -- Six fn verbs so ROUTER drives the capability/receipt loop from natural language.
 INSERT INTO directory (key, type, target, auth, content, category, planner_rank, planner_visible, enabled, updated_at) VALUES
 ('CAP_MINT', 'fn', 'capMint', '',

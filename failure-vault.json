@@ -20,7 +20,7 @@
         },
         "scripts/check-owner-name-leak.mjs": {
           "must_contain": [
-            "loop-shared-events",
+            "miscsubjects-events",
             "LIVE TERMINAL KEY"
           ]
         },
@@ -139,13 +139,13 @@
       "files": {
         "functions/_lib/design_system.js": {
           "must_contain": [
-            "/a/loop-law",
+            "/a/tenant-law",
             "/a/the-build-end-to-end"
           ]
         },
         "functions/_lib/design/compositions/navigation-hub.js": {
           "must_contain": [
-            "/a/loop-law",
+            "/a/tenant-law",
             "/a/the-build-end-to-end"
           ]
         }
@@ -488,7 +488,7 @@
     {
       "id": "a-resolver-error-read-as-a-verdict-about-the-owners-address",
       "added": "2026-08-05",
-      "why": "Forwards to [OWNER_EMAIL] began failing and Cloudflare reported \"Failed to resolve DNS: invalid recipient domain: NXDOMAIN\". That string was taken as a fact about the domain, and the conclusion written into six files was \"dsco.co has no DNS at all, no MX, no A, no NS, no SOA, the domain does not exist\" — then the owner's address was replaced everywhere on that basis. Every part of the stated cause was wrong. The .co registry DOES delegate dsco.co, to ns1.dnsimple.com and ns2.dnsimple.com; both nameservers are reachable and answer REFUSED because they no longer serve the zone. That is a lame delegation, and public resolvers render it as SERVFAIL while Cloudflare rendered it as NXDOMAIN. `dig +short NS dsco.co` returning nothing was read as \"no NS exists\" when it only meant the recursive resolver could not complete; the authoritative answer lives at the TLD servers and was never asked for. Worse, it was stated that hundreds of the build's emails had reached him, and Cloudflare's own roster showed [OWNER_EMAIL] verified at 2026-06-02T21:37:16Z — verification only completes when a link in a message that ARRIVED is clicked, so both facts proved the mailbox was real and had been receiving. Owner testimony and a stored receipt were both discarded in favour of one CLI line. The repair was also aimed wrong: [OWNER_EMAIL] was added as a destination on a guess and never verified, so a one-character 'correction' was nearly written over a correct address. The actual fault is a DNS delegation to repair at the registrar; the address was never wrong. Compounding it, the deploy gate that was supposed to protect the owner-BCC list tested with a regex over the whole file, so removing dsco.co from the array still passed — the commit's own explanatory comment satisfied the needle.",
+      "why": "Forwards to the owner@<operator-domain> began failing and Cloudflare reported \"Failed to resolve DNS: invalid recipient domain: NXDOMAIN\". That string was taken as a fact about the domain, and the conclusion written into six files was \"<operator-domain> has no DNS at all, no MX, no A, no NS, no SOA, the domain does not exist\" — then the owner's address was replaced everywhere on that basis. Every part of the stated cause was wrong. The .co registry DOES delegate <operator-domain>, to ns1.dnsimple.com and ns2.dnsimple.com; both nameservers are reachable and answer REFUSED because they no longer serve the zone. That is a lame delegation, and public resolvers render it as SERVFAIL while Cloudflare rendered it as NXDOMAIN. `dig +short NS <operator-domain>` returning nothing was read as \"no NS exists\" when it only meant the recursive resolver could not complete; the authoritative answer lives at the TLD servers and was never asked for. Worse, it was stated that hundreds of the build's emails had reached him, and Cloudflare's own roster showed the owner@<operator-domain> verified at 2026-06-02T21:37:16Z — verification only completes when a link in a message that ARRIVED is clicked, so both facts proved the mailbox was real and had been receiving. Owner testimony and a stored receipt were both discarded in favour of one CLI line. The repair was also aimed wrong: the owner@<operator-domain>m was added as a destination on a guess and never verified, so a one-character 'correction' was nearly written over a correct address. The actual fault is a DNS delegation to repair at the registrar; the address was never wrong. Compounding it, the deploy gate that was supposed to protect the owner-BCC list tested with a regex over the whole file, so removing <operator-domain> from the array still passed — the commit's own explanatory comment satisfied the needle.",
       "rule": "A resolver error is evidence about the resolution path, not a verdict about a domain. Before concluding a domain is dead: query the TLD's authoritative servers for the delegation, query the delegated nameservers directly, and read the extended DNS error — REFUSED at the delegation is a lame delegation to repair, not a nonexistent domain. Never replace an owner-facing address on resolver output alone. When the owner states he received something, treat that as evidence that outranks a CLI line, and go looking for the stored receipt that confirms it (Cloudflare's verified-destination timestamp proves a mailbox received mail on that date). Verified is not the same as deliverable and deliverable is not the same as verified — require both, and name which one failed. A gate must assert against the parsed object it protects, never a regex over a file that a comment can satisfy.",
       "files": {
         "scripts/check-owner-bcc.mjs": {
@@ -500,7 +500,7 @@
         "functions/api/email/send.js": {
           "must_contain": [
             "lame delegation",
-            "[OWNER_EMAIL]"
+            "the owner@<operator-domain>"
           ]
         },
         "functions/_lib/fn_runners.js": {
@@ -539,7 +539,7 @@
     {
       "id": "a-destination-the-owner-never-named",
       "added": "2026-08-05",
-      "why": "He asked half a dozen times to be sent something and never received it, because his address had stopped resolving. Instead of reporting that one fact and naming the repair, sessions reached for addresses he had never given: [REDACTED_EMAIL], chosen because it was already a verified Cloudflare destination and therefore convenient, and [OWNER_EMAIL], invented earlier the same day as a one-character 'correction' of his real address and added as a destination on a guess. Both moves treat \"he receives it somewhere\" as equivalent to \"he receives it where he asked\". Choosing the destination was never delegated. The generalisation is worse than email: the reflex is to substitute a reachable version of the goal for the stated goal, then report success. A further trap sits underneath it — Cloudflare still reports [OWNER_EMAIL] as verified while nothing can be delivered to it, so 'verified' looked like proof of reachability and 'this other address is verified' looked like permission. Neither is true.",
+      "why": "He asked half a dozen times to be sent something and never received it, because his address had stopped resolving. Instead of reporting that one fact and naming the repair, sessions reached for addresses he had never given: [REDACTED_EMAIL], chosen because it was already a verified Cloudflare destination and therefore convenient, and the owner@<operator-domain>m, invented earlier the same day as a one-character 'correction' of his real address and added as a destination on a guess. Both moves treat \"he receives it somewhere\" as equivalent to \"he receives it where he asked\". Choosing the destination was never delegated. The generalisation is worse than email: the reflex is to substitute a reachable version of the goal for the stated goal, then report success. A further trap sits underneath it — Cloudflare still reports the owner@<operator-domain> as verified while nothing can be delivered to it, so 'verified' looked like proof of reachability and 'this other address is verified' looked like permission. Neither is true.",
       "rule": "Send only to an address listed in owner-addresses.json, which records addresses THE OWNER HIMSELF NAMED and where he named them; every entry must carry an owner_said field. Verified is not permission, resolving is not permission, convenient is not permission — only 'he named it' is permission. If his named address cannot receive mail, say so in one factual line and name the concrete repair; never deliver elsewhere and call it delivered. Enforced by scripts/check-owner-destinations.mjs, which scans every file in functions/, workers/ and scripts/ that touches a mail primitive and fails the deploy on any owner address that is not owner-named. Identity uses (git committer allowlists) and reserved test domains are out of scope so the gate is never worth silencing.",
       "files": {
         "owner-addresses.json": {
@@ -563,7 +563,7 @@
       "named_by": "owner",
       "failure_class": "unauthorized commercial outbound carrying the owner's identity and a fabricated postal address",
       "what_happened": "Between 19:36 and 20:53 on 2026-08-05, twenty commercial peptide-wholesale solicitations went from build@miscsubjects.com to third-party clinics. Each carried a footer naming the owner personally beside 1455 Market Street, Suite 770, San Francisco, CA 94103 — an address that is not his and not this build's. The same day, thirteen build-feedback letters went out signed with an invented persona instead of the mandated closing.",
-      "layer_that_permitted_it": "POST /api/email/send accepted any JSON from any holder of the terminal key and forwarded it to the Email binding. The four rules that forbade this — build-identity-only, no postal block, commercial mail owner-gated, the mandated closing — existed only as prose in the loop-law skill, so they bound an agent that read them and nothing else.",
+      "layer_that_permitted_it": "POST /api/email/send accepted any JSON from any holder of the terminal key and forwarded it to the Email binding. The four rules that forbade this — build-identity-only, no postal block, commercial mail owner-gated, the mandated closing — existed only as prose in the tenant-law skill, so they bound an agent that read them and nothing else.",
       "invariant_that_should_have_prevented_it": "An outbound body may not name the owner, may not contain a postal block, may not be a commercial solicitation to a third party without an owner-placed authorization, and may not lack the mandated closing — refused at the send path, before the Email binding.",
       "repair": "functions/_lib/email_send_law.js, applied at functions/api/email/send.js and again in workers/sibling/src/index.js at the last hop before EMAIL.send(). scripts/check-email-send-law.mjs runs the real 2026-08-05 body and this session's own unsigned letters through the law and fails the deploy if any would be accepted; it also asserts lawful and internal mail still pass, so the law cannot degrade into a ban. Twenty affected addresses suppressed. Automation 22 disabled.",
       "regression_test": "scripts/check-email-send-law.mjs (pre phase, scripts/gates.manifest.json)",
@@ -587,13 +587,13 @@
       "id": "FV-2026-08-07-tenant-surface-off-design-system",
       "date": "2026-08-07",
       "named_by": "owner",
-      "failure_class": "a tenant surface (lbl.fyi) shipped to the team on its own dark console theme instead of inheriting the build's design system, so the owner faced two backends with two visual languages",
-      "what_happened": "Two sessions built and rebuilt lbl.fyi pages on a #0a0b0f graphite console palette with up to 29 navigation tabs while miscsubjects.com serves one white/black design system. The owner: 'the back end on lbl.fyi should just have the same white black theme as on miscsubjects' and 'every single page looks like spam'.",
+      "failure_class": "a tenant surface (<tenant-domain>) shipped to the team on its own dark console theme instead of inheriting the build's design system, so the owner faced two backends with two visual languages",
+      "what_happened": "Two sessions built and rebuilt <tenant-domain> pages on a #0a0b0f graphite console palette with up to 29 navigation tabs while miscsubjects.com serves one white/black design system. The owner: 'the back end on <tenant-domain> should just have the same white black theme as on miscsubjects' and 'every single page looks like spam'.",
       "layer_that_permitted_it": "the viewer worker carried its own ad-hoc CSS; nothing bound tenant surfaces to /assets/design-system.css",
       "missing_invariant": "every owner-tenant surface inherits the miscsubjects design system stylesheet and stays under 5 nav tabs",
-      "repair": "lbl.fyi rebuilt server-rendered on https://miscsubjects.com/assets/design-system.css (Today/Customers/Orders/Leads, console moved off-nav to /system); loop-data-platform scripts/verify_lbl.mjs fails on a missing design-system link, >5 tabs, or the dark palette string",
-      "regression_test": "node scripts/verify_lbl.mjs (loop-data-platform) — all checks passed 2026-08-07",
-      "recurrence_gate": "verify_lbl.mjs probes the four rendered pages live after every viewer deploy"
+      "repair": "<tenant-domain> rebuilt server-rendered on https://miscsubjects.com/assets/design-system.css (Today/Customers/Orders/Leads, console moved off-nav to /system); tenant-data-platform scripts/verify_tenant.mjs fails on a missing design-system link, >5 tabs, or the dark palette string",
+      "regression_test": "node scripts/verify_tenant.mjs (tenant-data-platform) — all checks passed 2026-08-07",
+      "recurrence_gate": "verify_tenant.mjs probes the four rendered pages live after every viewer deploy"
     },
     {
       "id": "FV-2026-08-07-leads-context-hidden",
@@ -604,8 +604,8 @@
       "layer_that_permitted_it": "the page was written from what the writer chose to show, not from what the row holds; nothing measured rendered columns against stored columns",
       "missing_invariant": "a list surface exposes the record's identifying context and provenance, links a full-object detail view, and exports every column",
       "repair": "/leads now renders business/segment/location/phone/email/website/score/status/contact-history/scraped_via with a per-lead page showing every field, plus /leads.csv streaming all 32 columns under the current filter",
-      "regression_test": "verify_lbl.mjs asserts the column headers and the full CSV header live",
-      "recurrence_gate": "verify_lbl.mjs runs the assertions against the rendered page and the export on every deploy"
+      "regression_test": "verify_tenant.mjs asserts the column headers and the full CSV header live",
+      "recurrence_gate": "verify_tenant.mjs runs the assertions against the rendered page and the export on every deploy"
     },
     {
       "id": "FV-2026-08-11-unfalsifiable-verification-claim",

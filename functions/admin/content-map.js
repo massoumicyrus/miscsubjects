@@ -141,7 +141,7 @@ ${vaultStyles()}
 .cm .stats-bar > div{flex:1;padding:12px 14px;text-align:center;border-right:1px solid var(--line);font-size:13px}
 .cm .stats-bar > div:last-child{border-right:0}
 .cm .stats-bar .num{font-family:var(--font-display);font-size:30px;font-weight:600;color:var(--accent);display:block;line-height:1}
-.cm .stats-bar .lbl{font:600 9px/1 var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.13em;margin-top:6px;display:block}
+.cm .stats-bar .tenant{font:600 9px/1 var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.13em;margin-top:6px;display:block}
 .cm .stats-bar .live .num{color:var(--ds-sage,#7a9a7b)}
 .cm .stats-bar .notlive .num{color:#b86b5a}
 
@@ -207,10 +207,10 @@ ${vaultStyles()}
 </div>
 
 <div class="stats-bar">
-  <div><span class="num">${total}</span><span class="lbl">Total mapped</span></div>
-  <div class="live"><span class="num">${liveCount}</span><span class="lbl">Live</span></div>
-  <div class="notlive"><span class="num">${total - liveCount}</span><span class="lbl">Not live</span></div>
-  <div><span class="num">${PEPTIDES.length}</span><span class="lbl">Peptides</span></div>
+  <div><span class="num">${total}</span><span class="tenant">Total mapped</span></div>
+  <div class="live"><span class="num">${liveCount}</span><span class="tenant">Live</span></div>
+  <div class="notlive"><span class="num">${total - liveCount}</span><span class="tenant">Not live</span></div>
+  <div><span class="num">${PEPTIDES.length}</span><span class="tenant">Peptides</span></div>
 </div>
 
 <div class="audit-drop"><strong>Whole-build model audit Tap &amp; Go</strong><a href="/api/dispatch?tap_go=1&amp;drop=audit">${esc(new URL('/api/dispatch?tap_go=1&drop=audit', request.url).toString())}</a></div>

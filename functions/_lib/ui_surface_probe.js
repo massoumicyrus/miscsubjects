@@ -3,7 +3,7 @@ import { logEvent } from './event_log.js';
 const ORIGIN = 'https://miscsubjects.com';
 
 function pickMarkers(html, extra = []) {
-  const base = ['loading…', 'unauthorized', 'login?', '(empty)', 'D1_ERROR', 'lbl_viewer_auth_failed'];
+  const base = ['loading…', 'unauthorized', 'login?', '(empty)', 'D1_ERROR', 'tenant_viewer_auth_failed'];
   const found = {};
   for (const m of [...base, ...extra]) {
     if (m) found[m] = html.includes(m);

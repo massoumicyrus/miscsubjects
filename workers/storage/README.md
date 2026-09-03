@@ -1,4 +1,4 @@
-# loop-safe-storage — the storage agent
+# miscsubjects-storage — the storage agent
 
 Holds reference sprawl (vendored API docs, the old build, any bulk reference) in **R2**,
 with a queryable **D1** index, so the kernel's deploy artifact stays lean. It has **no
@@ -16,13 +16,13 @@ npx wrangler d1 create loop-storage-index      # paste the id into workers/stora
 # 2. pick a shared secret, set it on BOTH the Worker and the Pages project
 STORE_KEY=$(openssl rand -hex 24)
 ( cd workers/storage && echo "$STORE_KEY" | npx wrangler secret put STORE_KEY )
-npx wrangler pages secret put STORE_KEY --project-name loop-safe-miscsubjects   # paste same value
+npx wrangler pages secret put STORE_KEY --project-name miscsubjects-miscsubjects   # paste same value
 
 # 3. deploy the Worker FIRST (the Pages STORE binding errors if the script doesn't exist)
 ( cd workers/storage && npx wrangler deploy )
 
 # 4. redeploy Pages so the STORE binding + /api/store + the rows are live
-npx wrangler pages deploy public --project-name loop-safe-miscsubjects --commit-dirty=true
+npx wrangler pages deploy public --project-name miscsubjects-miscsubjects --commit-dirty=true
 ```
 
 ## Load content into the store (content first — before any repo strip)
@@ -52,7 +52,7 @@ git rm -r docs/api/openai docs/api/grok apps-script-osxx
 git rm migrations/0069_seed_phone_builder_threads_cli.sql.bak
 # (docs/api/arcads is referenced by functions/admin/map.js:142 — move it too and update
 #  that catalog string, or leave it in the repo. Your call.)
-git commit -m "move reference docs into loop-safe-storage; drop from repo"
+git commit -m "move reference docs into miscsubjects-storage; drop from repo"
 ```
 
 Backups: the content is in Sheets, in git history, and now in the store before deletion.

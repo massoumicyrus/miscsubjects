@@ -1,10 +1,10 @@
 
--- The three Loop Bio Labs reports go out at midnight Pacific. The weekly and monthly recaps ride
+-- The three the tenant Labs reports go out at midnight Pacific. The weekly and monthly recaps ride
 -- the same nightly tick and gate themselves on the calendar, so they are anchored too — else
 -- they drift onto a different hour than the daily report they sit beside.
 UPDATE automations
    SET at_hour = 0, at_tz = 'America/Los_Angeles', trigger = 'clock'
- WHERE key IN ('LBL_DAILY_EMAIL', 'LBL_REPORT_EMAIL');
+ WHERE key IN ('TENANT_DAILY_EMAIL', 'TENANT_REPORT_EMAIL');
 
 -- The tick that reads the clock. Every few minutes it asks whether any anchored job has reached
 -- its hour; almost every call is a no-op, which is what a clock looks like.

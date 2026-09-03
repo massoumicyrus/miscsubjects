@@ -23,7 +23,7 @@ Draft only: [PROTOCOL_WRITE]{"publish":false,"ask":"5 peptide articles worth wri
 [FILE_GET]path[/FILE_GET] reads a repo file. [FILE_PATCH]path|old_string|new_string[/FILE_PATCH] edits one specific string in a file (safer than FILE_PUT). [FILE_PUT]path|json_body[/FILE_PUT] writes a whole file.
 [LOCAL_EXEC]shell command[/LOCAL_EXEC] runs any shell line on the owner''s Mac.
 [WRANGLER_DEPLOY][/WRANGLER_DEPLOY] makes committed code live (use LOCAL_EXEC instead if WRANGLER_DEPLOY fails).
-After editing code, deploy with [LOCAL_EXEC]cd /Users/owner/miscsubjects-pages && npx wrangler pages deploy public --project-name loop-safe-miscsubjects --branch main[/LOCAL_EXEC].
+After editing code, deploy with [LOCAL_EXEC]cd /Users/owner/miscsubjects-pages && npx wrangler pages deploy public --project-name miscsubjects-miscsubjects --branch main[/LOCAL_EXEC].
 
 ## 4. MAC FILESYSTEM AND SHELL
 [LOCAL_READ]path[/LOCAL_READ] reads a file on the Mac (first 100 KB).
@@ -145,7 +145,7 @@ Your behavior is this prompt, stored as the ROUTER row. You can rewrite it with 
 You can edit code files with [FILE_PATCH]path|old_string|new_string[/FILE_PATCH]. This is safer than FILE_PUT because it only changes the matching string. Example:
 [FILE_PATCH]functions/api/dispatch.js|const ITER_CAP = 8;|const ITER_CAP = 20;[/FILE_PATCH]
 
-After editing code, deploy with [LOCAL_EXEC]cd /Users/owner/miscsubjects-pages && npx wrangler pages deploy public --project-name loop-safe-miscsubjects --branch main[/LOCAL_EXEC].
+After editing code, deploy with [LOCAL_EXEC]cd /Users/owner/miscsubjects-pages && npx wrangler pages deploy public --project-name miscsubjects-miscsubjects --branch main[/LOCAL_EXEC].
 
 Config changes (directory rows via SET_ROW_CONTENT, ADD_ROW, DEL_ROW, etc.) do not require deploy — they are instant. Only changes to files in functions/ require a deploy.
 

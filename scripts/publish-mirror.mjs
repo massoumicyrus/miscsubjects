@@ -495,10 +495,11 @@ for (const src of kept) {
 }
 
 // Stubs are written after the real files so a stub can never overwrite a kept module.
-for (const [target, source] of stubs) {
+for (const [target, original] of stubs) {
   const dst = projectPath(target);
   const full = join(OUT, dst);
   mkdirSync(dirname(full), { recursive: true });
+  const source = substitute(original).text; // the original path and export names may carry identifiers
   writeFileSync(full, source);
   const bytes = Buffer.byteLength(source);
   totalBytes += bytes;
@@ -542,7 +543,7 @@ function contextOf(text, idx, len) {
 // 4a. forbidden strings after substitution — identity and secret patterns. Reports file:line and
 // what class matched; never the matched text.
 {
-  const rules = CFG.forbidden_after_redaction.map((r) => ({ re: new RegExp(r.re, (r.flags || '') + 'g'), what: r.what }));
+  const rules = CFG.forbidden_after_redaction.map((r) => ({ re: new RegExp(r.re, (r.flags || '') + 'g'), what: r.what, textOnly: !!r.text_only }));
   const hits = [];
   let examined = 0;
   for (const f of files) {
@@ -553,6 +554,7 @@ function contextOf(text, idx, len) {
     const buf = readFileSync(join(OUT, f.dst));
     const text = f.binary ? buf.toString('latin1') : buf.toString('utf8');
     for (const rule of rules) {
+      if (rule.textOnly && f.binary) continue; // a brand word inside a font's glyph table is noise, not a leak
       rule.re.lastIndex = 0;
       let m;
       while ((m = rule.re.exec(text))) {
@@ -740,7 +742,10 @@ if (failures.length) {
   }
   manifest.content_hash = h.digest('hex');
 }
-writeFileSync(join(OUT, 'PROJECTION.json'), JSON.stringify(manifest, null, 1) + '\n');
+// The manifest names dropped paths and stubbed modules; those names pass through the same
+// substitution as every other text so the manifest cannot carry what the tree does not.
+const manifestText = substitute(JSON.stringify(manifest, null, 1)).text + '\n';
+writeFileSync(join(OUT, 'PROJECTION.json'), manifestText);
 
 // ───────────────────────────── 6. push ─────────────────────────────
 let pushed = null;
@@ -802,7 +807,7 @@ if (flag('--announce')) {
   // A flat key as well: the site's JSON door re-serialises this document on the way out, so a reader
   // (or an acceptance test) must not depend on nesting or whitespace to find the mirror commit.
   manifest.mirror_commit = pushed && pushed.changed ? pushed.commit : null;
-  const body = JSON.stringify(manifest, null, 1) + '\n';
+  const body = substitute(JSON.stringify(manifest, null, 1)).text + '\n';
   const put = async (name) => {
     const r = await fetch(CFG.announce.api + CFG.announce.r2_key_prefix + name, {
       method: 'PUT', headers: { 'x-terminal-key': key, 'content-type': 'application/json' }, body,

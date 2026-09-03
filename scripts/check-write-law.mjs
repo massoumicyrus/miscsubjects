@@ -11,7 +11,7 @@ import { join } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const OWNER_EMAILS = [
-  '[OWNER_EMAIL]',
+  'the owner@<operator-domain>',
   '[REDACTED_EMAIL]',
   '45312202+[OWNER_HANDLE]@users.noreply.github.com',
 ];

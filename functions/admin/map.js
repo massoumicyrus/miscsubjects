@@ -102,7 +102,7 @@ const PB = [
   { k: 'Ship a deploy', svc: ['spine', 'do'],
     edit: [['(no file)', 'this is the deploy procedure, not an edit']],
     read: ['STATE.md: STACK section', 'wrangler.toml: bindings'],
-    deploy: 'cd workers/directory-do && wrangler deploy · wrangler d1 execute loop-content-spine --remote --file=migrations/NN.sql · wrangler pages deploy public (from repo root)',
+    deploy: 'cd workers/directory-do && wrangler deploy · wrangler d1 execute miscsubjects-content --remote --file=migrations/NN.sql · wrangler pages deploy public (from repo root)',
     bundle: ['STATE.md STACK + CURSOR', 'wrangler.toml'] },
 ];
 
@@ -168,13 +168,13 @@ const GROUP = { ai: 'compute', q: 'compute', do: 'compute', spine: 'data', ledge
 const GROUP_LABEL = { compute: 'Compute (the Worker runs these)', data: 'Data stores (distinct from the Worker)', external: 'External' };
 
 const SPECS = [
-  ['DB', 'D1', 'loop-content-spine', '10.51 MB · 34 tables', 'directory 338 · content_items 375 · assets 103 · pages 16 · directory_tests 64 · tasks 9 · settings 5 · watch_rules 5 · articles 1'],
-  ['LEDGER', 'D1', 'loop-shared-events', '24.53 MB · 1 table', 'events 13,367 — every payload in/out'],
+  ['DB', 'D1', 'miscsubjects-content', '10.51 MB · 34 tables', 'directory 338 · content_items 375 · assets 103 · pages 16 · directory_tests 64 · tasks 9 · settings 5 · watch_rules 5 · articles 1'],
+  ['LEDGER', 'D1', 'miscsubjects-events', '24.53 MB · 1 table', 'events 13,367 — every payload in/out'],
   ['KV', 'KV', 'loop_content_kv', '58b303e6…', 'directory snapshot · sticky audio/terminal modes · convo cache'],
   ['R2', 'R2', 'miscsubjects-ledger', '—', 'generated images · audio mp3 · raw sources'],
   ['AI', 'Workers AI', '—', '—', 'env.AI.run for @cf models'],
-  ['TASKS', 'Queue', 'loop-tasks', '2 producers · 1 consumer', 'background jobs'],
-  ['DIRECTORY_DO', 'Durable Object', 'DirectoryDO @ loop-safe-directory-do', 'SQLite-backed', 'slug registry + single-writer mutation log'],
+  ['TASKS', 'Queue', 'miscsubjects-tasks', '2 producers · 1 consumer', 'background jobs'],
+  ['DIRECTORY_DO', 'Durable Object', 'DirectoryDO @ miscsubjects-directory-do', 'SQLite-backed', 'slug registry + single-writer mutation log'],
 ];
 // Runtime governing rules, low→high precedence.
 const RULES = [
@@ -209,12 +209,12 @@ const APIS = [
   ['ArcAds', 'external-api.arcads.ai', 'ARCADS_ROUTES'],
   ['Klaviyo / Meta / BigCommerce / TripleWhale', 'various', 'KLAVIYO, META, BC, TW'],
   ['2chat', 'api.p.2chat.io', 'TWOCHAT_SEND'],
-  ['Remote exec host', 'agent.cannibal.capital', 'every CLI_* + BROWSER_USE/PLAYWRIGHT + DESKTOP_*'],
-  ['Sibling Worker', 'loop-safe-sibling.workers.dev', 'SIBLING_* (uses CF Workflows)'],
+  ['Remote exec host', 'agent.<bridge-domain>', 'every CLI_* + BROWSER_USE/PLAYWRIGHT + DESKTOP_*'],
+  ['Sibling Worker', 'miscsubjects-sibling.workers.dev', 'SIBLING_* (uses CF Workflows)'],
 ];
 
 function renderCC(s) {
-  if (!s || !s.turns) return '<div class="lbl">Claude Code</div><p class="sub">No back-populated sessions yet.</p>';
+  if (!s || !s.turns) return '<div class="tenant">Claude Code</div><p class="sub">No back-populated sessions yet.</p>';
   const e = x => String(x == null ? '' : x).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   const max = a => (a && a.length ? Math.max(...a.map(x => x.v)) : 1);
   const bars = a => (a || []).map(x => '<div class="ccbar"><span class="cn">' + e(x.k) + '</span><span class="cb" style="width:' + Math.round(x.v / max(a) * 100) + '%"></span><span class="cv">' + x.v + '</span></div>').join('');
@@ -237,12 +237,12 @@ function renderCC(s) {
 <h2>Claude Code — what it does &amp; what it has (back-populated)</h2>
 <p class="sub">Rebuilt from every logged session: <b>${s.sessions}</b> sessions, <b>${s.turns}</b> turns. Full per-turn log + adversarial audits: <a href="/admin/cc">/admin/cc</a>. Generated ${e(s.generated_at || '')}.</p>
 <div class="cc2">
-  <div><div class="lbl">Tool use (count)</div>${bars(s.tool_tally)}</div>
-  <div><div class="lbl">Shell commands (count)</div>${bars(s.command_bins)}</div>
-  <div><div class="lbl">Most-edited files</div>${list(s.top_edited)}</div>
-  <div><div class="lbl">Most-viewed files</div>${list(s.top_viewed)}</div>
+  <div><div class="tenant">Tool use (count)</div>${bars(s.tool_tally)}</div>
+  <div><div class="tenant">Shell commands (count)</div>${bars(s.command_bins)}</div>
+  <div><div class="tenant">Most-edited files</div>${list(s.top_edited)}</div>
+  <div><div class="tenant">Most-viewed files</div>${list(s.top_viewed)}</div>
 </div>
-<div class="lbl">Tool inventory — what Claude has vs what this build has</div>
+<div class="tenant">Tool inventory — what Claude has vs what this build has</div>
 <table class="invt"><tr><th>capability</th><th>Claude tools</th><th>this build's equivalent</th><th>build</th></tr>${inv}</table>
 `;
 }
@@ -256,7 +256,7 @@ export async function onRequestGet(context) {
 <style>
 .map{max-width:1100px}
 .map .lead{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 16px}
-.map .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:5px}
+.map .tenant{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:5px}
 .map .pill{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line-strong);border-radius:99px;padding:3px 10px;font-size:11.5px;background:#fff;color:#0a0a0a}
 .map .dot{width:8px;height:8px;border-radius:99px;display:inline-block}
 .map .boot{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:4px 9px;font-size:12px;margin:0 6px 6px 0}
@@ -281,16 +281,16 @@ export async function onRequestGet(context) {
 
 ${ccSection}
 
-<div class="lbl">Bootstrap loaded before any edit</div>
+<div class="tenant">Bootstrap loaded before any edit</div>
 <div id="boot"></div>
 
-<div class="lbl" style="margin-top:14px">How big is the build — and what a model needs to understand it</div>
+<div class="tenant" style="margin-top:14px">How big is the build — and what a model needs to understand it</div>
 <div id="tiers" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:6px 0 14px"></div>
-<div class="lbl">File structure by size (blue = build logic · grey = reference/history)</div>
+<div class="tenant">File structure by size (blue = build logic · grey = reference/history)</div>
 <div id="sizebars" style="margin:6px 0 8px"></div>
 <details style="margin-bottom:14px"><summary style="cursor:pointer;font-size:13px;color:var(--muted)">Largest files</summary><div id="topfiles" style="margin-top:8px"></div></details>
 
-<div class="lbl" style="margin-top:14px">7 Cloudflare services in this build</div>
+<div class="tenant" style="margin-top:14px">7 Cloudflare services in this build</div>
 <div class="lead" id="legend"></div>
 
 <div class="grid">
@@ -298,30 +298,30 @@ ${ccSection}
   <div class="detail" id="detail"></div>
 </div>
 
-<div class="lbl" style="margin-top:18px">File ↔ service graph — hover a node to isolate its edges</div>
+<div class="tenant" style="margin-top:18px">File ↔ service graph — hover a node to isolate its edges</div>
 <svg id="fsgraph" preserveAspectRatio="xMidYMin meet" xmlns="http://www.w3.org/2000/svg" style="width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;margin-top:4px"></svg>
 
-<div class="lbl" style="margin-top:18px">Every core file, grouped by service</div>
+<div class="tenant" style="margin-top:18px">Every core file, grouped by service</div>
 <div id="matrix" style="margin-top:4px"></div>
 
-<div class="lbl" style="margin-top:22px">Live binding specs</div>
+<div class="tenant" style="margin-top:22px">Live binding specs</div>
 <table style="font-size:12.5px"><thead><tr><th>binding</th><th>type</th><th>name</th><th>size / detail</th><th>holds</th></tr></thead><tbody id="specs"></tbody></table>
 
-<div class="lbl" style="margin-top:22px">World rules — boolean, low → high precedence</div>
+<div class="tenant" style="margin-top:22px">World rules — boolean, low → high precedence</div>
 <table style="font-size:12.5px"><thead><tr><th>rule</th><th>value</th><th>effect</th></tr></thead><tbody id="rules"></tbody></table>
 
-<div class="lbl" style="margin-top:22px">Cloudflare features — have vs don't have</div>
+<div class="tenant" style="margin-top:22px">Cloudflare features — have vs don't have</div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
   <div><div class="sub" style="margin-bottom:5px;color:#178c45">have</div><div id="have"></div></div>
   <div><div class="sub" style="margin-bottom:5px;color:#c0392b">don't have</div><div id="dont"></div></div>
 </div>
 
-<div class="lbl" style="margin-top:22px">CLIs wired in the build vs present on this Mac</div>
+<div class="tenant" style="margin-top:22px">CLIs wired in the build vs present on this Mac</div>
 <div id="clisummary" class="sub" style="margin-bottom:6px"></div>
 <div id="clis" style="display:flex;flex-wrap:wrap;gap:5px"></div>
-<div class="sub" style="margin-top:8px">green = wired + on this Mac · amber = wired but not on this Mac (may exist on the remote exec host — unknown). All CLIs run via agent.cannibal.capital, not this Mac.</div>
+<div class="sub" style="margin-top:8px">green = wired + on this Mac · amber = wired but not on this Mac (may exist on the remote exec host — unknown). All CLIs run via agent.<bridge-domain>, not this Mac.</div>
 
-<div class="lbl" style="margin-top:22px">APIs wired in the build (key-present / "in play" = unknown, secrets not readable here)</div>
+<div class="tenant" style="margin-top:22px">APIs wired in the build (key-present / "in play" = unknown, secrets not readable here)</div>
 <div id="apis"></div>
 </div>
 <script>
@@ -356,7 +356,7 @@ function tok(b){var t=Math.round(b/4);return t<1000?t:(t/1000).toFixed(t<100000?
 function chip(s){var v=SVC[s];return '<span class="pill"><span class="dot" style="background:'+v.c+'"></span>'+e(v.l)+'</span>';}
 document.getElementById('legend').innerHTML=Object.keys(SVC).map(chip).join('');
 document.getElementById('boot').innerHTML=BOOT.map(function(b){return '<span class="boot"><code>'+e(b.f)+'</code> <span class="sub">'+e(b.n)+'</span></span>';}).join('');
-function grp(label,inner){return '<div class="grp"><div class="lbl">'+label+'</div>'+inner+'</div>';}
+function grp(label,inner){return '<div class="grp"><div class="tenant">'+label+'</div>'+inner+'</div>';}
 function pick(i){
   document.querySelectorAll('.askbtn').forEach(function(b,j){b.classList.toggle('on',j===i);});
   var p=PB[i];
@@ -367,7 +367,7 @@ function pick(i){
     +'<div style="margin-bottom:12px">'+p.svc.map(chip).join(' ')+'</div>'
     +grp('edit here',edits)+grp('read for context',reads)
     +grp('deploy','<div class="sub">'+e(p.deploy)+'</div>')
-    +'<div class="bundle"><div class="lbl">minimal context to hand a model</div><ul>'+bundle+'</ul></div>';
+    +'<div class="bundle"><div class="tenant">minimal context to hand a model</div><ul>'+bundle+'</ul></div>';
 }
 document.getElementById('asks').innerHTML=PB.map(function(p,i){return '<button class="askbtn" onclick="pick('+i+')">'+e(p.k)+'</button>';}).join('');
 document.getElementById('matrix').innerHTML=FILES.map(function(f){return '<div class="matrix-row"><span class="mono">'+e(f[0])+'</span><span class="tags">'+f[1].map(chip).join('')+'</span></div>';}).join('');

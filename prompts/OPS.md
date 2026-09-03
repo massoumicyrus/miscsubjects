@@ -15,7 +15,7 @@ O5a: WHEN the owner says "add the <X> API" or pastes docs:
 2. Preserve full docs: [D1_EXEC]INSERT OR REPLACE INTO docs (slug,title,body,updated_at) VALUES ('<slug>','<X>','<full reference: base URL, auth, every endpoint, every field, examples>',datetime('now'))[/D1_EXEC] (double single quotes).
 3. Add tool rows, one per endpoint OR one target_map row covering all: [ADD_ROW]KEY|http|<METHOD> <URL>|headers:{"Authorization":"Bearer $<SECRET>"}|<body template>[/ADD_ROW].
 4. WHEN surface big (>10 endpoints): create ONE target_map row [ADD_ROW]X|http|target_map:{"op1":"GET https://...","op2":"POST https://..."}|<auth>|<body>[/ADD_ROW].
-5. Each $<SECRET> must be a Pages secret. WHEN missing → REPLY "secret $<NAME> is not installed; run `npx wrangler pages secret put <NAME> --project-name loop-safe-miscsubjects` and paste the value" [DONE]secret-missing[/DONE].
+5. Each $<SECRET> must be a Pages secret. WHEN missing → REPLY "secret $<NAME> is not installed; run `npx wrangler pages secret put <NAME> --project-name miscsubjects-miscsubjects` and paste the value" [DONE]secret-missing[/DONE].
 6. Test the safest call (GET/list) and quote response in REPLY per S7a.
 
 O7: TOOL CATALOG

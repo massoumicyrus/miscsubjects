@@ -1,4 +1,4 @@
--- OIP v0.1 — invocation events on LEDGER (loop-shared-events).
+-- OIP v0.1 — invocation events on LEDGER (miscsubjects-events).
 -- Query: GET /api/invocations ?trace_id ?object_id ?material ?waste ?limit
 
 CREATE TABLE IF NOT EXISTS invocations (

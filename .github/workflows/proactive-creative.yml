@@ -9,5 +9,5 @@ jobs:
       - name: wake /api/proactive
         run: |
           curl -s -X POST https://miscsubjects.com/api/proactive \
-            -H "x-loop-auth: ${{ secrets.LOOP_DELIVER_TOKEN }}" \
+            -H "x-loop-auth: ${{ secrets.DELIVER_TOKEN }}" \
             -o /dev/null -w "proactive wake: %{http_code}\n"

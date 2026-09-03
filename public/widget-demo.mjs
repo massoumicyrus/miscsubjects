@@ -241,8 +241,8 @@ function llmAgentWidget(w) {
   return `<div class="widget ag"${wrapStyle(w.style)}>` +
     `<div class="ag-bar"><span class="ag-badge ${esc(w.agent || 'unknown')}">${esc((w.agent || 'AI').toUpperCase())}</span><span class="ag-model">${model}</span>${hash ? `<a class="ag-hash" href="${esc(w.ledger_url || '#')}" target="_blank" rel="noopener">#${hash}</a>` : ''}</div>` +
     `<details class="ag-ins"><summary>inspect prompt &amp; response</summary>` +
-    `<div class="ag-lbl">prompt</div><pre class="ag-pre">${esc(w.prompt || '')}</pre>` +
-    `<div class="ag-lbl">response</div><pre class="ag-pre">${esc(w.response || '')}</pre>` +
+    `<div class="ag-tenant">prompt</div><pre class="ag-pre">${esc(w.prompt || '')}</pre>` +
+    `<div class="ag-tenant">response</div><pre class="ag-pre">${esc(w.response || '')}</pre>` +
     `</details>` +
     (Array.isArray(w.suggested_followups) && w.suggested_followups.length
       ? `<div class="ag-followups">${w.suggested_followups.map(f => `<button type="button" class="ag-follow" data-question="${esc(f)}" onclick="askWidget(this)">${esc(f)}</button>`).join('')}</div>`

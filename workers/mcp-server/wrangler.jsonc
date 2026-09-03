@@ -8,7 +8,7 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MiscsubjectsMCP"] }],
   "d1_databases": [
-    { "binding": "DB", "database_name": "loop-content-spine", "database_id": "298eb858-37fb-4c73-8be4-135e8feb73fe" }
+    { "binding": "DB", "database_name": "miscsubjects-content", "database_id": "298eb858-37fb-4c73-8be4-135e8feb73fe" }
   ],
   "kv_namespaces": [
     { "binding": "KV", "id": "58b303e666a8431685624e0cfd2fd63f" }

@@ -30,7 +30,7 @@ VALUES (
   '# WHAT: Send a tracked email (open pixel + wrapped click links) and record it in email_sends.
 # WHEN_TO_USE: any owner-authorized send where you want open/click visibility.
 # ARGS: $1 = JSON {to, subject, body, kind?, lead_id?, from?, from_name?, reply_to?}.
-# EX: [EMAIL_SEND_TRACKED]{"to":"[REDACTED_EMAIL]","subject":"hi","body":"see https://leoresearch.com"}[/EMAIL_SEND_TRACKED]
+# EX: [EMAIL_SEND_TRACKED]{"to":"[REDACTED_EMAIL]","subject":"hi","body":"see https://<tenant-domain>"}[/EMAIL_SEND_TRACKED]
 ["$1"]',
   'leads',1,1,20,0,datetime('now'),datetime('now')
 ) ON CONFLICT(key) DO UPDATE SET target=excluded.target, content=excluded.content, updated_at=datetime('now');

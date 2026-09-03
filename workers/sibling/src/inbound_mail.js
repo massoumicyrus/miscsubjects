@@ -1,6 +1,6 @@
 
-const OWNER = '[OWNER_EMAIL]';
-const OWNER_PRIMARY_PENDING_DNS = '[OWNER_EMAIL]';  // real address; restore as OWNER when dig MX dsco.co answers
+const OWNER = 'the owner@<tenant-domain>';
+const OWNER_PRIMARY_PENDING_DNS = 'the owner@<operator-domain>';  // real address; restore as OWNER when dig MX <operator-domain> answers
 const MAX_BODY = 60000;
 
 // Quoted-printable decodes to BYTES, and those bytes are usually UTF-8. Decoding straight to

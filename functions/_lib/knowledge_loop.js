@@ -298,7 +298,7 @@ export async function nextActs(env, opts = {}) {
       clears:
         "append the why via the provenance webhook on /a/" +
         w.slug +
-        " (loop-law: the why travels with the write)",
+        " (tenant-law: the why travels with the write)",
     });
   }
 

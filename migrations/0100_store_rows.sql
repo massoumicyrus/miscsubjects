@@ -1,4 +1,4 @@
--- 0100: STORE_GET / STORE_LIST — directory rows for the bound loop-safe-storage Worker.
+-- 0100: STORE_GET / STORE_LIST — directory rows for the bound miscsubjects-storage Worker.
 -- The Worker holds reference sprawl (vendored API docs, old build) in R2 + a D1 index and
 -- is reached via the STORE service binding behind /api/store (TERMINAL_KEY-gated proxy).
 -- INSERT OR REPLACE so re-running is idempotent.

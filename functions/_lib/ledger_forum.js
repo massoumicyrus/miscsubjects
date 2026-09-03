@@ -180,10 +180,10 @@ function renderPost(p) {
     ? '<a href="/admin/agents?id=' + encodeURIComponent(p.id) + '">turn #' + esc(p.id) + '</a>'
     : '';
   const sup = p.supports.length
-    ? '<div class="fm-edge fm-sup"><span class="fm-edge-lbl">supports</span><ul>' + p.supports.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ul></div>'
+    ? '<div class="fm-edge fm-sup"><span class="fm-edge-tenant">supports</span><ul>' + p.supports.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ul></div>'
     : '';
   const con = p.contests.length
-    ? '<div class="fm-edge fm-con"><span class="fm-edge-lbl">contests</span><ul>' + p.contests.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ul></div>'
+    ? '<div class="fm-edge fm-con"><span class="fm-edge-tenant">contests</span><ul>' + p.contests.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ul></div>'
     : '';
   const next = p.next ? '<div class="fm-next"><span>next</span> <code>' + esc(p.next) + '</code></div>' : '';
   const note = p.verdict_note && p.verdict_note !== p.verdict ? '<div class="fm-note">' + esc(p.verdict_note) + '</div>' : '';
@@ -225,9 +225,9 @@ const FORUM_STYLES = `
 .fm-note{padding:8px 16px;font-size:12px;color:#555;background:#fff8e6;border-bottom:1px solid #f5e6c8}
 .fm-body{padding:14px 16px;font-size:14px;line-height:1.6;color:#222}
 .fm-edge{padding:0 16px 10px;font-size:12px}
-.fm-edge-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#888;display:block;margin-bottom:4px}
-.fm-sup .fm-edge-lbl{color:#0f7a3d}
-.fm-con .fm-edge-lbl{color:#b45309}
+.fm-edge-tenant{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#888;display:block;margin-bottom:4px}
+.fm-sup .fm-edge-tenant{color:#0f7a3d}
+.fm-con .fm-edge-tenant{color:#b45309}
 .fm-edge ul{margin:0;padding-left:18px;color:#444}
 .fm-edge li{margin:2px 0}
 .fm-next{padding:8px 16px 12px;font-size:12px;color:#555}

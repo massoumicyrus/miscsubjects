@@ -108,42 +108,42 @@ for (const path of privacyUrls) {
   }
 }
 
-const IDENTITY_SQL = "SELECT slug FROM articles WHERE lower(body) LIKE '%the owner%' OR lower(meta) LIKE '%the owner%' OR lower(body) LIKE '%[OWNER_SURNAME]%' OR lower(meta) LIKE '%[OWNER_SURNAME]%' OR lower(body) LIKE '%dsco.co%' OR lower(meta) LIKE '%dsco.co%' OR lower(body) LIKE '%theloopway%' OR lower(meta) LIKE '%theloopway%' OR body LIKE '%[OWNER_PHONE]%' OR meta LIKE '%[OWNER_PHONE]%' OR body LIKE '%Metric Marketing%' OR meta LIKE '%Metric Marketing%' LIMIT 20";
+const IDENTITY_SQL = "SELECT slug FROM articles WHERE lower(body) LIKE '%the owner%' OR lower(meta) LIKE '%the owner%' OR lower(body) LIKE '%[OWNER_SURNAME]%' OR lower(meta) LIKE '%[OWNER_SURNAME]%' OR lower(body) LIKE '%<operator-domain>%' OR lower(meta) LIKE '%<operator-domain>%' OR lower(body) LIKE '%tenantdomain%' OR lower(meta) LIKE '%tenantdomain%' OR body LIKE '%[OWNER_PHONE]%' OR meta LIKE '%[OWNER_PHONE]%' OR body LIKE '%<business>%' OR meta LIKE '%<business>%' LIMIT 20";
 if (process.env.GITHUB_ACTIONS) {
   console.error(JSON.stringify({ note: 'corpus D1 identity scan skipped in CI (no Cloudflare auth); runs on every owner-side deploy' }));
 } else {
   const { spawnSync } = await import('node:child_process');
   const scanEnv = { ...process.env };
   delete scanEnv.CLOUDFLARE_API_TOKEN; delete scanEnv.CF_API_TOKEN; delete scanEnv.CF_TOKEN;
-  const r = spawnSync('npx', ['wrangler', 'd1', 'execute', 'loop-content-spine', '--remote', '--json', '--command', IDENTITY_SQL], { cwd: ROOT, encoding: 'utf8', env: scanEnv, shell: process.platform === 'win32' });
+  const r = spawnSync('npx', ['wrangler', 'd1', 'execute', 'miscsubjects-content', '--remote', '--json', '--command', IDENTITY_SQL], { cwd: ROOT, encoding: 'utf8', env: scanEnv, shell: process.platform === 'win32' });
   const raw = String(r.stdout || '');
   const jsonStart = raw.indexOf('[');
   const jsonEnd = raw.lastIndexOf(']');
   if (jsonStart < 0 || jsonEnd <= jsonStart) {
-    failures.push({ where: 'd1:loop-content-spine', line: 0, match: 'corpus identity scan could not run: ' + (String(r.stderr || '').slice(0, 200) || 'no JSON output') });
+    failures.push({ where: 'd1:miscsubjects-content', line: 0, match: 'corpus identity scan could not run: ' + (String(r.stderr || '').slice(0, 200) || 'no JSON output') });
   } else {
     try {
       // wrangler may append update notices after the JSON; take the outermost array only.
       const rows = JSON.parse(raw.slice(jsonStart, jsonEnd + 1))?.[0]?.results || [];
       for (const row of rows) failures.push({ where: 'd1:articles/' + row.slug, line: 0, match: 'OWNER IDENTITY STORED IN LIVE CORPUS' });
     } catch (e) {
-      failures.push({ where: 'd1:loop-content-spine', line: 0, match: 'corpus scan unparsable: ' + e.message });
+      failures.push({ where: 'd1:miscsubjects-content', line: 0, match: 'corpus scan unparsable: ' + e.message });
     }
   }
 
   if (process.env.NAME_LAW_EGRESS === '1') {
-  const LEDGER_SQL = "SELECT id, key, source FROM events WHERE ts >= datetime('now','-1 day') AND (request_json LIKE '%[OWNER_SURNAME]%' OR response_json LIKE '%[OWNER_SURNAME]%' OR request_preview LIKE '%[OWNER_SURNAME]%' OR response_preview LIKE '%[OWNER_SURNAME]%' OR request_json LIKE '%the owner@dsco%' OR response_json LIKE '%the owner@dsco%' OR request_json LIKE '%the owner@theloopway%' OR response_json LIKE '%the owner@theloopway%' OR actor LIKE '%[OWNER_SURNAME]%' OR actor LIKE '%[OWNER_MACHINE]%') LIMIT 20";
-  const lr = spawnSync('npx', ['wrangler', 'd1', 'execute', 'loop-shared-events', '--remote', '--json', '--command', LEDGER_SQL], { cwd: ROOT, encoding: 'utf8', env: scanEnv, shell: process.platform === 'win32' });
+  const LEDGER_SQL = "SELECT id, key, source FROM events WHERE ts >= datetime('now','-1 day') AND (request_json LIKE '%[OWNER_SURNAME]%' OR response_json LIKE '%[OWNER_SURNAME]%' OR request_preview LIKE '%[OWNER_SURNAME]%' OR response_preview LIKE '%[OWNER_SURNAME]%' OR request_json LIKE '%the owner@operator%' OR response_json LIKE '%the owner@operator%' OR request_json LIKE '%the owner@tenantdomain%' OR response_json LIKE '%the owner@tenantdomain%' OR actor LIKE '%[OWNER_SURNAME]%' OR actor LIKE '%[OWNER_MACHINE]%') LIMIT 20";
+  const lr = spawnSync('npx', ['wrangler', 'd1', 'execute', 'miscsubjects-events', '--remote', '--json', '--command', LEDGER_SQL], { cwd: ROOT, encoding: 'utf8', env: scanEnv, shell: process.platform === 'win32' });
   const lraw = String(lr.stdout || '');
   const ls = lraw.indexOf('['); const le = lraw.lastIndexOf(']');
   if (ls < 0 || le <= ls) {
-    failures.push({ where: 'd1:loop-shared-events', line: 0, match: 'ledger identity scan could not run: ' + (String(lr.stderr || '').slice(0, 200) || 'no JSON output') });
+    failures.push({ where: 'd1:miscsubjects-events', line: 0, match: 'ledger identity scan could not run: ' + (String(lr.stderr || '').slice(0, 200) || 'no JSON output') });
   } else {
     try {
       const rows = JSON.parse(lraw.slice(ls, le + 1))?.[0]?.results || [];
       for (const row of rows) failures.push({ where: 'd1:ledger/' + row.id, line: 0, match: 'OWNER IDENTITY IN FRESH LEDGER EVENT (' + row.source + '/' + row.key + ') — ingest scrub regressed' });
     } catch (e) {
-      failures.push({ where: 'd1:loop-shared-events', line: 0, match: 'ledger scan unparsable: ' + e.message });
+      failures.push({ where: 'd1:miscsubjects-events', line: 0, match: 'ledger scan unparsable: ' + e.message });
     }
   }
 
@@ -152,7 +152,7 @@ if (process.env.GITHUB_ACTIONS) {
   const liveKey = process.env.TERMINAL_KEY || '';
   if (liveKey.length >= 32) {
     const KEY_SQL = "SELECT id, key, source FROM events WHERE ts >= datetime('now','-1 day') AND (request_json LIKE '%" + liveKey + "%' OR response_json LIKE '%" + liveKey + "%') LIMIT 5";
-    const kr = spawnSync('npx', ['wrangler', 'd1', 'execute', 'loop-shared-events', '--remote', '--json', '--command', KEY_SQL], { cwd: ROOT, encoding: 'utf8', env: scanEnv, shell: process.platform === 'win32' });
+    const kr = spawnSync('npx', ['wrangler', 'd1', 'execute', 'miscsubjects-events', '--remote', '--json', '--command', KEY_SQL], { cwd: ROOT, encoding: 'utf8', env: scanEnv, shell: process.platform === 'win32' });
     const kraw = String(kr.stdout || '');
     const ks = kraw.indexOf('['); const ke = kraw.lastIndexOf(']');
     if (ks >= 0 && ke > ks) {
@@ -176,7 +176,7 @@ const egressProbes = process.env.NAME_LAW_EGRESS !== '1' ? [] : [
   '/api/workspace/ad-operations-q3',
   '/api/workspace',
 ];
-const IDENTITY_EGRESS = /the owner|[OWNER_SURNAME]|dsco\.co|theloopway|[OWNER_PHONE]|metric marketing/i;
+const IDENTITY_EGRESS = /the owner|[OWNER_SURNAME]|<operator-domain>|tenantdomain|[OWNER_PHONE]|<business>/i;
 for (const path of egressProbes) {
   try {
     const res = await fetch(PRODUCTION_ORIGIN + path);

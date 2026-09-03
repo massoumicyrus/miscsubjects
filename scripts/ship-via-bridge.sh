@@ -56,6 +56,6 @@ for i in $(seq 1 40); do
 done
 
 echo "== apply the LEDGER-database migration (0359 part B) =="
-lexec "$PATHFIX cd $REPO && npx wrangler d1 execute loop-shared-events --remote --file migrations/0359_articles_schema_and_merkle.sql 2>&1 | tail -5" | out
+lexec "$PATHFIX cd $REPO && npx wrangler d1 execute miscsubjects-events --remote --file migrations/0359_articles_schema_and_merkle.sql 2>&1 | tail -5" | out
 
 echo "== done =="

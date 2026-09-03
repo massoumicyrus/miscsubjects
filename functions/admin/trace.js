@@ -112,7 +112,7 @@ export async function onRequestGet(context) {
 .card{border:1px solid var(--line);border-radius:8px;background:var(--panel);margin-bottom:14px}
 .card h3{font-size:13px;padding:10px 14px;margin:0;border-bottom:1px solid var(--line);background:#f2f5fa;font-family:var(--mono)}
 .card .sec{padding:10px 14px}
-.card .lbl{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);margin:8px 0 4px}
+.card .tenant{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);margin:8px 0 4px}
 .card pre{margin:0;font-size:12px;max-height:520px;overflow:auto;background:#fff;border:1px solid var(--line);white-space:pre-wrap;word-break:break-word;padding:8px 10px;border-radius:4px}
 .card details{margin-top:6px}
 .card details summary{cursor:pointer;font-size:12px;color:var(--accent);font-weight:600;padding:4px 0}
@@ -240,9 +240,9 @@ function modelCard(s){
   if (!emitHtml) emitHtml = '<div class="emit-block" style="color:var(--muted)">(no [TAG] blocks parsed — raw model output below)</div>';
 
   return '<div class="card kard"><h3><span class="tag out">MODEL</span>'+e(s.key)+' · '+e(model)+' <span style="color:var(--muted);float:right">'+e(s.ts)+'</span></h3><div class="sec">' +
-    '<div class="lbl">system prompt ('+system.length+' chars)</div><pre>'+e(system)+'</pre>' +
-    '<div class="lbl">user input ('+input.length+' chars)</div><pre>'+e(input)+'</pre>' +
-    '<div class="lbl">model emitted (parsed)</div>'+emitHtml +
+    '<div class="tenant">system prompt ('+system.length+' chars)</div><pre>'+e(system)+'</pre>' +
+    '<div class="tenant">user input ('+input.length+' chars)</div><pre>'+e(input)+'</pre>' +
+    '<div class="tenant">model emitted (parsed)</div>'+emitHtml +
     '<details><summary>raw model output text</summary><pre>'+e(outText)+'</pre></details>' +
     '<details><summary>raw HTTP request body</summary><pre>'+e(redact(pretty(s.request)))+'</pre></details>' +
     '<details><summary>raw HTTP response body</summary><pre>'+e(pretty(s.response))+'</pre></details>' +
@@ -252,20 +252,20 @@ function toolCard(s){
   const cls = s.action === 'http_out' ? 'kard-http' : 'kard-tool';
   const dir = s.direction === 'IN' ? '<span class="tag in">IN</span>' : '<span class="tag out">OUT</span>';
   return '<div class="card '+cls+'"><h3>'+dir+e(s.action||'tool')+' · ['+e(s.key||'?')+'] <span style="color:var(--muted);float:right">'+e(s.ts)+(s.status?' · '+s.status:'')+'</span></h3><div class="sec">' +
-    '<div class="lbl">request</div><pre>'+e(redact(pretty(s.request)))+'</pre>' +
-    '<div class="lbl">response</div><pre>'+e(pretty(s.response))+'</pre>' +
+    '<div class="tenant">request</div><pre>'+e(redact(pretty(s.request)))+'</pre>' +
+    '<div class="tenant">response</div><pre>'+e(pretty(s.response))+'</pre>' +
     '</div></div>';
 }
 function httpCard(h){
   return '<div class="card kard-http"><h3><span class="tag out">HTTP</span>'+e(h.source||'')+' · '+e(h.key||'')+' <span style="color:var(--muted);float:right">'+e(h.ts)+(h.status?' · '+h.status:'')+'</span></h3><div class="sec">' +
-    '<div class="lbl">raw request</div><pre>'+e(redact(pretty(h.request)))+'</pre>' +
-    '<div class="lbl">raw response</div><pre>'+e(pretty(h.response))+'</pre>' +
+    '<div class="tenant">raw request</div><pre>'+e(redact(pretty(h.request)))+'</pre>' +
+    '<div class="tenant">raw response</div><pre>'+e(pretty(h.response))+'</pre>' +
     '</div></div>';
 }
 function blooioCard(b){
   return '<div class="card kard-blooio"><h3><span class="tag out">BLOOIO</span>'+e(b.action)+(b.status?' · '+b.status:'')+' <span style="color:var(--muted);float:right">'+e(b.ts)+'</span></h3><div class="sec">' +
-    '<div class="lbl">payload</div><pre>'+e(redact(pretty(b.request)))+'</pre>' +
-    (b.response?'<div class="lbl">response</div><pre>'+e(pretty(b.response))+'</pre>':'') +
+    '<div class="tenant">payload</div><pre>'+e(redact(pretty(b.request)))+'</pre>' +
+    (b.response?'<div class="tenant">response</div><pre>'+e(pretty(b.response))+'</pre>':'') +
     '</div></div>';
 }
 

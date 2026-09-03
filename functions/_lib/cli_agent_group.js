@@ -1,7 +1,7 @@
 // CLI Agent Team Room — multi-agent transcript discussion via Mac bridge.
 import { SPAWN_AGENTS } from './cli_agent_spawn.js';
 
-const BRIDGE = 'https://agent.cannibal.capital/exec';
+const BRIDGE = 'https://agent.<bridge-domain>/exec';
 const GROUP_SCRIPT = '/Users/owner/miscsubjects-pages/hooks/cli-agent-group.sh';
 const DEFAULT_CWD = '/Users/owner/miscsubjects-pages';
 const DEFAULT_AGENTS = ['kimi', 'gemini', 'codex'];

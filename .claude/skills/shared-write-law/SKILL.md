@@ -31,6 +31,7 @@ Read file → FILE_CLAIM claim → Edit → FILE_CLAIM release
 
 - `scripts/check-write-law.mjs` runs inside `scripts/check-protected-features.mjs` and inside `.githooks/pre-commit`.
 - It blocks any commit of a shared file unless the committing agent/session holds a current `FILE_CLAIM` KV lock for that file.
+- Owner commits (git `user.email` in `the owner@<operator-domain>`, `<email>`) bypass the check.
 - `WRITE_LAW_BYPASS=<reason>` bypasses the check for emergencies.
 - If the commit tool does not set a session ID, set `FILE_CLAIM_HOLDER=<agent>:<session-prefix>` in the environment.
 

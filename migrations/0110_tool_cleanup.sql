@@ -8,7 +8,7 @@ DELETE FROM directory WHERE key LIKE 'NPM_%';
 
 -- 3. Create unified NPM row
 INSERT OR REPLACE INTO directory (key, type, target, auth, content, category, updated_at, enabled, planner_visible) VALUES
-('NPM', 'http', 'POST https://agent.cannibal.capital/exec', 'headers:{"x-terminal-key":"$TERMINAL_KEY"}',
+('NPM', 'http', 'POST https://agent.<bridge-domain>/exec', 'headers:{"x-terminal-key":"$TERMINAL_KEY"}',
 '# WHAT: Run any npm command on the Mac bridge. Args: command + args (e.g. "install --save-dev typescript" or "audit --fix").
 # WHEN_TO_USE: package management, dependency install, npm audit, npm publish, npm run, etc.
 # ARGS: command + args
@@ -59,7 +59,7 @@ INSERT OR REPLACE INTO directory (key, type, target, auth, content, category, up
 
 -- 7. Add LOCAL_HELP (referenced by many CLI_* / LOCAL_* tools but never defined as a row)
 INSERT OR REPLACE INTO directory (key, type, target, auth, content, category, updated_at, enabled, planner_visible) VALUES
-('LOCAL_HELP', 'http', 'POST https://agent.cannibal.capital/exec', 'headers:{"x-terminal-key":"$TERMINAL_KEY"}',
+('LOCAL_HELP', 'http', 'POST https://agent.<bridge-domain>/exec', 'headers:{"x-terminal-key":"$TERMINAL_KEY"}',
 '# WHAT: Print the --help / -h / man page of a binary on the Mac. Args: binary name.
 # WHEN_TO_USE: "how do I use X", "what flags does X have", "X --help".
 # ARGS: $1

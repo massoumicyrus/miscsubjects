@@ -1,4 +1,4 @@
-// loop-safe-directory-do — a bound Durable Object worker.
+// miscsubjects-directory-do — a bound Durable Object worker.
 //
 // DirectoryDO is one strongly-consistent, single-writer instance (named "main").
 // It owns two durable, SQLite-backed tables:
@@ -78,7 +78,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/health') {
-      return new Response(JSON.stringify({ ok: true, name: 'loop-safe-directory-do', ts: new Date().toISOString() }), {
+      return new Response(JSON.stringify({ ok: true, name: 'miscsubjects-directory-do', ts: new Date().toISOString() }), {
         headers: { 'content-type': 'application/json' },
       });
     }
@@ -95,7 +95,7 @@ export default {
       return stub.fetch(new Request(fwd.toString(), init));
     }
     return new Response(
-      'loop-safe-directory-do: /health · /do/ping · /do/slug.list · /do/slug.resolve?slug=X · /do/slug.register (POST {slug,kind,target}) · /do/intents',
+      'miscsubjects-directory-do: /health · /do/ping · /do/slug.list · /do/slug.resolve?slug=X · /do/slug.register (POST {slug,kind,target}) · /do/intents',
       { status: 200 }
     );
   },

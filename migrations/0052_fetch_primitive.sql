@@ -1,8 +1,8 @@
--- Migration 0052 — universal fetch primitive + fix LBL_GET/LBL_POST.
+-- Migration 0052 — universal fetch primitive + fix TENANT_GET/TENANT_POST.
 -- http rows URL-encode substituted vars, so a path arg like "v4/health" became
 -- "v4%2Fhealth" and 404'd. fn rows substitute in json-string mode (no URL mangling),
 -- so the URL keeps its slashes. WEB_GET/WEB_FETCH give the build a general window to
--- any URL/API; LBL_GET/LBL_POST become thin wrappers over the same fn.
+-- any URL/API; TENANT_GET/TENANT_POST become thin wrappers over the same fn.
 
 INSERT INTO directory (key, type, target, auth, content, category, planner_rank, updated_at) VALUES
 ('WEB_GET', 'fn', 'httpFetch', '',
@@ -15,14 +15,14 @@ INSERT INTO directory (key, type, target, auth, content, category, planner_rank,
 ["$1","$2","$3","$4"]',
 'web', 42, strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 
-('LBL_GET', 'fn', 'httpFetch', '',
-'# GET a path on the loop data platform (api.lbl.fyi, the loop-api-worker). Arg: the path after the host, e.g. "v4/health" or "2chat/contacts" (slashes preserved). Returns raw JSON + status. when_to_use: the owner asks for data from the loop platform / lbl.fyi. If a path needs auth (401), use WEB_FETCH with the right header, or ask the owner for the token.
-["GET","https://api.lbl.fyi/$1+","",""]',
+('TENANT_GET', 'fn', 'httpFetch', '',
+'# GET a path on the loop data platform (api.<tenant-domain>, the loop-api-worker). Arg: the path after the host, e.g. "v4/health" or "2chat/contacts" (slashes preserved). Returns raw JSON + status. when_to_use: the owner asks for data from the loop platform / <tenant-domain>. If a path needs auth (401), use WEB_FETCH with the right header, or ask the owner for the token.
+["GET","https://api.<tenant-domain>/$1+","",""]',
 'loopdata', 45, strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 
-('LBL_POST', 'fn', 'httpFetch', '',
-'# POST to the loop data platform (api.lbl.fyi). Args: path|json_body. when_to_use: trigger/send something on the loop platform. For custom auth headers use WEB_FETCH.
-["POST","https://api.lbl.fyi/$1","$2+",""]',
+('TENANT_POST', 'fn', 'httpFetch', '',
+'# POST to the loop data platform (api.<tenant-domain>). Args: path|json_body. when_to_use: trigger/send something on the loop platform. For custom auth headers use WEB_FETCH.
+["POST","https://api.<tenant-domain>/$1","$2+",""]',
 'loopdata', 46, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 
 ON CONFLICT(key) DO UPDATE SET

@@ -37,7 +37,7 @@ const BODY = `
 <div class="ref-grid" id="refs"></div>
 
 <div class="prompt-row">
-  <textarea id="prompt" placeholder="e.g., LEO Research peptide vial on a marble surface with dramatic lighting, luxury wellness ad style"></textarea>
+  <textarea id="prompt" placeholder="e.g., the tenant peptide vial on a marble surface with dramatic lighting, luxury wellness ad style"></textarea>
   <select id="size">
     <option value="1024x1024">Square (1:1)</option>
     <option value="1024x1536">Portrait (2:3)</option>

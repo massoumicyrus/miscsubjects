@@ -1,4 +1,4 @@
-// /api/store/* — TERMINAL_KEY-gated proxy to the private loop-safe-storage Worker via the
+// /api/store/* — TERMINAL_KEY-gated proxy to the private miscsubjects-storage Worker via the
 // STORE service binding. Mirrors functions/api/file/[[path]].js: same-origin, authed, no
 // public exposure of the storage Worker. Attaches STORE_KEY so the Worker accepts writes.
 //

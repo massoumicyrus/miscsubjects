@@ -1,4 +1,4 @@
-const PROJECT = 'loop-safe-miscsubjects';
+const PROJECT = 'miscsubjects-miscsubjects';
 function accountId(env) { return env.CF_ACCOUNT_ID || env.CLOUDFLARE_ACCOUNT_ID || ''; }
 function storeId(env) { return env.SECRETS_STORE_ID || ''; }
 

@@ -80,8 +80,8 @@ export async function publicSecretFindingAndRevoke(value, env, context = {}) {
 
 const OWNER_IDENTITY_REPLACEMENTS = [
   [/cc@[OWNER_HANDLE]\.com/gi, '[OWNER_EMAIL]'],
-  [/the owner@theloopway\.com/gi, '[OWNER_EMAIL]'],
-  [/the owner@dsco\.co/gi, '[OWNER_EMAIL]'],
+  [/the owner@<tenant-domain>/gi, '[OWNER_EMAIL]'],
+  [/the owner@<operator-domain>/gi, '[OWNER_EMAIL]'],
   [/\/Users\/[OWNER_HANDLE]/gi, '/Users/owner'],
   [/[OWNER_ACCT]/gi, '[OWNER_ACCT]'],
   [/[OWNER_HANDLE]|[OWNER_HANDLE]/gi, '[OWNER_HANDLE]'],

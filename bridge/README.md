@@ -21,7 +21,7 @@ sed -i '' "s|replace-with-32-byte-hex-from-openssl-rand|$(openssl rand -hex 32)|
 # 4. Mirror the same secret into miscsubjects as a Pages secret.
 TERMINAL_KEY=$(grep '^TERMINAL_KEY=' ~/.config/grok-bridge.env | cut -d= -f2-)
 cd ~/miscsubjects-pages
-echo "$TERMINAL_KEY" | npx wrangler pages secret put TERMINAL_KEY --project-name loop-safe-miscsubjects
+echo "$TERMINAL_KEY" | npx wrangler pages secret put TERMINAL_KEY --project-name miscsubjects-miscsubjects
 cd bridge
 
 # 5. Stop the old bare-node bridge if it is running.
@@ -36,10 +36,10 @@ launchctl load   ~/Library/LaunchAgents/com.owner.grok-bridge.plist
 launchctl load   ~/Library/LaunchAgents/com.owner.cloudflared-grok.plist
 
 # 7. Health check from the public side (must come back 200 with key_set=true).
-curl -sS https://agent.cannibal.capital/health -H "x-terminal-key: $TERMINAL_KEY" | jq .
+curl -sS https://agent.<bridge-domain>/health -H "x-terminal-key: $TERMINAL_KEY" | jq .
 
 # 8. Smoke test from miscsubjects' side.
-curl -sS https://agent.cannibal.capital/exec \
+curl -sS https://agent.<bridge-domain>/exec \
   -H "x-terminal-key: $TERMINAL_KEY" -H "Content-Type: application/json" \
   -d '{"cmd":"echo","args":["hello from bridge"]}' | jq .
 ```
@@ -114,11 +114,11 @@ This is the last line of defense if a row template, a model hallucination, and t
 | Component | Status after this annex lands |
 |---|---|
 | `~/grok-agent/server.js` (the old 23-line `/message` bridge) | **DEPRECATED.** Same path on disk; same port (3000); same tunnel terminating at it. Stop the old `node server.js` PID, launchd takes over with this file. |
-| `~/grok-router/` (Cloudflare Worker `api.cannibal.capital`) | **RETIRE.** Blooio webhooks now hit `miscsubjects.com/blooio`. The `/sms`, `/wa`, `/llm`, `/terminal` routes in `grok-router/src/index.js` are dead code — keep one release as fallback, then `wrangler delete grok-router`. |
-| Cloudflare Tunnel `grok-agent` (UUID `e22569fd-8186-4099-a2ed-e554fcd0dcab`) | **KEEP.** Same ingress: `agent.cannibal.capital → localhost:3000`. Now managed by launchd plist for reboot survival instead of bare `cloudflared` PID. |
+| `~/grok-router/` (Cloudflare Worker `api.<bridge-domain>`) | **RETIRE.** Blooio webhooks now hit `miscsubjects.com/blooio`. The `/sms`, `/wa`, `/llm`, `/terminal` routes in `grok-router/src/index.js` are dead code — keep one release as fallback, then `wrangler delete grok-router`. |
+| Cloudflare Tunnel `grok-agent` (UUID `e22569fd-8186-4099-a2ed-e554fcd0dcab`) | **KEEP.** Same ingress: `agent.<bridge-domain> → localhost:3000`. Now managed by launchd plist for reboot survival instead of bare `cloudflared` PID. |
 
 ## What this enables
 
-Once the bridge is live and a `LOCAL_EXEC` directory row exists pointing at `https://agent.cannibal.capital/exec`, every CLI on the Mac is one `ADD_ROW` away from being a tool the ROUTER can call.
+Once the bridge is live and a `LOCAL_EXEC` directory row exists pointing at `https://agent.<bridge-domain>/exec`, every CLI on the Mac is one `ADD_ROW` away from being a tool the ROUTER can call.
 
 See `../TERMINAL_ANNEX.md` for the row catalog, the 10 capability domains, the executor directives (web search, GitHub absorption, MCP registry scour), and the smoke test plan.

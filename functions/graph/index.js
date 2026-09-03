@@ -170,7 +170,7 @@ body.embed .rail-item {
   margin: 0;
   padding: 7px 9px;
 }
-body.embed .rail-item .lbl { font-size: 12px; line-height: 1.25; }
+body.embed .rail-item .tenant { font-size: 12px; line-height: 1.25; }
 body.embed .rail-item .meta { font-size: 9px; }
 body.embed .stage { padding: 10px 12px 12px; }
 body.embed .stage-h { margin-bottom: 8px; }
@@ -295,7 +295,7 @@ h1 { margin:0; font:700 clamp(2.5rem,5vw,5rem)/1.05 var(--font-display);text-tra
 }
 .rail-item:hover { background: var(--panel2); border-color: var(--line); }
 .rail-item.on { background: var(--panel2); border-color: var(--line2); }
-.rail-item .lbl { font-size: 13px; font-weight: 600; line-height: 1.35; color: var(--ink); }
+.rail-item .tenant { font-size: 13px; font-weight: 600; line-height: 1.35; color: var(--ink); }
 .rail-item .meta { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 3px; }
 .mini-bar { display: flex; height: 4px; border-radius: 2px; overflow: hidden; margin-top: 6px; gap: 1px; }
 .mini-bar span { display: block; min-width: 2px; }
@@ -342,7 +342,7 @@ h1 { margin:0; font:700 clamp(2.5rem,5vw,5rem)/1.05 var(--font-display);text-tra
 .tier-chart { display: flex; align-items: flex-end; gap: 10px; height: 160px; margin-bottom: 20px; padding: 12px; background: var(--panel); border-radius: 12px; border: 1px solid var(--line); }
 .tier-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
 .tier-col .bar { width: 100%; border-radius: 6px 6px 2px 2px; min-height: 4px; transition: height 0.3s; }
-.tier-col .lbl { font-size: 9px; color: var(--muted); text-align: center; line-height: 1.2; }
+.tier-col .tenant { font-size: 9px; color: var(--muted); text-align: center; line-height: 1.2; }
 .tier-col .num { font: 600 13px var(--mono); }
 
 .grid {
@@ -547,7 +547,7 @@ function renderRail() {
     rail.innerHTML = '<div class="rail-grp">Sort</div>' +
       ['human', 'score', 'claims'].map(k =>
         '<button type="button" class="rail-item' + (selected === k ? ' on' : '') + '" data-s="' + k + '">' +
-        '<div class="lbl">' + (k === 'human' ? 'Human trials first' : k === 'score' ? 'Evidence score' : 'Most claims') + '</div></button>'
+        '<div class="tenant">' + (k === 'human' ? 'Human trials first' : k === 'score' ? 'Evidence score' : 'Most claims') + '</div></button>'
       ).join('');
     rail.querySelectorAll('.rail-item').forEach(btn => {
       btn.addEventListener('click', () => { selected = btn.getAttribute('data-s'); renderEvidence(); renderRail(); });
@@ -583,7 +583,7 @@ function renderRail() {
 
 function railItem(item) {
   return '<button type="button" class="rail-item' + (selected === item.id ? ' on' : '') + '" data-id="' + esc(item.id) + '">' +
-    '<div class="lbl">' + esc(item.label) + '</div>' +
+    '<div class="tenant">' + esc(item.label) + '</div>' +
     '<div class="meta">' + item.articles.length + ' articles · ' + (item.human || 0) + ' human</div>' +
     tierBar(item.tiers) + '</button>';
 }
@@ -798,7 +798,7 @@ function renderEvidence() {
   document.getElementById('tierChart').innerHTML = DATA.tierMeta.order.map(k => {
     const n = tiers[k] || 0;
     const h = Math.max(8, Math.round(n / max * 130));
-    return '<div class="tier-col"><div class="num">' + n + '</div><div class="bar" style="height:' + h + 'px;background:' + colors[k] + '"></div><div class="lbl">' + esc(labels[k]) + '</div></div>';
+    return '<div class="tier-col"><div class="num">' + n + '</div><div class="bar" style="height:' + h + 'px;background:' + colors[k] + '"></div><div class="tenant">' + esc(labels[k]) + '</div></div>';
   }).join('');
 
   let list = [...DATA.articles];

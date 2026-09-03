@@ -64,7 +64,7 @@ header nav.tab-row,header nav.sub-row{display:none}
 .gs-tb:disabled{opacity:.4;cursor:default;background:transparent}
 .gs-tbsep{width:1px;height:20px;background:var(--gs-border);margin:0 5px}
 .gs-toolbar input,.gs-toolbar select{font-size:12px;padding:3px 7px;border:1px solid var(--gs-border);border-radius:4px;background:#fff;min-height:0}
-.gs-toolbar .lbl{font-size:11px;color:var(--gs-head-ink)}
+.gs-toolbar .tenant{font-size:11px;color:var(--gs-head-ink)}
 
 /* ── formula bar ── */
 .gs-fxbar{display:flex;align-items:center;border-top:1px solid var(--gs-border);border-bottom:1px solid var(--gs-border);height:30px}
@@ -1513,8 +1513,8 @@ function openFilterPanel(vi,x,y){
     +'<h4>Filter by condition</h4>'
     +'<select id="gs-f-cond">'
     +['','contains','not_contains','eq','neq','gt','lt','empty','not_empty'].map(function(c){
-      var lbl={'':'None',contains:'Contains',not_contains:'Does not contain',eq:'Is exactly',neq:'Is not',gt:'Greater than',lt:'Less than',empty:'Is empty',not_empty:'Is not empty'}[c];
-      return '<option value="'+c+'"'+((rule.cond||'')===c?' selected':'')+'>'+lbl+'</option>'; }).join('')
+      var tenant={'':'None',contains:'Contains',not_contains:'Does not contain',eq:'Is exactly',neq:'Is not',gt:'Greater than',lt:'Less than',empty:'Is empty',not_empty:'Is not empty'}[c];
+      return '<option value="'+c+'"'+((rule.cond||'')===c?' selected':'')+'>'+tenant+'</option>'; }).join('')
     +'</select>'
     +'<div class="frow"><input type="text" id="gs-f-needle" placeholder="Value" value="'+esc(rule.needle||'')+'"></div>'
     +'<h4>Filter by values</h4>'
@@ -1852,7 +1852,7 @@ function renderToolbar(){
    +'<button class="gs-tb" id="tb-help" title="Help + REST">?</button>';
   if(T.kind==='ledger'){
     var p=T.ledParams;
-    h+='<span class="gs-tbsep"></span><span class="lbl">server query:</span>'
+    h+='<span class="gs-tbsep"></span><span class="tenant">server query:</span>'
      +'<input id="lq-key" placeholder="key" value="'+esc(p.key||'')+'" style="width:130px">'
      +'<input id="lq-q" placeholder="text contains" value="'+esc(p.q||'')+'" style="width:130px">'
      +'<input id="lq-trace" placeholder="trace_id" value="'+esc(p.trace_id||'')+'" style="width:110px">'

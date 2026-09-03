@@ -6,7 +6,7 @@ import { WRITING_LAW_OBJECT } from "./_lib/writing_law_object.js";
 import { SKILL_LAW_OBJECT } from "./_lib/skill_law_object.js";
 import { OUTREACH_LAW_OBJECT } from "./_lib/outreach_law_object.js";
 import { LOGIC_LAW_OBJECT } from "./_lib/logic_law_object.js";
-import { LOOP_LAW_OBJECT } from "./_lib/loop_law_object.js";
+import { TENANT_LAW_OBJECT } from "./_lib/tenant_law_object.js";
 
 function esc(s) {
   return String(s ?? "").replace(
@@ -39,7 +39,7 @@ export async function onRequestGet(context) {
     { object: WRITING_LAW_OBJECT, note: "Governs every sentence these skills produce." },
     { object: OUTREACH_LAW_OBJECT, note: "Governs every message sent to someone who did not ask to hear from the operator." },
     { object: LOGIC_LAW_OBJECT, note: "Governs every decision: what change earns the right to happen." },
-    { object: LOOP_LAW_OBJECT, note: "Governs the whole loop: how a model picks the next act from the live graph, in what form, and how a failure becomes an amendment instead of a repeat." },
+    { object: TENANT_LAW_OBJECT, note: "Governs the whole loop: how a model picks the next act from the live graph, in what form, and how a failure becomes an amendment instead of a repeat." },
   ]
     .map(
       ({ object, note }) => `<article class="sk-card">

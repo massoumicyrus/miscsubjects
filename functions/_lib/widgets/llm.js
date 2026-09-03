@@ -54,10 +54,10 @@ export function llmAgentWidget(w) {
     `<div class="mc-meta"><span class="mc-act">${esc(agent || 'llm')}</span>${ts ? `<span class="mc-date">${ts}</span>` : ''}</div>` +
     `<div class="mc-out">${response.slice(0, 280)}${response.length > 280 ? '…' : ''}</div>` +
     `<details class="mc-ins"><summary>inspect — prompt &amp; full response</summary>` +
-      `<div class="mc-lbl">prompt</div><pre class="mc-pre">${prompt}</pre>` +
-      `<div class="mc-lbl">response</div><pre class="mc-pre">${response}</pre>` +
+      `<div class="mc-tenant">prompt</div><pre class="mc-pre">${prompt}</pre>` +
+      `<div class="mc-tenant">response</div><pre class="mc-pre">${response}</pre>` +
     `</details>` +
-    (followups ? `<div class="mc-fu"><span class="mc-fu-lbl">Ask a follow-up</span>${followups}</div>` : '') +
+    (followups ? `<div class="mc-fu"><span class="mc-fu-tenant">Ask a follow-up</span>${followups}</div>` : '') +
     `<div class="mc-foot">` +
       (hash ? `<span class="mc-hash">${hash.slice(0, 16)}</span>` : '') +
       (ledgerUrl ? `<a class="mc-ledger" href="${ledgerUrl}" target="_blank" rel="noopener">ledger →</a>` : '') +
@@ -124,7 +124,7 @@ export function llmStyles() {
 .mc-ledger{font:600 11px ui-sans-serif,system-ui,sans-serif;color:#96301c;text-decoration:none;margin-left:auto}
 .mc-ledger:hover{text-decoration:underline}
 .mc-fu{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
-.mc-fu-lbl{display:block;font:700 9px/1.5 ui-sans-serif,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#5b6470;margin-bottom:8px}
+.mc-fu-tenant{display:block;font:700 9px/1.5 ui-sans-serif,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#5b6470;margin-bottom:8px}
 .mcfu{font:600 12px/1.35 ui-sans-serif,system-ui,sans-serif;border:1px solid var(--line);border-radius:99px;padding:6px 12px;background:#fff;color:#3f4750;cursor:pointer;margin:0 6px 6px 0;transition:border-color .15s,color .15s}
 .mcfu:hover{border-color:#96301c;color:#111111}
 

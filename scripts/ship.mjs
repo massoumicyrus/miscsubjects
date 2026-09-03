@@ -9,7 +9,7 @@ import { PROTOCOL_LAWS } from '../functions/_lib/protocol_laws.js';
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const MIGRATIONS = join(ROOT, 'migrations');
 const KV_NAMESPACE_ID = '58b303e666a8431685624e0cfd2fd63f';
-const DEPLOY_LOCK_KEY = 'locks:deploy:loop-safe-miscsubjects';
+const DEPLOY_LOCK_KEY = 'locks:deploy:miscsubjects-miscsubjects';
 const LOCK_TTL_SECONDS = 1800;
 const env = { ...process.env };
 delete env.CLOUDFLARE_API_TOKEN;
@@ -214,7 +214,7 @@ function ledgerLease(action, lease, status = 200) {
   // The ingest endpoint answers 204 with an empty body on success, so "no error text" is the
   // signal, not a JSON ok flag.
   if (viaBuild.ok && !/error|unauthorized/i.test(viaBuild.stdout || '')) return { ok: true, stdout: 'ingested', stderr: '' };
-  return runCapture('wrangler', ['d1', 'execute', 'loop-shared-events', '--remote', '--command', sql]);
+  return runCapture('wrangler', ['d1', 'execute', 'miscsubjects-events', '--remote', '--command', sql]);
 }
 
 async function acquireDeployLease() {
@@ -317,7 +317,7 @@ function reportStrandedWork() {
   }
 }
 
-// Preview deployments bind to the ISOLATED preview DB (loop-content-spine-preview), which has
+// Preview deployments bind to the ISOLATED preview DB (miscsubjects-content-preview), which has
 // no article data — so any page whose first act is a populated-D1 query 500s on preview even
 // when it's perfectly healthy in production. That is a preview-binding artifact, NOT a code bug.
 // So we split the smoke set:
@@ -368,13 +368,13 @@ async function smokeCheck(baseUrl, label, paths) {
 function deployPagesCapture(branch) {
   const r = runCapture('wrangler', [
     'pages', 'deploy', 'public',
-    '--project-name', 'loop-safe-miscsubjects',
+    '--project-name', 'miscsubjects-miscsubjects',
     '--branch', branch,
   ]);
   console.log(r.stdout);
   if (r.stderr) console.error(r.stderr);
   if (!r.ok) throw new Error('preview deploy failed: ' + (r.stderr || r.stdout));
-  const m = (r.stdout + '\n' + r.stderr).match(/https:\/\/[a-z0-9-]+\.loop-safe-miscsubjects\.pages\.dev/i);
+  const m = (r.stdout + '\n' + r.stderr).match(/https:\/\/[a-z0-9-]+\.miscsubjects-miscsubjects\.pages\.dev/i);
   if (!m) throw new Error('could not parse preview deployment URL from wrangler output');
   return m[0];
 }
@@ -404,7 +404,7 @@ try {
   if (!skipMigrations) {
     const schemaSql = readFileSync(join(ROOT, 'schema.sql'), 'utf8');
     const schemaCli = runCapture('wrangler',
-      ['d1', 'execute', 'loop-content-spine', '--remote', '--command=' + schemaSql]);
+      ['d1', 'execute', 'miscsubjects-content', '--remote', '--command=' + schemaSql]);
     if (!schemaCli.ok) {
       console.log('schema: CLI D1 refused; applying through the build binding');
       const via = sqlViaBuild(schemaSql);
@@ -413,7 +413,7 @@ try {
     }
     for (const file of files) {
       const mCli = runCapture('wrangler',
-        ['d1', 'execute', 'loop-content-spine', '--remote', '--file', file]);
+        ['d1', 'execute', 'miscsubjects-content', '--remote', '--file', file]);
       if (!mCli.ok) {
         console.log('migration ' + file + ': CLI D1 refused; applying through the build binding');
         const via = sqlViaBuild(readFileSync(join(ROOT, file), 'utf8'));
@@ -425,7 +425,7 @@ try {
   if (skipGate) {
     run('wrangler', [
       'pages', 'deploy', 'public',
-      '--project-name', 'loop-safe-miscsubjects',
+      '--project-name', 'miscsubjects-miscsubjects',
       '--branch', 'main',
     ]);
   } else {
@@ -450,7 +450,7 @@ try {
     // 3) Preview is healthy → promote the identical bundle to production.
     run('wrangler', [
       'pages', 'deploy', 'public',
-      '--project-name', 'loop-safe-miscsubjects',
+      '--project-name', 'miscsubjects-miscsubjects',
       '--branch', 'main',
     ]);
     // 4) Now smoke-test PRODUCTION (real bindings) across the full critical set — the tripwire

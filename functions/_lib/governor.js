@@ -2,7 +2,7 @@
 import { logEvent } from './event_log.js';
 
 const OWNER_PHONE = '[OWNER_PHONE]';
-const OWNER_EMAIL = '[OWNER_EMAIL]';
+const OWNER_EMAIL = 'the owner@<tenant-domain>';
 const DEFAULT_CFG = { every_hours: 12, volume: 2000, error_burst: 150, model_key: 'GOVERNOR', fallback_key: 'ASK_GEMINI', window_hours: 48, autorun: 1 };
 
 async function cfgOf(env) {

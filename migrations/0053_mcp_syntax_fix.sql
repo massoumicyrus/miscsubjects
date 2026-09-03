@@ -5,14 +5,14 @@
 -- (unrecognized). These wire MCP absorption to the actual CLI.
 
 UPDATE directory SET
-  target = 'POST https://agent.cannibal.capital/exec',
+  target = 'POST https://agent.<bridge-domain>/exec',
   content = '# Register an MCP server with the grok CLI. Args: name|command|args (args space-separated, optional). Example: [MCP_ADD]fetch|npx|-y @modelcontextprotocol/server-fetch[/MCP_ADD]. Follow with MCP_DOCTOR to verify connectivity.
 {"cmd":"sh","args":["-lc","~/.grok/bin/grok mcp add $1 --command $2 --args $3+ 2>&1"],"timeout":120000}',
   updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
 WHERE key = 'MCP_ADD';
 
 UPDATE directory SET
-  target = 'POST https://agent.cannibal.capital/exec',
+  target = 'POST https://agent.<bridge-domain>/exec',
   content = '# Diagnose a registered MCP server (connectivity + its tools). Arg: name. Real subcommand is `grok mcp doctor` (there is no `test`). Each tool it reports becomes one ADD_ROW (MCP_<server>_<tool>).
 {"cmd":"sh","args":["-lc","~/.grok/bin/grok mcp doctor $1 2>&1"],"timeout":120000}',
   updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
@@ -29,7 +29,7 @@ WHERE key = 'MCP_PROBE';
 -- Rename references: add an MCP_DOCTOR alias pointing at the same handler so the doctor
 -- verb is discoverable by name too.
 INSERT INTO directory (key, type, target, auth, content, category, planner_rank, updated_at)
-VALUES ('MCP_DOCTOR', 'http', 'POST https://agent.cannibal.capital/exec', 'headers:{"x-terminal-key":"$TERMINAL_KEY"}',
+VALUES ('MCP_DOCTOR', 'http', 'POST https://agent.<bridge-domain>/exec', 'headers:{"x-terminal-key":"$TERMINAL_KEY"}',
 '# Alias of MCP_TEST: diagnose a registered MCP server. Arg: name → `grok mcp doctor <name>`.
 {"cmd":"sh","args":["-lc","~/.grok/bin/grok mcp doctor $1 2>&1"],"timeout":120000}',
 'mcp', 55, strftime('%Y-%m-%dT%H:%M:%fZ','now'))

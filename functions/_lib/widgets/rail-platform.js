@@ -532,7 +532,7 @@ function modelWidget(s, slug) {
     (surface ? `<span class="rp-md-surface">${surface}</span>` : '') +
     `<span class="rp-md-vendor">${vendor}</span></div>` +
     (object
-      ? `<div class="rp-md-object"><span class="rp-md-lbl">examined</span><code>${object}</code>` +
+      ? `<div class="rp-md-object"><span class="rp-md-tenant">examined</span><code>${object}</code>` +
         (passes ? `<span class="rp-md-passes">${passes}×</span>` : '') + `</div>`
       : '') +
     (body ? `<div class="rp-md-text">${body}</div>` : '') +
@@ -582,11 +582,11 @@ function governedFindingBlock(s) {
   const f = parseGovernedFinding(raw);
   if (!f) return '';
   const vClass = f.verdict === 'AFFIRM' ? 'affirm' : f.verdict === 'DENY' ? 'deny' : 'cc';
-  const section = (label, body, cls) => body ? `<div class="rp-gf-sec ${cls || ''}"><div class="rp-gf-lbl">${label}</div>${bullets(body) || `<div class="rp-gf-txt">${esc(body.slice(0, 700))}</div>`}</div>` : '';
+  const section = (label, body, cls) => body ? `<div class="rp-gf-sec ${cls || ''}"><div class="rp-gf-tenant">${label}</div>${bullets(body) || `<div class="rp-gf-txt">${esc(body.slice(0, 700))}</div>`}</div>` : '';
   return `<div class="rp-gf" data-verdict="${vClass}">` +
     `<div class="rp-gf-head"><span class="rp-gf-tag">governed under the Decision Constitution</span>` +
       (f.verdict ? `<span class="rp-gf-verdict rp-gf-${vClass}">${esc(f.verdict)}</span>` : '') + `</div>` +
-    (f.rules ? `<div class="rp-gf-rules"><span class="rp-gf-lbl">clauses relied on</span> <code>${esc(f.rules.slice(0, 120))}</code></div>` : '') +
+    (f.rules ? `<div class="rp-gf-rules"><span class="rp-gf-tenant">clauses relied on</span> <code>${esc(f.rules.slice(0, 120))}</code></div>` : '') +
     section('records absent — what a reviewer would expect and the model was not given', f.absent, 'rp-gf-absent') +
     section('records used', f.supplied) +
     section('reasoning, clause by clause', f.reasoning) +
@@ -1126,7 +1126,7 @@ export function platformRailCss() {
 .rp-md-surface{font:600 10px/1.6 var(--rp-sans);text-transform:uppercase;letter-spacing:.06em;padding:2px 7px;border-radius:999px;background:rgba(0,0,0,.06);color:#706d68}
 .rp-md-vendor{margin-left:auto;font:600 11px var(--rp-sans);color:#79756d}
 .rp-md-object{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:7px 10px;border-radius:8px;background:rgba(0,0,0,.04)}
-.rp-md-lbl{font:600 9.5px/1 var(--rp-sans);text-transform:uppercase;letter-spacing:.09em;color:#79756d}
+.rp-md-tenant{font:600 9.5px/1 var(--rp-sans);text-transform:uppercase;letter-spacing:.09em;color:#79756d}
 .rp-md-object code{font:500 12px ui-monospace,SFMono-Regular,Menlo,monospace;color:#2b2823;overflow-wrap:anywhere}
 .rp-md-passes{margin-left:auto;font:700 11px var(--rp-sans);color:#79756d}
 .rp-md-text{font:400 15px/1.55 var(--rp-sans);color:#22201d;white-space:pre-wrap;overflow-wrap:anywhere;margin-bottom:10px}
@@ -1142,19 +1142,19 @@ export function platformRailCss() {
 .rp-gf-rules{font:12px/1.5 var(--rp-sans);color:#3a362f;padding:8px 11px 0}
 .rp-gf-rules code{font:600 11.5px var(--rp-mono,ui-monospace,monospace);color:#1e1b16}
 .rp-gf-sec{padding:9px 11px;border-top:1px solid #efeade}
-.rp-gf-lbl{font:700 9.5px var(--rp-sans);letter-spacing:.05em;text-transform:uppercase;color:#5a554c;margin-bottom:5px}
+.rp-gf-tenant{font:700 9.5px var(--rp-sans);letter-spacing:.05em;text-transform:uppercase;color:#5a554c;margin-bottom:5px}
 .rp-gf-txt{font:12.5px/1.6 var(--rp-sans);color:#1e1b16;max-height:210px;overflow:auto}
 .rp-gf-list{margin:0;padding-left:16px;font:12.5px/1.6 var(--rp-sans);color:#1e1b16;max-height:210px;overflow:auto}
 .rp-gf-list li{margin:2px 0}
 .rp-gf-absent{background:rgba(180,60,30,.045)}
-.rp-gf-absent .rp-gf-lbl{color:#79706e}
+.rp-gf-absent .rp-gf-tenant{color:#79706e}
 .rp-gf-flip{background:rgba(16,110,70,.045)}
-.rp-gf-flip .rp-gf-lbl{color:#68726e}
+.rp-gf-flip .rp-gf-tenant{color:#68726e}
 .rp-gf-decision{padding:9px 11px;border-top:1px solid #efeade;background:rgba(0,0,0,.03)}
 .rp-gf-decision code{font:600 12px/1.5 var(--rp-mono,ui-monospace,monospace);color:#73716e;white-space:pre-wrap;word-break:break-word}
 /* Legibility: the card sits inside a.rp-body whose color the prose can mute — pin dark text with compound specificity so nothing upstream washes it out. */
 .rp-card .rp-gf-txt,.rp-card .rp-gf-list,.rp-card .rp-gf-list li,.rp-card .rp-gf-rules{color:#1e1b16}
-.rp-card .rp-gf-lbl{color:#5a554c}
+.rp-card .rp-gf-tenant{color:#5a554c}
 /* No OS-dark override here. The site renders light regardless of prefers-color-scheme, so
    OS-conditional ink always mismatches the surface under it (owner-reported illegibility,
    2026-07-30; recurred 2026-08-05 because a second block survived and a comment was doing the

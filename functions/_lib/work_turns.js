@@ -12,8 +12,8 @@ const SECRET_PATTERNS = [
   [/x-terminal-key:\s*[A-Za-z0-9._-]+/gi, 'x-terminal-key: [redacted]'],
   [/\b(?:AIG_SHIM_TOKEN|ADMIN_SESSION_SECRET|CLOUDFLARE_API_TOKEN|GITHUB_TOKEN|ARCADS_BASIC_AUTH|GROK_API_KEY|OPENROUTER|RESEND|SUPABASE|STRIPE_(?:LIVE|SECRET)[A-Z_]*)\b/g, '[redacted-secret-name]'],
   // Owner identity and addresses — never on a public surface (name/privacy law). Emails/domains first.
-  [/[A-Za-z0-9._%+-]+@(?:dsco\.co|dsco\.com|theloopway\.com)/gi, 'the operator'],
-  [/\b(?:dsco\.co|dsco\.com|theloopway\.com)\b/gi, '[operator-domain]'],
+  [/[A-Za-z0-9._%+-]+@(?:<operator-domain>|<operator-domain>m|<tenant-domain>)/gi, 'the operator'],
+  [/\b(?:<operator-domain>|<operator-domain>m|<tenant-domain>)\b/gi, '[operator-domain]'],
   [/\bOWNER_FIRST_NAME\b/gi, 'the operator'],
   [/\bOWNER_SURNAME\b/gi, ''],
   // Local filesystem paths that reveal the machine / home dir.

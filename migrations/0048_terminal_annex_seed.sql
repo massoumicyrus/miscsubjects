@@ -4,7 +4,7 @@ INSERT INTO directory (key, type, target, auth, content, category, planner_rank,
 VALUES (
   'LOCAL_EXEC',
   'http',
-  'POST https://agent.cannibal.capital/exec',
+  'POST https://agent.<bridge-domain>/exec',
   'headers:{"x-terminal-key":"$TERMINAL_KEY"}',
   '# Run any shell line on the owner''s Mac (sh -lc via the bridge). Body = the whole shell line; pipes, &&, redirects all work. Returns {ok,exit,stdout,stderr,duration_ms}. when_to_use: any one-shot terminal op with no narrower row — "list my home dir", "node --version", "/t echo hi". Prefer CLI_* rows for multi-step repo reasoning. To use a Mac-side env var write ${VAR} (a bare $NAME gets substituted server-side before the bridge sees it). Timeout 10 min.
 {"cmd":"sh","args":["-lc","$1+"],"timeout":600000}',
@@ -21,7 +21,7 @@ INSERT INTO directory (key, type, target, auth, content, category, planner_rank,
 VALUES (
   'LOCAL_HELP',
   'http',
-  'POST https://agent.cannibal.capital/exec',
+  'POST https://agent.<bridge-domain>/exec',
   'headers:{"x-terminal-key":"$TERMINAL_KEY"}',
   '# Run `<cmd> --help` (falls back to -h) on the Mac, first 120 lines. Body = the binary name. when_to_use: a CLI_* row failed with "unknown flag"/"unrecognized argument" — read the real flags, then EDIT_ROW the broken template. Or the owner asks "what does <cmd> do".
 {"cmd":"sh","args":["-lc","$1 --help 2>&1 | head -120 || $1 -h 2>&1 | head -120"],"timeout":30000}',
@@ -38,7 +38,7 @@ INSERT INTO directory (key, type, target, auth, content, category, planner_rank,
 VALUES (
   'LOCAL_HEALTH',
   'http',
-  'GET https://agent.cannibal.capital/health',
+  'GET https://agent.<bridge-domain>/health',
   'headers:{"x-terminal-key":"$TERMINAL_KEY"}',
   '# Bridge liveness: {ok, ts, pid, node, key_set, ingest_set, deny_globs, installed_cli{}, home, path}. installed_cli maps ~32 binaries to path-or-null so you know what is actually on the Mac without running each one. No args. when_to_use: before bulk CLI work, or "is the bridge alive", "what is installed on my Mac".',
   'terminal', 30,
@@ -65,8 +65,8 @@ The user sees ONLY what is inside [REPLY]...[/REPLY]. Tool tags, results, and re
 
 HOW TO ACT: emit [KEY]args[/KEY] where KEY is any directory row. Args are |-separated positionals; the LAST arg may carry pipes when the row template uses $N+.
 
-THE MAC (bridge at https://agent.cannibal.capital, full audit to the LEDGER):
-- [LOCAL_EXEC]any shell line[/LOCAL_EXEC] — sh -lc on the owner''s Mac. Examples: [LOCAL_EXEC]ls -la ~/miscsubjects-pages[/LOCAL_EXEC] · [LOCAL_EXEC]git -C ~/miscsubjects-pages log --oneline -5[/LOCAL_EXEC] · [LOCAL_EXEC]npx wrangler pages deploy public --project-name loop-safe-miscsubjects --commit-dirty=true[/LOCAL_EXEC]
+THE MAC (bridge at https://agent.<bridge-domain>, full audit to the LEDGER):
+- [LOCAL_EXEC]any shell line[/LOCAL_EXEC] — sh -lc on the owner''s Mac. Examples: [LOCAL_EXEC]ls -la ~/miscsubjects-pages[/LOCAL_EXEC] · [LOCAL_EXEC]git -C ~/miscsubjects-pages log --oneline -5[/LOCAL_EXEC] · [LOCAL_EXEC]npx wrangler pages deploy public --project-name miscsubjects-miscsubjects --commit-dirty=true[/LOCAL_EXEC]
 - Files/system: LOCAL_READ path · LOCAL_WRITE path|content · LOCAL_EDIT path|old|new · LOCAL_GREP pattern|path · LOCAL_LIST path · LOCAL_PS filter · LOCAL_PORTS · LOCAL_HEALTH · LOCAL_HELP cmd · LOCAL_DOWNLOAD url|path · LOCAL_OCR path-or-url · LOCAL_LAUNCHD args · LOCAL_CAFFEINATE seconds
 - macOS surface: LOCAL_SCREENSHOT (returns a miscsubjects.com link) · LOCAL_CLIPBOARD_GET / LOCAL_CLIPBOARD_SET text · LOCAL_OPEN target · LOCAL_SAY text · LOCAL_OSASCRIPT script · DESKTOP_SHOT · DESKTOP_CLICK x|y · DESKTOP_TYPE text (these need macOS Accessibility granted once).
 - CODING WORKERS (whole agentic CLIs; args task|cwd): [CLI_CLAUDE_CODE]task|/Users/owner/miscsubjects-pages[/CLI_CLAUDE_CODE] is the strongest for repo work. Also CLI_CODEX, CLI_GEMINI, CLI_GROK_XAI, CLI_GROK_SA, CLI_AIDER, CLI_PLANDEX, CLI_INTERPRETER, CLI_GH gh-args. Prefer these over LOCAL_EXEC for multi-step reasoning on a repo. On flag errors: [LOCAL_HELP]binary[/LOCAL_HELP] then EDIT_ROW the template.

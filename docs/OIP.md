@@ -107,8 +107,8 @@ Per-article yield detail also lives at `GET /api/articles/{slug}/contributions` 
 
 | Store | Binding | Table / location |
 |-------|---------|------------------|
-| Invocation events | `LEDGER` (`loop-shared-events`) | `invocations` |
-| Directory objects | `DB` (`loop-content-spine`) | `directory` |
+| Invocation events | `LEDGER` (`miscsubjects-events`) | `invocations` |
+| Directory objects | `DB` (`miscsubjects-content`) | `directory` |
 | Dispatch events | `LEDGER` | `events` |
 | Turn costs | `DB` | `turn_costs` |
 
@@ -116,17 +116,17 @@ Per-article yield detail also lives at `GET /api/articles/{slug}/contributions` 
 
 ```bash
 # LEDGER — invocation table
-wrangler d1 execute loop-shared-events --remote --file=migrations/0195_oip_invocations.sql
+wrangler d1 execute miscsubjects-events --remote --file=migrations/0195_oip_invocations.sql
 
 # Main DB — OIP_PROTOCOL + OIP_REGISTRY rows
-wrangler d1 execute loop-content-spine --remote --file=migrations/0196_oip_directory_rows.sql
+wrangler d1 execute miscsubjects-content --remote --file=migrations/0196_oip_directory_rows.sql
 ```
 
 Local dev (optional parity):
 
 ```bash
-wrangler d1 execute loop-shared-events --file=migrations/0195_oip_invocations.sql
-wrangler d1 execute loop-content-spine --file=migrations/0196_oip_directory_rows.sql
+wrangler d1 execute miscsubjects-events --file=migrations/0195_oip_invocations.sql
+wrangler d1 execute miscsubjects-content --file=migrations/0196_oip_directory_rows.sql
 ```
 
 ---
@@ -148,7 +148,7 @@ wrangler d1 execute loop-content-spine --file=migrations/0196_oip_directory_rows
 
 ```bash
 cd /Users/owner/miscsubjects-pages
-wrangler pages deploy public --project-name=loop-safe-miscsubjects
+wrangler pages deploy public --project-name=miscsubjects-miscsubjects
 ```
 
 Commits: `18148f2` (OIP v0.1 core), `2a01792` (protocol logging + token yield).
@@ -198,7 +198,7 @@ first-class object you can read back, re-fire, and repair — by URL, with linea
 | REPAIR | `POST {key, body, repairs:"inv_ID"}` | corrected re-fire; new receipt links `repairs`, old receipt gains `repaired_by` (validated — unknown id → 404, lineage never dangles) |
 
 **Schema:** migration `0199_oip_receipt_lineage.sql` adds `replay_of`, `repairs`,
-`repaired_by` to `invocations` (loop-shared-events), indexed. `logInvocation` writes the
+`repaired_by` to `invocations` (miscsubjects-events), indexed. `logInvocation` writes the
 forward links; `linkRepairedBy` stamps the reverse link. `listInvocations` returns all
 three plus a `links.receipt` URL per row.
 
@@ -355,7 +355,7 @@ record and is resolved server-side, so no tenant ever holds a forgeable secret.
 **Owner ops:** `?tenant_create=<name>&keys=<K1,K2>&prefixes=<P>&risk=low`, `?tenant_mint=t_<slug>&scope=act`,
 `?tenants=1`, `?tenant_suspend=`/`?tenant_resume=`, `?tenant_invocations=t_<slug>`.
 
-**Storage:** `migrations/0215_multitenancy.sql` on `loop-shared-events` — `tenants` table +
+**Storage:** `migrations/0215_multitenancy.sql` on `miscsubjects-events` — `tenants` table +
 `capabilities.tenant_id` + index. Helpers in `functions/_lib/admin_session.js`
 (`createTenant`/`getTenant`/`listTenants`/`setTenantStatus`/`tenantAllowsKey`/`tenantFingerprints`);
 gate + query modes in `functions/api/dispatch.js`; doc builders in `functions/_lib/object_contract.js`

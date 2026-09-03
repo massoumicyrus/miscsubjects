@@ -1,7 +1,7 @@
 
 import { WRITING_LAW_OBJECT } from './writing_law_object.js';
 import { DESIGN_LAW_OBJECT } from './design_law_object.js';
-import { LOOP_LAW_OBJECT } from './loop_law_object.js';
+import { TENANT_LAW_OBJECT } from './tenant_law_object.js';
 import { LOGIC_LAW_OBJECT } from './logic_law_object.js';
 import { SKILL_LAW_OBJECT } from './skill_law_object.js';
 import { CODING_LAW_OBJECT } from './coding_law_object.js';
@@ -10,7 +10,7 @@ import { OUTREACH_LAW_OBJECT } from './outreach_law_object.js';
 export const LAW_OBJECTS = {
   writing: WRITING_LAW_OBJECT,
   design: DESIGN_LAW_OBJECT,
-  loop: LOOP_LAW_OBJECT,
+  loop: TENANT_LAW_OBJECT,
   logic: LOGIC_LAW_OBJECT,
   skill: SKILL_LAW_OBJECT,
   coding: CODING_LAW_OBJECT,

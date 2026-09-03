@@ -6,15 +6,15 @@ import { extractAgentDiagnosis, formatReflexReplyForBlooio, cacheReflexAnswer } 
 import { isBuildAuthed } from '../_lib/admin_session.js';
 
 const CHANNEL_SENDERS = { '2chat': send2chat, telegram: sendTelegram };
-const BRIDGE = 'https://agent.cannibal.capital/exec';
+const BRIDGE = 'https://agent.<bridge-domain>/exec';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 export async function onRequestPost(context) {
   const { request, env } = context;
   const auth = request.headers.get('x-loop-auth') || '';
-  // Internal hops use BLOOIO_API_KEY; the GitHub Actions heartbeat uses LOOP_DELIVER_TOKEN.
-  const ok = auth === String(env.BLOOIO_API_KEY || ' ') || (env.LOOP_DELIVER_TOKEN && auth === String(env.LOOP_DELIVER_TOKEN)) || await isBuildAuthed(request, env);
+  // Internal hops use BLOOIO_API_KEY; the GitHub Actions heartbeat uses DELIVER_TOKEN.
+  const ok = auth === String(env.BLOOIO_API_KEY || ' ') || (env.DELIVER_TOKEN && auth === String(env.DELIVER_TOKEN)) || await isBuildAuthed(request, env);
   if (!ok) return new Response('forbidden', { status: 403 });
   try { context.waitUntil(run(env)); } catch { await run(env); }
   return new Response(JSON.stringify({ ok: true }), { headers: { 'content-type': 'application/json' } });
@@ -166,7 +166,7 @@ async function run(env) {
   }
 
   if (stillPending || running || reflexPending) {
-    await fetch('https://loop-safe-sibling.owner-account.workers.dev/wf/deliver/trigger', {
+    await fetch('https://miscsubjects-sibling.owner-account.workers.dev/wf/deliver/trigger', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ reason: 'stillPending=' + !!stillPending + ' running=' + !!running }),
     }).catch(() => {});

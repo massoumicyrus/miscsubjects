@@ -85,5 +85,5 @@ fi
 
 echo "[clis] done. Asking the bridge what is installed now:"
 KEY="$(grep '^TERMINAL_KEY=' "${HOME}/.config/grok-bridge.env" | cut -d= -f2-)"
-curl -sS https://agent.cannibal.capital/health -H "x-terminal-key: $KEY" \
+curl -sS https://agent.<bridge-domain>/health -H "x-terminal-key: $KEY" \
   | jq -c '{installed: (.installed_cli | with_entries(select(.value != null)) | keys), missing: (.installed_cli | with_entries(select(.value == null)) | keys)}'

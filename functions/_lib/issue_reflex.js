@@ -1,7 +1,7 @@
 // Issue reflex — detect build/code problems, spawn scoped CLI agents, return real diagnoses.
 import { spawnCliAgent } from './cli_agent_spawn.js';
 
-const BRIDGE = 'https://agent.cannibal.capital/exec';
+const BRIDGE = 'https://agent.<bridge-domain>/exec';
 const REFLEX_SCRIPT = '/Users/owner/miscsubjects-pages/hooks/issue-reflex.sh';
 const DEFAULT_CWD = '/Users/owner/miscsubjects-pages';
 const OWNER = '[OWNER_PHONE]';

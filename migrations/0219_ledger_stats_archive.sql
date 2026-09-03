@@ -1,4 +1,4 @@
--- 0219 — LEDGER db (loop-shared-events).
+-- 0219 — LEDGER db (miscsubjects-events).
 -- events_stats: incrementally-maintained rollup so no view ever GROUP-BYs the full events table.
 -- Backfilled here once; event_log.js keeps it current on every insert.
 CREATE TABLE IF NOT EXISTS events_stats (

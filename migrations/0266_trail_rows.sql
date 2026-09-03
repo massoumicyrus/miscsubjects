@@ -1,4 +1,4 @@
--- OIP v0.8 — TRAILS (DB db: loop-content-spine). A trail is a named sequence of past
+-- OIP v0.8 — TRAILS (DB db: miscsubjects-content). A trail is a named sequence of past
 -- invocations harvested from the ledger, replayable as one unit. Every re-fired step
 -- gets its own receipt linked replay_of to the original.
 INSERT OR REPLACE INTO directory (key, type, target, auth, content, category, updated_at) VALUES

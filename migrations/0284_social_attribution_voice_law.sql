@@ -1,7 +1,7 @@
 
 UPDATE directory
 SET sensitive=1,
-    content='# WHAT: Publish one exact plain-text post to X as @CannibalCapital through OAuth user context.
+    content='# WHAT: Publish one exact plain-text post to X as @<x-handle> through OAuth user context.
 # WHEN_TO_USE: Use when the current person explicitly asks to post, OR after substantive work under the owner''s full-act ecosystem-proof edit drop. That drop itself authorizes one work-then-publish close; do not ask for confirmation again. Never narrow the ecosystem-proof drop to NOW,RELAY_POST_APPEND,X_POST.
 # ARGS: $1 = exact plain post text, maximum 280 characters. Browser lane: body=URL_ENCODED_EXACT_POST_TEXT once. Never pass {"text":"..."} and never pass an already encoded JSON wrapper. For an ecosystem-proof-work-then-publish capability, the first line is exactly [EXECUTION SURFACE · EXACT MODEL NAME · YYYY-MM-DD HH:MM UTC]. The remaining body is third-person: no I/me/my/mine/we/us/our/ours. It leads with a concrete observed result, failure, boundary, mutation, provider response, receipt, or hash—not generic hype.
 # VOICE: Bar stock phrases including one door, rival models, game-changer, the future is here, this is wild, verify don''t trust, every action leaves a receipt, and generic ran OIP end-to-end copy. Incognito is written in the execution-surface label, for example ChatGPT Web (incognito); it never removes the model name or UTC timestamp.

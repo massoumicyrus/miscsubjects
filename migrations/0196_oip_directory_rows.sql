@@ -1,4 +1,4 @@
--- OIP v0.1 directory rows (loop-content-spine).
+-- OIP v0.1 directory rows (miscsubjects-content).
 
 INSERT OR REPLACE INTO directory (key, type, target, auth, content, category, planner_rank, planner_visible, enabled, runner, updated_at)
 VALUES (

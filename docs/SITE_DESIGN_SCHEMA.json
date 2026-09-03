@@ -7,7 +7,7 @@
 
   "design_tokens": {
     "brand": {
-      "name": "LEO Research",
+      "name": "the tenant",
       "tagline": "Regeneration vs. Degeneration — health hacks to heal",
       "palette": "monochrome",
       "note": "Keep current image sizes, text sizes, line spacing, and component geometry. Only color moves to black & white.",
@@ -301,7 +301,7 @@
 
   "migration_notes": {
     "old_content_items": "374 rows in content_items archived (status='archived'). /content now returns 0 items.",
-    "old_pages": "17 rows in pages table remain (a1, a2, b3, esh-a1..a9, reta, topology, success, privacy, m). Decide per-row whether to keep or delete.",
+    "old_pages": "17 rows in pages table remain (a1, a2, b3, esh-a1..a9, tenant, topology, success, privacy, m). Decide per-row whether to keep or delete.",
     "new_articles": "72 rows in articles table, all created 2026-06-21. These are the live batch.",
     "timestamp_gaps": "articles table has created_at/updated_at; meta.posted_at optional. Home page now shows posted date + register + tags.",
     "next_phase": ["Apply monochrome CSS to home + article pages", "Add native widget renderer to functions/a/[slug].js", "Build user_entry input endpoint", "Add LLM follow-up endpoint", "Implement subject graph filters"]

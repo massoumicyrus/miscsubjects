@@ -1,4 +1,4 @@
-// loop-safe-sheet-do — one Durable Object per sheet.
+// miscsubjects-sheet-do — one Durable Object per sheet.
 //
 // The problem this fixes: every sheet shared one D1 table, so the whole build had one writer,
 // every read was a network hop, and a page already open could not be told that a cell changed.
@@ -261,7 +261,7 @@ export default {
     const m = url.pathname.match(/^\/do\/([A-Za-z0-9_-]{1,64})$/);
     if (!m) {
       return new Response(JSON.stringify({
-        ok: true, worker: 'loop-safe-sheet-do',
+        ok: true, worker: 'miscsubjects-sheet-do',
         usage: '/do/<sheet_id>?op=ping|claim|claim_write|write|read|blob|adopt|ws',
       }, null, 2), { headers: { 'content-type': 'application/json' } });
     }

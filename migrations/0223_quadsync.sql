@@ -1,4 +1,4 @@
--- 0223 — DB (loop-content-spine). QUADSYNC_RUN: fire the server-side sync on demand.
+-- 0223 — DB (miscsubjects-content). QUADSYNC_RUN: fire the server-side sync on demand.
 INSERT INTO directory (key, type, target, auth, content, category, enabled, planner_visible, planner_rank, updated_at)
 VALUES (
   'QUADSYNC_RUN',

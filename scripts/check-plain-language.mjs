@@ -87,7 +87,7 @@ function substanceChecks(slug, body, low) {
     out.push("W65 no commercial-relationship disclosure in the body — required on any page describing a substance the site or an affiliated business sells");
   }
   // the disclosure states the relationship and never the identity (identity rules bind harder)
-  for (const brand of ["loop bio", "loopbiolabs", "leoresearch", "leo research"]) {
+  for (const brand of ["the tenant", "tenant", "the tenant", "the tenant"]) {
     if (low.includes(brand)) out.push(`IDENTITY-LEAK "${brand}" — disclose the commercial relationship, never the seller's name`);
   }
   return out;

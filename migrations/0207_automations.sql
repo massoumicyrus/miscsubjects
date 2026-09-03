@@ -1,6 +1,6 @@
 -- Automation loop: turn a proven invocation into a standing job that fires itself on a
 -- schedule and ledgers a receipt each time. The "do it → offer to automate → it runs in the
--- background" piece. Config lives here (loop-content-spine, binding DB); the sibling cron calls
+-- background" piece. Config lives here (miscsubjects-content, binding DB); the sibling cron calls
 -- AUTOMATE_RUN_DUE every tick; each run is a normal ledgered invocation with a receipt.
 CREATE TABLE IF NOT EXISTS automations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

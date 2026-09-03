@@ -6,7 +6,7 @@ REPO="${HOME}/miscsubjects-pages"
 BRIDGE="${REPO}/bridge"
 ENV_FILE="${HOME}/.config/grok-bridge.env"
 LAUNCHD="${HOME}/Library/LaunchAgents"
-PROJECT="loop-safe-miscsubjects"
+PROJECT="miscsubjects-miscsubjects"
 
 cd "$BRIDGE"
 
@@ -57,9 +57,9 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
 done
 
 echo "[install] 7/7 end-to-end smoke through the tunnel"
-HEALTH="$(curl -sS https://agent.cannibal.capital/health -m 8 -H "x-terminal-key: $KEY")"
+HEALTH="$(curl -sS https://agent.<bridge-domain>/health -m 8 -H "x-terminal-key: $KEY")"
 echo "[install]     /health → $(echo "$HEALTH" | jq -c '{key_set, ingest_set, shell_true_allowed, installed_cli: (.installed_cli | with_entries(select(.value != null)) | keys)}')"
-EXEC="$(curl -sS https://agent.cannibal.capital/exec -m 8 \
+EXEC="$(curl -sS https://agent.<bridge-domain>/exec -m 8 \
   -H "x-terminal-key: $KEY" -H "Content-Type: application/json" \
   -d '{"cmd":"echo","args":["bridge alive"]}')"
 echo "[install]     /exec  → $(echo "$EXEC" | jq -c '{ok, exit, stdout: (.stdout|gsub("\\n"; ""))}')"

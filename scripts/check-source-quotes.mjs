@@ -8,7 +8,7 @@ import { isBackpressure, sleepSync, backoffFor, exitUnread } from './_lib/backpr
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const CEILING_FILE = join(ROOT, '.source-quote-ceiling.json');
-const DB = 'loop-content-spine';
+const DB = 'miscsubjects-content';
 const BASE = process.env.SOURCE_LAW_BASE || 'https://miscsubjects.com';
 const MIN_QUOTE_CHARS = 40;
 // The corpus is scanned in rowid windows. A single json_each over every row trips D1's JSON

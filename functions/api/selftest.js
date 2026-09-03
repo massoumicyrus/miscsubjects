@@ -164,7 +164,7 @@ export async function onRequestPost(context) {
     }
     let sibling = null;
     try {
-      const r = await fetch('https://loop-safe-sibling.owner-account.workers.dev/wf/selftest/kill', { method: 'POST', headers: dispatchHeaders(env) });
+      const r = await fetch('https://miscsubjects-sibling.owner-account.workers.dev/wf/selftest/kill', { method: 'POST', headers: dispatchHeaders(env) });
       sibling = await r.json().catch(() => ({ http: r.status }));
     } catch (e) { sibling = { error: String(e?.message || e) }; }
     return J({ killed: true, selftest_master: '0', imessage_autorun: '0', selftest_autorun: '0', todo_autorun: '0', loops_off: loopOff, lock_cleared: true, sibling });

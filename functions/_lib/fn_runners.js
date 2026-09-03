@@ -595,7 +595,7 @@ export function makeFnMap(D) {
       note: 'every content commit is protocol-authored; the trace id in each message resolves to a ledger receipt',
     });
   },
-  // META (ads) — read-only, via the loop-meta-bridge service binding. The bridge owns
+  // META (ads) — read-only, via the miscsubjects-meta-bridge service binding. The bridge owns
   // the shared Meta token (Secrets Store, by reference); this build never holds the token
   // and never spends. metaAccounts lists live ad accounts + upserts them into meta_ad_accounts
   // so the marketing surface + Site Sync stay current. metaInsights returns per-account
@@ -795,7 +795,7 @@ export function makeFnMap(D) {
   },
   async deployLease(env, op, holder, nonceArg) {
     if (!env.KV) return 'ERR:deploy_lease:no_kv';
-    const key = 'locks:deploy:loop-safe-miscsubjects';
+    const key = 'locks:deploy:miscsubjects-miscsubjects';
     const action = String(op || 'check').toLowerCase();
     const holderName = String(holder || env.TRACE_CTX?.actor || 'unknown').slice(0, 160);
     const currentRaw = await env.KV.get(key);
@@ -1484,7 +1484,7 @@ export function makeFnMap(D) {
     return JSON.stringify(await marketingSnapshot(env), null, 1);
   },
   async lblViewerGet(env, path) {
-    const { lblViewerFetch } = await import('../_lib/lbl_viewer.js');
+    const { lblViewerFetch } = await import('../_lib/tenant_viewer.js');
     const r = await lblViewerFetch(env, String(path || ''));
     return JSON.stringify(r, null, 1);
   },
@@ -2053,7 +2053,7 @@ export function makeFnMap(D) {
     try {
       const r = await fetch('https://overpass-api.de/api/interpreter', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json', 'User-Agent': 'miscsubjects-leadbot/1.0 ([OWNER_EMAIL])' },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json', 'User-Agent': 'miscsubjects-leadbot/1.0 (the owner@<operator-domain>)' },
         body: 'data=' + encodeURIComponent(q),
       });
       if (!r.ok) return JSON.stringify({ error: 'overpass HTTP ' + r.status });
@@ -2492,11 +2492,11 @@ export function makeFnMap(D) {
     } catch (e) {
       // If the roster cannot be read, fall back to the one address known to be verified rather than
       // widening the envelope on a guess. A wider envelope is what caused this.
-      verified = ['[OWNER_EMAIL]'];
+      verified = ['the owner@<tenant-domain>'];
       addressCheck = 'fallback: could not read the destination roster (' + String(e?.message || e) + ')';
     }
 
-    const wanted = ['[OWNER_EMAIL]', '[OWNER_EMAIL]'];
+    const wanted = ['the owner@<operator-domain>', 'the owner@<tenant-domain>'];
     async function mxResolves(domain) {
       try {
         const r = await fetch(`https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=MX`, {
@@ -2622,7 +2622,7 @@ export function makeFnMap(D) {
     const subject = 'Wholesale research peptide pricing — ' + (lead.city || 'your clinic');
     const body =
       'Hello,\n\n' +
-      'I handle wholesale supply for ' + brand + '.' + hook + ' We supply research peptides to ' + segWord + 's at half of the price listed on leoresearch.com — you set your own price from there — and can white-label under your own brand.\n\n' +
+      'I handle wholesale supply for ' + brand + '.' + hook + ' We supply research peptides to ' + segWord + 's at half of the price listed on <tenant-domain> — you set your own price from there — and can white-label under your own brand.\n\n' +
       'Third-party COA on every lot. Two-day shipping nationwide from Dallas. Samples available.\n\n' +
       'If it is useful, I am glad to answer questions or set up a short call.\n\n' +
       'The ' + brand + ' team\n';
@@ -2630,7 +2630,7 @@ export function makeFnMap(D) {
     return JSON.stringify({ id, to: lead.email || '(no email yet — run leadsEnrich)', subject, body });
   },
   // MODEL-WRITTEN draft: Grok writes the outreach, grounded in the OUTREACH_DOSSIER row (brand, team,
-  // offer, article + store links) + this lead's real context. $1=lead_id, $2=brand(default LeoResearch).
+  // offer, article + store links) + this lead's real context. $1=lead_id, $2=brand(default the tenant).
   async leadsDraftAI(env, leadId, venture) {
     const id = Number(leadId);
     if (!id) return JSON.stringify({ error: 'lead_id required' });
@@ -2642,7 +2642,7 @@ export function makeFnMap(D) {
     if (String(lead.context || '').trim().length < 40) return JSON.stringify({ blocked: true, error: 'grounding_context_required', note: 'Nothing drafted. The business site context is too thin for truthful personalization.' });
     const suppressed = await env.DB.prepare('SELECT reason FROM lead_suppressions WHERE lower(email)=lower(?)').bind(lead.email).first();
     if (suppressed) return JSON.stringify({ blocked: true, error: 'recipient_suppressed', reason: suppressed.reason || 'suppressed' });
-    const brand = String(venture || 'LeoResearch');
+    const brand = String(venture || 'the tenant');
     const dr = await env.DB.prepare("SELECT content FROM directory WHERE key='OUTREACH_DOSSIER'").first();
     const dossier = dr ? String(dr.content || '') : '';
     if (!dossier) return JSON.stringify({ error: 'OUTREACH_DOSSIER row is empty — set the brand/team/offer knowledge first' });
@@ -2656,13 +2656,13 @@ export function makeFnMap(D) {
       'Write ONE B2B wholesale email from ' + brand + '. It must read like one competent operator wrote it to another — not marketing, not a blast. Follow exactly:\n' +
       '1. SALUTATION: "Hello," on its own line. NEVER "Hi <business> team" / "team at" / any use of the word "team". If a real person first name is known, "Hi <First>,".\n' +
       '2. FIRST LINE = ONE TRUE, SPECIFIC OBSERVATION drawn ONLY from "What they do" above, connected to supply. Name a real thing from their site: a compound or service they actually list, a second location, their booking tool. Examples of the SHAPE (do not copy): "You already list peptides on the site — we supply the raw compounds wholesale." / "You run hormone therapy and medical weight loss — the peptides behind those usually come from a supplier you can switch." The observation must be a plain fact you could point to on their page, then pivot to supply in the same or next sentence. It is FORBIDDEN to compliment, admire, congratulate, or infer ("positioned", "perfectly positioned", "focus on", "committed to", "dedicated to", "expand into", "with your emphasis on"). If "What they do" contains NO concrete hook, skip the observation entirely and open plainly: "We supply research peptides wholesale." A generic or invented observation is worse than none.\n' +
-      '3. State the wholesale model plainly, one line: every item is 50% of the price shown on leoresearch.com, they set their own price from there. Wholesale pricing applies from three units — state the minimum plainly and in high register, never as smallness or cheapness. That is the whole pricing story — no kits, no tiers, no volume ladder. White-label available.\n' +
+      '3. State the wholesale model plainly, one line: every item is 50% of the price shown on <tenant-domain>, they set their own price from there. Wholesale pricing applies from three units — state the minimum plainly and in high register, never as smallness or cheapness. That is the whole pricing story — no kits, no tiers, no volume ladder. White-label available.\n' +
       '4. INCLUDE THE FULL CATALOG LIST above, verbatim, as a clean list — every item WITH its listed price, its wholesale price, and its product link exactly as given. This is the reference the owner requires in the email.\n' +
       '5. One line: third-party COAs available on request; orders ship nationwide from Dallas in approximately two days. NEVER say Austin — the warehouse is Dallas. Do not volunteer samples — samples are discretionary, never the headline offer.\n' +
-      '6. ONE soft CTA, phrased as a question they can answer in one word, offering the smallest credible first step in high register — the smallness is conveyed as their convenience, never as price or cheapness. Never state dollar amounts, "just", "only", or "try" in the CTA: e.g. "Would it be useful to run a first order alongside your current supply and review the COAs yourself?" End with one short line telling them how to respond: replies to this email reach us directly; support@leoresearch.com also works. NEVER "reply wholesale" / "reply for the sheet" / "send the sheet" — the list is already here.\n' +
+      '6. ONE soft CTA, phrased as a question they can answer in one word, offering the smallest credible first step in high register — the smallness is conveyed as their convenience, never as price or cheapness. Never state dollar amounts, "just", "only", or "try" in the CTA: e.g. "Would it be useful to run a first order alongside your current supply and review the COAs yourself?" End with one short line telling them how to respond: replies to this email reach us directly; support@<tenant-domain> also works. NEVER "reply wholesale" / "reply for the sheet" / "send the sheet" — the list is already here.\n' +
       '7. No clinical, efficacy, treatment, recovery, dosing, or outcome language. Commerce facts only.\n' +
       '8. NO compliance boilerplate in the body — the send system appends the opt-out footer.\n' +
-      '9. Sign off with exactly one line: LeoResearch. NEVER a personal name. NEVER the word "team".\n' +
+      '9. Sign off with exactly one line: the tenant. NEVER a personal name. NEVER the word "team".\n' +
       '10. BREVITY: outside the catalog list, the whole email is under 90 words. Every non-list sentence earns its place or is cut. Plain human register, contractions welcome. BANNED words: cutting-edge, elevate, seamless, revolutionize, unlock, empower, streamline, robust, world-class, game-changer, thrilled, excited, "hope this finds you", "wanted to reach out", "reaching out", "positioned", "perfectly", "expand into", "focus on", "committed to", "dedicated to", "team". No exclamation points. At most one em-dash. If a line sounds like AI, cut it.\n' +
       'SUBJECT: 2-4 words, all lowercase, boring and internal-looking like a note from a colleague — e.g. "peptide wholesale", "reorder costs", "your supplier", "wholesale + coa". NEVER title case, NEVER the word "pricing"/"offer"/"partnership", NEVER a business name, NEVER "Came across".\n' +
       'Return ONLY strict JSON: {"subject": "...", "body": "..."} with \\n for line breaks in body.';
@@ -2679,10 +2679,10 @@ export function makeFnMap(D) {
     if (!parsed || !parsed.subject || !parsed.body) return JSON.stringify({ error: 'model did not return subject/body', raw: String(g.text).slice(0, 300), cost_usd: modelCost });
     // Scrub any personal name AND the banned word "team" from the signoff/body → brand only.
     parsed.body = String(parsed.body)
-      .replace(/\bOWNER_FIRST_NAME\s+[OWNER_SURNAME]\b/g, 'LeoResearch')
-      .replace(/\bOWNER_FIRST_NAME\b/g, 'LeoResearch')
-      .replace(/\bthe\s+LeoResearch\s+team\b/gi, 'LeoResearch')
-      .replace(/\bLeoResearch\s+team\b/gi, 'LeoResearch')
+      .replace(/\bOWNER_FIRST_NAME\s+[OWNER_SURNAME]\b/g, 'the tenant')
+      .replace(/\bOWNER_FIRST_NAME\b/g, 'the tenant')
+      .replace(/\bthe\s+the tenant\s+team\b/gi, 'the tenant')
+      .replace(/\btenant\s+team\b/gi, 'the tenant')
       .replace(/\bteam\s+at\s+[A-Z][^\n,.]{0,40}/g, 'Hello')
       .replace(/\bHi\s+[^\n,]{0,50}\bteam\b/gi, 'Hello');
     const draft = { subject: String(parsed.subject), body: String(parsed.body), venture: brand, model: g.fallback ? 'gemini-2.5-flash(fallback)' : 'grok/grok-4.3', by: 'leadsDraftAI' };
@@ -2698,7 +2698,7 @@ export function makeFnMap(D) {
     if (subjBad) return JSON.stringify({ blocked: true, error: 'subject_contract', cost_usd: modelCost, note: 'Nothing saved. Subject must be 2-4 lowercase internal words (e.g. "peptide wholesale"), no title case / salesy words / business name; retry.' });
     // The reply-no stop line lives in the send-time footer (leadsSend appends it) — requiring it
     // in the body doubled it and read as boilerplate. Body contract = store mention only.
-    if (!/leoresearch\.com/i.test(draft.body)) return JSON.stringify({ blocked: true, error: 'copy_contract_missing', cost_usd: modelCost, note: 'Nothing saved. Draft must mention the store (leoresearch.com).' });
+    if (!/<tenant-domain>/i.test(draft.body)) return JSON.stringify({ blocked: true, error: 'copy_contract_missing', cost_usd: modelCost, note: 'Nothing saved. Draft must mention the store (<tenant-domain>).' });
     await env.DB.prepare("UPDATE leads SET draft=?, status='drafted' WHERE id=?").bind(JSON.stringify(draft), id).run();
     return JSON.stringify({ id, to: lead.email || '(no email yet)', subject: draft.subject, body: draft.body, model: draft.model,
       units: 1, meter_unit: 'draft', cost_usd: modelCost,
@@ -2707,7 +2707,7 @@ export function makeFnMap(D) {
   },
   // Follow-up sequence for a drafted lead. 40-60% of positive replies come from touches 2-3, not
   // the first send — but each must carry a NEW angle on the SAME thread, never "just checking in".
-  // Generates touch 2 (new angle) + touch 3 (honest break-up). $1=lead_id, $2=brand(default LeoResearch).
+  // Generates touch 2 (new angle) + touch 3 (honest break-up). $1=lead_id, $2=brand(default the tenant).
   async leadsFollowups(env, leadId, venture) {
     const id = Number(leadId);
     if (!id) return JSON.stringify({ error: 'lead_id required' });
@@ -2715,7 +2715,7 @@ export function makeFnMap(D) {
     if (!lead) return JSON.stringify({ error: 'lead not found: ' + id });
     if (!lead.draft) return JSON.stringify({ blocked: true, error: 'no_first_touch', note: 'Draft the first email first (LEADS_DRAFT_AI); the sequence is threaded off it.' });
     let d0 = {}; try { d0 = JSON.parse(lead.draft); } catch {}
-    const brand = String(venture || 'LeoResearch');
+    const brand = String(venture || 'the tenant');
     const dr = await env.DB.prepare("SELECT content FROM directory WHERE key='OUTREACH_DOSSIER'").first();
     const dossier = dr ? String(dr.content || '') : '';
     const user =
@@ -2725,7 +2725,7 @@ export function makeFnMap(D) {
       'Write TWO short follow-ups on the SAME thread (reader may not have read the first). Rules:\n' +
       'TOUCH 2 (send day 3-4): a genuinely NEW angle, not a repeat. Pick ONE: the one COA/purity question worth asking whatever supplier they use today; OR white-label (their label on the vial) as margin they do not have now; OR a single concrete number on the reorder-cost gap. Under 60 words. One soft question CTA. Do NOT re-paste the catalog.\n' +
       'TOUCH 3 (send day 7-10): the honest break-up. Give control back: "Is this a not-right-now, or a not-for-us? Either is a fine answer." Under 40 words. This is the last touch.\n' +
-      'Every rule from a cold email holds: no "team", no "just checking in", no "following up", no "circling back", no compliments, no clinical/outcome claims, no hype words, no exclamation points, sign "LeoResearch". Each touch shorter than the last.\n' +
+      'Every rule from a cold email holds: no "team", no "just checking in", no "following up", no "circling back", no compliments, no clinical/outcome claims, no hype words, no exclamation points, sign "the tenant". Each touch shorter than the last.\n' +
       'Return ONLY strict JSON: {"touch2":{"body":"..."},"touch3":{"body":"..."}} with \\n for line breaks.';
     const g = await callGateway(env, dossier, user, 800);
     const modelCost = gatewayCostUsd(g);
@@ -2734,7 +2734,7 @@ export function makeFnMap(D) {
     let parsed = pipeJson(g.text); if (!parsed) { try { parsed = JSON.parse(g.text); } catch {} }
     if (!parsed) { const mm = String(g.text).match(/\{[\s\S]*\}/); if (mm) { try { parsed = JSON.parse(mm[0]); } catch {} } }
     if (!parsed || !parsed.touch2 || !parsed.touch3) return JSON.stringify({ error: 'model did not return touch2/touch3', raw: String(g.text).slice(0, 300), cost_usd: modelCost });
-    const scrub = (t) => String(t || '').replace(/\bOWNER_FIRST_NAME(?:\s+[OWNER_SURNAME])?\b/g, 'LeoResearch').replace(/\b(the\s+)?LeoResearch\s+team\b/gi, 'LeoResearch');
+    const scrub = (t) => String(t || '').replace(/\bOWNER_FIRST_NAME(?:\s+[OWNER_SURNAME])?\b/g, 'the tenant').replace(/\b(the\s+)?the tenant\s+team\b/gi, 'the tenant');
     const seq = { touch2: scrub(parsed.touch2.body), touch3: scrub(parsed.touch3.body) };
     const bad = /\bteam\b|just checking in|following up|circling back|thrilled|excited to|hope this (?:finds|email)/i.test(seq.touch2 + ' ' + seq.touch3);
     if (bad) return JSON.stringify({ blocked: true, error: 'slop_in_followup', note: 'Nothing saved. A follow-up contained a banned filler phrase; retry.', cost_usd: modelCost });
@@ -2971,7 +2971,7 @@ export function makeFnMap(D) {
     const feedbackMode = dMode.footer === 'feedback';
     if (!feedbackMode && !String(cfg.outreach_postal_address || '').trim()) return JSON.stringify({ blocked: true, error: 'postal_address_required', note: 'Nothing sent. Set settings.outreach_postal_address to the valid business postal address required for commercial email.' });
     if (feedbackMode) {
-      const banned = /leoresearch|loop\s*bio|l\s*brands|advertisement\s+from|reply\s+no\b|not\s+solicited|will\s+not\s+follow\s+up|the owner|[OWNER_SURNAME]|dsco\.co|\b\d{1,5}\s+[A-Z][a-z]+\s+(?:St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Way|Lane|Ln)\b/i;
+      const banned = /the tenant|loop\s*bio|l\s*brands|advertisement\s+from|reply\s+no\b|not\s+solicited|will\s+not\s+follow\s+up|the owner|[OWNER_SURNAME]|<operator-domain>|\b\d{1,5}\s+[A-Z][a-z]+\s+(?:St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Way|Lane|Ln)\b/i;
       const hit = (String(dMode.subject || '') + '\n' + String(dMode.body || '')).match(banned);
       if (hit) return JSON.stringify({ blocked: true, error: 'identity_guard', matched: hit[0], note: 'Nothing sent. Build feedback mail may not carry a person, business, address, or compliance-footer phrase.' });
     }
@@ -2994,7 +2994,7 @@ export function makeFnMap(D) {
     try {
       const r = await fetch('https://miscsubjects.com/api/email/send', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'x-terminal-key': env.TERMINAL_KEY },
-        body: JSON.stringify({ to: lead.email, subject: d.subject, text: feedbackMode ? d.body.replace(/\s+$/,'') : d.body.replace(/\s+$/,'') + '\n\nAdvertisement from ' + (d.venture || 'LeoResearch') + '\n' + cfg.outreach_postal_address + '\nIf this is not relevant, reply no and I will not follow up.', from: local + '@miscsubjects.com', from_name: feedbackMode ? 'miscsubjects.com' : (d.venture || 'LeoResearch'), reply_to: feedbackMode ? 'loop@miscsubjects.com' : (d.reply_to || 'support@leoresearch.com') }),
+        body: JSON.stringify({ to: lead.email, subject: d.subject, text: feedbackMode ? d.body.replace(/\s+$/,'') : d.body.replace(/\s+$/,'') + '\n\nAdvertisement from ' + (d.venture || 'the tenant') + '\n' + cfg.outreach_postal_address + '\nIf this is not relevant, reply no and I will not follow up.', from: local + '@miscsubjects.com', from_name: feedbackMode ? 'miscsubjects.com' : (d.venture || 'the tenant'), reply_to: feedbackMode ? 'loop@miscsubjects.com' : (d.reply_to || 'support@<tenant-domain>') }),
       });
       res = await r.text(); if (!r.ok) err = 'HTTP ' + r.status;
     } catch (e) { err = 'fetch:' + (e && e.message || e); }

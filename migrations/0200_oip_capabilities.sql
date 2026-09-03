@@ -1,4 +1,4 @@
--- OIP v0.3 — OIP-Caps: delegated-agency capability records (loop-shared-events / LEDGER).
+-- OIP v0.3 — OIP-Caps: delegated-agency capability records (miscsubjects-events / LEDGER).
 -- The signed share token stays the wire credential (sh.<exp>.<scope>.<uses>.<nonce>.<sig>);
 -- this table holds the claims the token cannot carry: purpose, actor, issuer, risk ceiling,
 -- owner gate, optional fixed body, and revocation. Keyed by fingerprint = cap_<sha256(token)[0:16]>.

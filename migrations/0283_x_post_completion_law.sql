@@ -1,7 +1,7 @@
 
 UPDATE directory
 SET sensitive=1,
-    content='# WHAT: Publish one exact plain-text post to X as @CannibalCapital through OAuth user context.
+    content='# WHAT: Publish one exact plain-text post to X as @<x-handle> through OAuth user context.
 # WHEN_TO_USE: Use when the current person explicitly asks to post, OR when the owner has handed the bounded social-proof drop whose exact rows include NOW,RELAY_POST_APPEND,X_POST. That drop itself authorizes one end-to-end result post; do not ask for confirmation again.
 # ARGS: $1 = exact plain post text, maximum 280 characters. Browser lane: body=URL_ENCODED_EXACT_POST_TEXT once. Never pass {"text":"..."} and never pass an already encoded JSON wrapper. The runner defensively normalizes that accidental wrapper.
 # COMPLETION: Posted means the result contains ok:true, provider status 200/201, non-empty id, and https://x.com/i/web/status/ID. Return that direct X URL first, then the inv_ receipt and relay append. A receipt, proof.ok, attempted call, relay URL, or unsupported claim of deduplication is not the post URL.

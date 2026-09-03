@@ -1,4 +1,4 @@
--- 0222 — DB (loop-content-spine). Governor v2: talk to it, file claims, breaker probe,
+-- 0222 — DB (miscsubjects-content). Governor v2: talk to it, file claims, breaker probe,
 -- ROUTER routing (with backup), charter G8 (no invention) + G9 (recurrence memory).
 
 -- Backup the current ROUTER prompt before touching it (rollback = copy value back).

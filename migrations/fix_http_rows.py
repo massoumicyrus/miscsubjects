@@ -4,7 +4,7 @@ import json, re, subprocess, sys
 
 # Export all bad HTTP rows
 cmd = [
-    'npx', 'wrangler', 'd1', 'execute', 'loop-content-spine',
+    'npx', 'wrangler', 'd1', 'execute', 'miscsubjects-content',
     '--env=production', '--remote',
     '--command=SELECT key, content FROM directory WHERE type = \'http\' AND enabled = 1 AND content NOT LIKE \'# WHAT:%\' AND content NOT LIKE \'#WHAT:%\' ORDER BY key'
 ]

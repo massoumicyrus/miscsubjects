@@ -6,7 +6,7 @@ the `workers/*/wrangler.toml` files, and live counts are at `/api/work` and `/ap
 
 ## 1. Shape
 
-One Cloudflare Pages project (`loop-safe-miscsubjects`, serving `miscsubjects.com`) holds the
+One Cloudflare Pages project (`miscsubjects-miscsubjects`, serving `miscsubjects.com`) holds the
 whole HTTP surface as Pages Functions under `functions/`. Seven Workers sit beside it: one holds
 what Pages Functions cannot host (cron triggers, Durable Objects, queue consumers, Workflows,
 browser rendering, inbound e-mail), and six are single-purpose services (directory snapshot, sheets,
@@ -45,7 +45,7 @@ The `directory` table is the system's only capability registry. One row is one i
 |---|---|
 | `key` | Primary key and invocation name, e.g. `ARTICLE_PUT`, `KV_GET`, `ROUTER` |
 | `type` | What the row is: `fn` (a named function in `functions/_lib/fn_runners.js`), `http` (an outbound request), `agent` (a model with a system prompt), `flow` (a small DSL composing rows) |
-| `runner` | Where the row executes: `edge` (inside Cloudflare), `mac` (forwarded to the local runner, §12), `sibling` (the `loop-safe-sibling` Worker), `apps_script` (Google Apps Script) |
+| `runner` | Where the row executes: `edge` (inside Cloudflare), `mac` (forwarded to the local runner, §12), `sibling` (the `miscsubjects-sibling` Worker), `apps_script` (Google Apps Script) |
 | `target` | `fn`: the runner name · `http`: `"METHOD url"` with `$1…$n` argument slots · `agent`: the model id |
 | `auth` | `http` only: which environment variable holds the credential, e.g. `bearer:GROK_API_KEY`. The row names the variable, never the value |
 | `content` | `fn`/`http`: documentation lines and the argument template · `agent`: the system prompt · `flow`: the DSL |
@@ -174,8 +174,8 @@ hash-chained source ledger. Generated images and captured sources live in R2 und
 
 | Store | Binding | Holds |
 |---|---|---|
-| D1 `loop-content-spine` | `DB` | directory and versions; articles and content blocks; work tasks, actions, evidence; code leases; laws and violations; automations and cron runs; sheets; sessions, agents and agent turns; settings; tenants |
-| D1 `loop-shared-events` | `LEDGER` | `events`, `events_stats` |
+| D1 `miscsubjects-content` | `DB` | directory and versions; articles and content blocks; work tasks, actions, evidence; code leases; laws and violations; automations and cron runs; sheets; sessions, agents and agent turns; settings; tenants |
+| D1 `miscsubjects-events` | `LEDGER` | `events`, `events_stats` |
 | KV | `KV` | directory snapshot, settings cache, file claims and deploy lock, feature switches |
 | R2 `miscsubjects-ledger` | `R2` | `img/gen/`, `img/screenshot/`, `img/ref/`, `capability_sources/`, oversized ledger bodies, the projection manifests |
 | Workers AI | `AI` | embeddings and small models |
@@ -187,10 +187,10 @@ a preview can never write production rows.
 
 | Worker | Why it exists | Bindings |
 |---|---|---|
-| `loop-safe-sibling` | Everything Pages Functions cannot host: two cron schedules, the `ExpertDO` and `AgentDO` Durable Objects (durable agent loops with SQLite state), the `deliver` and `selftest` Workflows, the `loop-tasks` queue consumer, browser rendering, e-mail sending and inbound mail | `DB`, `KV`, `R2`, `AI`, `CF_EXPERT_DO`, `AGENT_DO`, `DELIVER_WF`, `SELFTEST_WF`, `TASKS`, `MYBROWSER`, `EMAIL` |
-| `loop-safe-directory-do` | Single-writer directory snapshot | `DIRECTORY_DO` from Pages |
-| `loop-safe-sheet-do` | One Durable Object per sheet: single writer, local reads, WebSocket push, R2 spill | `SHEET_DO` from Pages |
-| `loop-safe-storage` | Reference storage in R2 with a D1 index, fronted by `/api/store` | `STORE` from Pages |
+| `miscsubjects-sibling` | Everything Pages Functions cannot host: two cron schedules, the `ExpertDO` and `AgentDO` Durable Objects (durable agent loops with SQLite state), the `deliver` and `selftest` Workflows, the `miscsubjects-tasks` queue consumer, browser rendering, e-mail sending and inbound mail | `DB`, `KV`, `R2`, `AI`, `CF_EXPERT_DO`, `AGENT_DO`, `DELIVER_WF`, `SELFTEST_WF`, `TASKS`, `MYBROWSER`, `EMAIL` |
+| `miscsubjects-directory-do` | Single-writer directory snapshot | `DIRECTORY_DO` from Pages |
+| `miscsubjects-sheet-do` | One Durable Object per sheet: single writer, local reads, WebSocket push, R2 spill | `SHEET_DO` from Pages |
+| `miscsubjects-storage` | Reference storage in R2 with a D1 index, fronted by `/api/store` | `STORE` from Pages |
 | `miscsubjects-mcp` | MCP server over the directory | |
 | `oip-peer` | Federation: answers the invocation protocol for a second domain so two systems can call each other's rows with signed envelopes | |
 | `miscsubjects-robots` | `robots.txt` | |

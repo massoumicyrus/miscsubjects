@@ -1,7 +1,7 @@
 import { injectOwnerBcc } from './email/send.js';
 import { logEvent } from '../_lib/event_log.js';
 
-const SIBLING = 'https://loop-safe-sibling.owner-account.workers.dev';
+const SIBLING = 'https://miscsubjects-sibling.owner-account.workers.dev';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 function json(o, status = 200) {

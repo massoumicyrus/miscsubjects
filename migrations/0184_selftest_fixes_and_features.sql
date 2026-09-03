@@ -46,7 +46,7 @@ WHERE kind = 'e2e' AND id = 176;
 
 UPDATE directory_tests SET
   args = 'what was the last pages deploy — check ledger or wrangler pages deployment list',
-  expect_value = 'deploy|deployment|pages|commit|wrangler|loop-safe',
+  expect_value = 'deploy|deployment|pages|commit|wrangler|miscsubjects',
   expected_text = 'Real last deploy info.'
 WHERE kind = 'e2e' AND id = 181;
 

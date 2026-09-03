@@ -1,4 +1,4 @@
--- OIP CONTENT LOOP (loop-content-spine / DB) — the philosophy/OIP corpus runs on the SAME
+-- OIP CONTENT LOOP (miscsubjects-content / DB) — the philosophy/OIP corpus runs on the SAME
 -- Regeneration Protocol as the health content: inventory -> writer -> adversary critique ->
 -- endorsement critique -> score, plus an atomize pass that brings legacy articles into the
 -- claims+sources JSON schema without touching their bodies.

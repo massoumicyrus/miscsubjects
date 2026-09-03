@@ -2,7 +2,7 @@ INSERT OR IGNORE INTO directory (key, type, target, auth, content, category, pla
 VALUES (
   'LOCAL_AFPLAY',
   'http',
-  'POST https://agent.cannibal.capital/exec',
+  'POST https://agent.<bridge-domain>/exec',
   '',
   '# WHAT: Play mp3/audio URL on Mac speakers (afplay). Never opens browser.
 # WHEN_TO_USE: ara voice landed — play on the owner Mac automatically

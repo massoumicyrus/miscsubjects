@@ -57,7 +57,7 @@ INSERT OR REPLACE INTO directory (key,type,target,auth,content,category,planner_
 
 -- 6. Backfill the runner column for every row (runs last so the new rows are covered).
 UPDATE directory SET runner = CASE
-  WHEN target LIKE '%agent.cannibal.capital%' OR key LIKE 'LOCAL\_%' ESCAPE '\' THEN 'mac'
+  WHEN target LIKE '%agent.<bridge-domain>%' OR key LIKE 'LOCAL\_%' ESCAPE '\' THEN 'mac'
   WHEN target LIKE '%workers.dev%' OR key LIKE 'SIBLING\_%' ESCAPE '\' THEN 'sibling'
   WHEN key LIKE 'APPS\_SCRIPT%' ESCAPE '\' OR key LIKE 'GOOGLE\_%' ESCAPE '\' THEN 'apps_script'
   ELSE 'edge'

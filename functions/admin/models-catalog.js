@@ -53,7 +53,7 @@ export async function onRequestGet(context) {
           <div class="detail-line"><b>pricing:</b> in ${inCost} / out ${outCost} per M tokens ${p.cached_input ? `(cached ${p.cached_input})` : ''}</div>
           <div class="detail-line"><b>capabilities:</b> ${Object.entries(f).filter(([,v])=>v).map(([k])=>k.replace(/_/g,' ')).join(', ') || 'none'}</div>
           <div class="detail-params">
-            <div class="lbl" style="margin:8px 0 4px">Parameters</div>
+            <div class="tenant" style="margin:8px 0 4px">Parameters</div>
             <table class="param-table">
               <thead><tr><th>parameter</th><th>type</th><th>min</th><th>max</th><th>default</th></tr></thead>
               <tbody>${Object.entries(m.parameters || {}).map(([k,v]) => {
@@ -80,7 +80,7 @@ export async function onRequestGet(context) {
 .mc .stats > div{flex:1;padding:10px 14px;text-align:center;border-right:1px solid var(--line);font-size:13px}
 .mc .stats > div:last-child{border-right:0}
 .mc .stats .num{font-size:22px;font-weight:700;color:var(--accent);display:block;line-height:1}
-.mc .stats .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.mc .stats .tenant{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
 
 /* Comparison matrix */
 .mc .matrix-wrap{border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#fff}
@@ -131,10 +131,10 @@ export async function onRequestGet(context) {
   ${loadError ? `<p class="subtitle" style="color:#c14a4a">Failed to load catalog: ${e(loadError)}</p>` : ''}
 
   <div class="stats">
-    <div><span class="num">${allModels.length}</span><span class="lbl">Total models</span></div>
-    <div><span class="num">${(catalog.text_generation_models || []).length}</span><span class="lbl">Cloudflare AI</span></div>
-    <div><span class="num">${(catalog.external_models || []).length}</span><span class="lbl">External APIs</span></div>
-    <div><span class="num">${(catalog.web_search_capable || []).length}</span><span class="lbl">Web search</span></div>
+    <div><span class="num">${allModels.length}</span><span class="tenant">Total models</span></div>
+    <div><span class="num">${(catalog.text_generation_models || []).length}</span><span class="tenant">Cloudflare AI</span></div>
+    <div><span class="num">${(catalog.external_models || []).length}</span><span class="tenant">External APIs</span></div>
+    <div><span class="num">${(catalog.web_search_capable || []).length}</span><span class="tenant">Web search</span></div>
   </div>
 
   <div class="matrix-wrap">

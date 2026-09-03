@@ -23,7 +23,7 @@
 import { spawnSync } from 'node:child_process';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
-const DB = 'loop-content-spine';
+const DB = 'miscsubjects-content';
 const LIMIT = Number((process.argv.find((a) => a.startsWith('--limit=')) || '').split('=')[1] || 400);
 const ALL = process.argv.includes('--all');
 const MATCH_FLOOR = 0.34;

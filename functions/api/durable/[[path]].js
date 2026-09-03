@@ -1,5 +1,5 @@
 // Pages front door for the bound Durable Object (DirectoryDO, script
-// loop-safe-directory-do). Gives the worker a production-hostname REST surface so the
+// miscsubjects-directory-do). Gives the worker a production-hostname REST surface so the
 // DURABLE_WORKER directory row and the slug registry are callable at
 // https://miscsubjects.com/api/durable/<op>.
 //   GET  /api/durable/ping
@@ -27,7 +27,7 @@ async function shardName(request, env, fallback) {
 export async function onRequest(context) {
   const { request, env, params } = context;
   if (!env.DIRECTORY_DO) {
-    return new Response(JSON.stringify({ ok: false, error: 'DIRECTORY_DO binding missing — deploy loop-safe-directory-do and add the Pages binding' }), {
+    return new Response(JSON.stringify({ ok: false, error: 'DIRECTORY_DO binding missing — deploy miscsubjects-directory-do and add the Pages binding' }), {
       status: 500, headers: { 'content-type': 'application/json' },
     });
   }

@@ -52,7 +52,7 @@ export async function onRequestGet(context) {
        FROM articles WHERE published = 1
        ORDER BY created_at DESC, slug ASC`
     ).all();
-    // Site pages (privacy, m, a1, esh-*, reta, success, …) — every link, on the directory.
+    // Site pages (privacy, m, a1, esh-*, tenant, success, …) — every link, on the directory.
     const pg = await env.DB.prepare(
       `SELECT slug AS key, 'page' AS type, COALESCE(title, slug) AS target, 'page' AS category,
               COALESCE((SELECT MIN(created_at) FROM pages_versions pv WHERE pv.slug = pages.slug), updated_at) AS created_at,

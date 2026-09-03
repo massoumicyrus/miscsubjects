@@ -2,7 +2,7 @@
 import { logEvent } from './event_log.js';
 import { insertAgentTurn } from './agent_turn_log.js';
 
-const BRIDGE = 'https://agent.cannibal.capital/exec';
+const BRIDGE = 'https://agent.<bridge-domain>/exec';
 const SPAWN_SCRIPT = '/Users/owner/miscsubjects-pages/hooks/cli-agent-spawn.sh';
 const DEFAULT_CWD = '/Users/owner/miscsubjects-pages';
 const TIMEOUT = 1200000;

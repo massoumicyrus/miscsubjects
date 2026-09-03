@@ -16,7 +16,7 @@ describe('work-turns security (sanitizeSecrets is the whole safety story)', () =
   });
 
   it('strips the operator identity and local paths', () => {
-    const s = sanitizeSecrets('the owner at /Users/owner/miscsubjects-pages ran it; [OWNER_EMAIL]');
+    const s = sanitizeSecrets('the owner at /Users/owner/miscsubjects-pages ran it; the owner@<operator-domain>');
     assert.equal(/the owner/i.test(s), false);
     assert.equal(s.includes('/Users/'), false);
     assert.match(s, /the operator/);

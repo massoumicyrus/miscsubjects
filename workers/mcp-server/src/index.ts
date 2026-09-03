@@ -18,7 +18,7 @@ export class MiscsubjectsMCP extends McpAgent<Env> {
   async init() {
     this.server.tool(
       "d1_query",
-      { sql: z.string().describe("A read-only SQL SELECT against the build database (loop-content-spine).") },
+      { sql: z.string().describe("A read-only SQL SELECT against the build database (miscsubjects-content).") },
       async ({ sql }) => {
         const r = await this.env.DB.prepare(sql).all();
         return { content: [{ type: "text", text: JSON.stringify(r.results ?? r) }] };

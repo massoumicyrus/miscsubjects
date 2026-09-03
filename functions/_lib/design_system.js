@@ -33,7 +33,7 @@ export { footer as designSystemFooter } from "./design/compositions/navigation-h
 // Static release guards read these destinations here while the rendered links
 // remain owned by the single shared navigation-hub footer composition.
 export const REQUIRED_FOOTER_DESTINATIONS = Object.freeze([
-  "/a/loop-law",
+  "/a/tenant-law",
   "/a/the-build-end-to-end",
   "/a/which-ai-models-are-winning",
 ]);

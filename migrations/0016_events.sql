@@ -1,4 +1,4 @@
--- Normalized cross-build event ledger. Lives in D1 `loop-shared-events`, bound as `LEDGER`.
+-- Normalized cross-build event ledger. Lives in D1 `miscsubjects-events`, bound as `LEDGER`.
 -- One row per outbound HTTP call, agent call, dispatch step, or webhook in/out.
 -- Bodies >10 KB go to R2; D1 stores preview + size + r2_key only.
 

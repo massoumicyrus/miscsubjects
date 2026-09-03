@@ -70,7 +70,7 @@ function dispatchHeaders(env) {
 const DEPTH_CAP = 3;
 const ITER_CAP = 20;
 const COST_CAP_USD = 1.00;
-const SIBLING_BASE = 'https://loop-safe-sibling.owner-account.workers.dev';
+const SIBLING_BASE = 'https://miscsubjects-sibling.owner-account.workers.dev';
 const OWNER_BLOOIO_CHAT = 'chat_019ec103-256e-7475-82da-cda3aa268d1c';
 
 // Exported so the agent sheet prices its own model calls from the same table. A second copy
@@ -1221,7 +1221,7 @@ async function runFn(row, args, ctx) {
   return String(result == null ? '' : result);
 }
 
-const DEAD_HOSTS = ['agent.cannibal.capital'];
+const DEAD_HOSTS = ['agent.<bridge-domain>'];
 function deadHostRefusal(key, target) {
   for (const h of DEAD_HOSTS) {
     if (target.includes(h)) {
@@ -2560,7 +2560,7 @@ function scrubPublicEgressText(t) {
   let s = String(t);
   for (const re of OWNER_PERSONAL_NUMBERS) s = s.replace(re, "<owner line, not public>");
   return s
-    .replace(/the owner@dsco\.co/gi, "contact@miscsubjects.com")
+    .replace(/the owner@<operator-domain>/gi, "contact@miscsubjects.com")
     .replace(/[OWNER_SURNAME][-_.]?the owner/gi, "[custodian]")
     .replace(/the owner[-_.]?[OWNER_SURNAME]/gi, "[custodian]")
     .replace(/\bOWNER_FIRST_NAME\s+[OWNER_SURNAME]\b/gi, "the custodian")

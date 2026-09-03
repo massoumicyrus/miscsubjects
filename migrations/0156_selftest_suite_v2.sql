@@ -38,7 +38,7 @@ INSERT INTO directory_tests (key, kind, args, expect_kind, expect_value, expecte
 ('ROUTER','e2e','show me the agent topology','reply_ok','tool|categor|agent|map','A summary of the tool/agent topology by category.','topology'),
 ('ROUTER','e2e','who am I on cloudflare','reply_ok','account|cloudflare|email|loop|@','The Cloudflare account/identity (via wrangler whoami over LOCAL_EXEC).','cloudflare identity'),
 ('ROUTER','e2e','what is bpc-157','reply_ok','bpc|peptide|heal|article|not','A real answer about BPC-157 (from the article or knowledge).','content: bpc-157'),
-('ROUTER','e2e','what is retatrutide','reply_ok','reta|peptide|glp|weight|not','A real answer about retatrutide.','content: retatrutide'),
+('ROUTER','e2e','what is retatrutide','reply_ok','tenant|peptide|glp|weight|not','A real answer about retatrutide.','content: retatrutide'),
 ('ROUTER','e2e','what did we change on the build today','reply_ok','','A ledger-based summary of recent changes.','ledger summary'),
 ('ROUTER','e2e','how do I deploy the build','reply_ok','wrangler|deploy|pages|local_exec','Run wrangler pages deploy from the repo dir via LOCAL_EXEC.','API how-to: deploy'),
 ('ROUTER','e2e','how do I run a shell command on my mac','reply_ok','local_exec|shell|command|/t ','Use LOCAL_EXEC (or the /t prefix) to run a shell command on the Mac.','API how-to: shell'),

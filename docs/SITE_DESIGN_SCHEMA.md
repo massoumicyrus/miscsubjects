@@ -47,4 +47,4 @@ The site becomes an **auditable reasoning surface**:
 
 ## Cleanup still open
 
-- `pages` table still has 17 old stubs (`a1`, `a2`, `b3`, `esh-a1..a9`, `reta`, `topology`). Decide which to keep/delete.
+- `pages` table still has 17 old stubs (`a1`, `a2`, `b3`, `esh-a1..a9`, `tenant`, `topology`). Decide which to keep/delete.

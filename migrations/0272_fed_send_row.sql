@@ -1,4 +1,4 @@
--- OIP v1.1 — FEDERATION: the FED_SEND directory object (DB: loop-content-spine).
+-- OIP v1.1 — FEDERATION: the FED_SEND directory object (DB: miscsubjects-content).
 -- Sends a signed oip-message/1 envelope from the home agent (pepper@miscsubjects.com) to a
 -- remote agent at another domain, resolving its key + inbox from that domain's well-known.
 -- The human-facing federation control: "message that agent and ask for X".

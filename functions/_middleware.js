@@ -768,10 +768,10 @@ async function finalizeAndCache(context, url, res, cacheKey) {
 }
 
 const IDENTITY_REDACTIONS = [
-  [/the owner@dsco\.co/gi, 'owner@redacted'],
-  [/the owner@theloopway\.com/gi, 'owner@redacted'],
-  [/\bdsco\.co\b/gi, 'redacted.invalid'],
-  [/theloopway\.com/gi, 'redacted.invalid'],
+  [/the owner@<operator-domain>/gi, 'owner@redacted'],
+  [/the owner@<tenant-domain>/gi, 'owner@redacted'],
+  [/\btenant\.co\b/gi, 'redacted.invalid'],
+  [/<tenant-domain>/gi, 'redacted.invalid'],
   [/the owner\s*[OWNER_SURNAME]/gi, 'the owner'],
   [/[OWNER_SURNAME]\s*the owner/gi, 'the owner'],
   [/[OWNER_HANDLE]/gi, 'owner'],
@@ -1045,7 +1045,7 @@ async function handleRequest(context, url, pathname) {
   }
 
   let enabled = false;
-  let moneyPage = "https://leoresearch.com/l/meta";
+  let moneyPage = "https://<tenant-domain>/l/meta";
   let safePageHtml = null;
   try {
     const row = await env.DB.prepare("SELECT value FROM settings WHERE key = ?")

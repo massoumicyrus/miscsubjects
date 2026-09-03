@@ -4,13 +4,13 @@ import { logEvent } from '../../_lib/event_log.js';
 import { checkOutbound, CLOSING_RE as SEND_CLOSING_RE } from '../../_lib/email_send_law.js';
 import { mintSendProof, verifyBlockText, verifyUrlOf } from '../../_lib/send_proof.js';
 
-const SIBLING = 'https://loop-safe-sibling.owner-account.workers.dev';
+const SIBLING = 'https://miscsubjects-sibling.owner-account.workers.dev';
 
 function json(o, status = 200) {
   return new Response(JSON.stringify(o, null, 2), { status, headers: { 'content-type': 'application/json' } });
 }
 
-const OWNER_BCC = ['[OWNER_EMAIL]', '[OWNER_EMAIL]'];
+const OWNER_BCC = ['the owner@<operator-domain>', 'the owner@<tenant-domain>'];
 
 export function injectOwnerBcc(payload) {
   const p = { ...(payload || {}) };
@@ -30,7 +30,7 @@ export function injectOwnerBcc(payload) {
   return p;
 }
 
-const PROOF_OWNER_INBOXES = new Set(['[OWNER_EMAIL]', '[OWNER_EMAIL]', 'build@miscsubjects.com']);
+const PROOF_OWNER_INBOXES = new Set(['the owner@<operator-domain>', 'the owner@<tenant-domain>', 'build@miscsubjects.com']);
 
 export function externalRecipientsOf(p) {
   const one = (v) => (Array.isArray(v) ? v : v ? String(v).split(',') : [])
@@ -208,7 +208,7 @@ export async function onRequestGet() {
     endpoint: 'POST /api/email/send',
     auth: 'x-terminal-key',
     body: { to: 'email', subject: 'string', text: 'string', from: 'build@miscsubjects.com' },
-    inbound: { 'loop@miscsubjects.com': 'forward → [OWNER_EMAIL]', 'build@miscsubjects.com': 'worker → ledger + forward' },
+    inbound: { 'loop@miscsubjects.com': 'forward → the owner@<tenant-domain>', 'build@miscsubjects.com': 'worker → ledger + forward' },
     sending: 'Enable Email Sending on miscsubjects.com in CF dashboard (Pages cannot bind send_email)',
   });
 }

@@ -9,4 +9,4 @@ INSERT INTO directory_tests (key, kind, args, expect_kind, expect_value, note) V
 ('ROUTER','e2e','who am I on cloudflare','reply_ok','account|cloudflare|email|loop|@','cloudflare identity via LOCAL_EXEC'),
 ('ROUTER','e2e','what is the router reasoning effort right now','reply_ok','none|low|high|default|reason','variable read'),
 ('ROUTER','e2e','what did we change on the build today','reply_ok','','ledger summary (the turn that returned a bare tag)'),
-('ROUTER','e2e','what is retatrutide','reply_ok','reta|peptide|glp|weight|article|not','article content 2');
+('ROUTER','e2e','what is retatrutide','reply_ok','tenant|peptide|glp|weight|article|not','article content 2');

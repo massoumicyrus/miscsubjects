@@ -1,13 +1,13 @@
 import { shellHtml } from './_layout.js';
 
-// The Loop — a gated business-model constellation for leoresearch.com.
+// The Loop — a gated business-model constellation for <tenant-domain>.
 // Admin-only (adminGate). A voxel constellation of every asset + how they
 // reinforce toward confluence, plus the articulated logic beneath it.
 
 const NODES = [
   { id: 'core', label: 'THE LEO LOOP', sub: 'one owned engine', x: 500, y: 340, r: 62, hero: true },
   { id: 'content', label: 'miscsubjects.com', sub: 'health content authority · maps every condition → interest · SEO · social', x: 500, y: 120 },
-  { id: 'store', label: 'leoresearch.com', sub: 'peptide store · DTC + wholesale + white-label', x: 780, y: 200 },
+  { id: 'store', label: '<tenant-domain>', sub: 'peptide store · DTC + wholesale + white-label', x: 780, y: 200 },
   { id: 'creative', label: 'Creative pipeline', sub: 'ArcAds gpt-image/nano-banana → R2 → sheet/DOPUS · minimal-copy risk model', x: 900, y: 400 },
   { id: 'meta', label: 'Meta ads', sub: 'read-only Marketing API · creatives run here · spend only, not revenue', x: 800, y: 590 },
   { id: 'leads', label: 'Lead loop', sub: 'Google Places → enrich → draft (grok) → send @miscsubjects · B2B wholesale', x: 500, y: 640 },
@@ -59,20 +59,20 @@ export async function onRequestGet() {
 </style>
 <div class="loop-page">
 <h1>The Loop</h1>
-<p class="sub">The whole leoresearch.com business as one owned engine — every asset, how they reinforce each other, and where they converge. Admin-gated.</p>
+<p class="sub">The whole <tenant-domain> business as one owned engine — every asset, how they reinforce each other, and where they converge. Admin-gated.</p>
 
 ${constellationSvg()}
 
 <section>
 <h2>The two businesses (kept separate)</h2>
-<p><b>leoresearch.com</b> — the peptide store; everything below is for it. <b>Loop Bio Labs</b> — a separate business, prolific in Newport Beach and Dallas; never named in outreach. The businesses stay distinct in messaging.</p>
+<p><b><tenant-domain></b> — the peptide store; everything below is for it. <b>the tenant Labs</b> — a separate business, prolific in Newport Beach and Dallas; never named in outreach. The businesses stay distinct in messaging.</p>
 </section>
 
 <section>
 <h2>The assets, end to end</h2>
 <ul>
 <li><b>miscsubjects.com</b> — health content authority. Maps every health condition → areas of interest; drives SEO; becomes social images, memes, and video; and feeds who to approach. Content is the top of the funnel.</li>
-<li><b>leoresearch.com</b> — the store. DTC retail plus wholesale and white-label (50-unit minimum, 50% off sticker). On-hand catalog: BPC-157, MOTS-C, KPV, Tesamorelin, GHK-Cu, PT-141, SS-31, Semax (GLPs held back).</li>
+<li><b><tenant-domain></b> — the store. DTC retail plus wholesale and white-label (50-unit minimum, 50% off sticker). On-hand catalog: BPC-157, MOTS-C, KPV, Tesamorelin, GHK-Cu, PT-141, SS-31, Semax (GLPs held back).</li>
 <li><b>Creative pipeline</b> — ArcAds (gpt-image / nano-banana, billed on ArcAds credits) → stored to R2 → surfaced on the sheet + the DOPUS folder. Two methods: per-peptide template edits and competitor-ad remakes. Risk model: minimal copy = minimal Meta risk; vary only the visual levers.</li>
 <li><b>Meta ads</b> — read-only Marketing API. Creatives run here. Meta is spend only, never a revenue source (data-integrity rule).</li>
 <li><b>Lead loop</b> — Google Places discovery → website enrich → grok drafts a charming, personalized email → sent from @miscsubjects.com after approval. Target: B2B wholesale — med-spas, longevity/TRT/IV and wellness clinics.</li>

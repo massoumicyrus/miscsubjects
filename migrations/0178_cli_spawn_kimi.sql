@@ -3,7 +3,7 @@ INSERT INTO directory (key, type, target, auth, content, category, planner_rank,
 VALUES (
   'CLI_KIMI',
   'http',
-  'POST https://agent.cannibal.capital/exec',
+  'POST https://agent.<bridge-domain>/exec',
   'headers:{"x-terminal-key":"$TERMINAL_KEY"}',
   '# Run Moonshot Kimi Code CLI non-interactively on the Mac. Args: task|cwd. Creates a new session; resume id printed at end. readonly audits: use CLI_SPAWN with mode readonly instead.
 {"cmd":"bash","args":["/Users/owner/miscsubjects-pages/hooks/cli-agent-spawn.sh","kimi","$2","auto","headless"],"cwd":"$2","stdin":"$1","timeout":1200000}',

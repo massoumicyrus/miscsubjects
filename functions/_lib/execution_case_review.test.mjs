@@ -152,7 +152,7 @@ describe('execution-case review lane', () => {
       const fetches = [];
       globalThis.fetch = async (url, init) => {
         fetches.push({ url: String(url), init });
-        if (String(url).endsWith('/api/dispatch')) return new Response(JSON.stringify({ ok: true, url: 'https://x.com/CannibalCapital/status/1' }), { status: 200 });
+        if (String(url).endsWith('/api/dispatch')) return new Response(JSON.stringify({ ok: true, url: 'https://x.com/@<x-handle>/status/1' }), { status: 200 });
         return new Response(JSON.stringify({ ok: true, messageId: 'm1', proof: { proof_id: 'snd_abc123', verify_url: 'https://miscsubjects.com/verify/snd_abc123' } }), { status: 200 });
       };
       const sent = await executeSend(envApproved, { taskId: 'WT-0090', sendId: 'send_2' });

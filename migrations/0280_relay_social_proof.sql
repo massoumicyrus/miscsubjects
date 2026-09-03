@@ -25,7 +25,7 @@ CREATE INDEX IF NOT EXISTS idx_relay_social_posts_created
 
 UPDATE directory
 SET sensitive=1,
-    content='# WHAT: Post a tweet/post to X as @CannibalCapital (OAuth 1.0a).
+    content='# WHAT: Post a tweet/post to X as @<x-handle> (OAuth 1.0a).
 # WHEN_TO_USE: The current person explicitly asks to post, tweet, or publish on X.
 # ARGS: $1 = exact post text, maximum 280 characters.
 # EX: [X_POST]hello from the build[/X_POST]

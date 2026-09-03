@@ -2,7 +2,7 @@ const OWNER = '[OWNER_PHONE]';
 
 function authed(request, env) {
   const a = request.headers.get('x-loop-auth') || '';
-  return a === String(env.BLOOIO_API_KEY || ' ') || (env.LOOP_DELIVER_TOKEN && a === String(env.LOOP_DELIVER_TOKEN));
+  return a === String(env.BLOOIO_API_KEY || ' ') || (env.DELIVER_TOKEN && a === String(env.DELIVER_TOKEN));
 }
 
 export async function onRequestPost(context) {
