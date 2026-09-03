@@ -1,0 +1,23 @@
+{
+  "protocol": "oip-message/1",
+  "domain": "miscsubjects.com",
+  "agents": [
+    {
+      "id": "pepper@miscsubjects.com",
+      "alg": "ES256",
+      "public_key_jwk": {
+        "kty": "EC",
+        "crv": "P-256",
+        "x": "lU-F1zmZ872dlO63BWOwQcPscnqQd01LTyH8SS8ON-0",
+        "y": "LEW5fTk9Ocx5fMZrTXdzMvcMNepwDUgL3-icUExqb9Q"
+      },
+      "inbox": "https://miscsubjects.com/oip/inbox",
+      "invokes": true,
+      "note": "the home agent — it runs invocations against real objects, subject to every capability gate."
+    }
+  ],
+  "ledger": "https://miscsubjects.com/oip/ledger",
+  "spec": "https://miscsubjects.com/a/oip-message",
+  "federation_proof": "https://miscsubjects.com/api/dispatch?fedtest=1&format=markdown",
+  "note": "Object Invocation Protocol federation node. Envelopes are data; only a signed invoke carrying a valid, audience-bound capability runs anything, and every gate is re-checked here."
+}

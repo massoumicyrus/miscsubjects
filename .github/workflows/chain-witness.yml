@@ -1,0 +1,30 @@
+# INDEPENDENT CHAIN WITNESS (spec Phase 5). GitHub runs scripts/witness.mjs on a schedule and
+# commits the countersignature log to this repository — a store the site's runtime cannot write.
+# A diverged verdict (the served chain no longer extends what this witness recorded) fails the
+# run loudly. The witness key lives in the committed state dir: it proves continuity of THIS
+# witness's observations, not an identity worth stealing — the security property is the
+# append-only log in git history, which a chain rewrite cannot retroactively edit.
+name: chain-witness
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  witness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Witness the chain head
+        run: node scripts/witness.mjs --state .witness
+      - name: Commit the countersignature
+        run: |
+          git config user.name "chain-witness"
+          git config user.email "witness@users.noreply.github.com"
+          git add .witness/
+          git diff --cached --quiet || git commit -m "witness: countersign chain checkpoint [skip ci]"
+          git push

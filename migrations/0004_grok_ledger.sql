@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS grok_ledger (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  timestamp TEXT NOT NULL,
+  source TEXT NOT NULL,
+  request TEXT NOT NULL,
+  response TEXT
+);

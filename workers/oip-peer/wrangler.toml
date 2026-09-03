@@ -1,0 +1,21 @@
+name = "oip-peer"
+main = "src/index.js"
+compatibility_date = "2026-03-24"
+account_id = "<CLOUDFLARE_ACCOUNT_ID>"
+workers_dev = true
+
+[observability]
+enabled = true
+
+# The second federation node. Independent instance on a second registrable domain
+# (oip-peer.owner-account.workers.dev) speaking oip-message/1 with miscsubjects.com.
+# Its own replay store, its own ledger, its own signing keys (secret OIP_PEER_KEYS).
+
+[vars]
+PEER_DOMAIN = "oip-peer.owner-account.workers.dev"
+HOME_BASE = "https://miscsubjects.com"
+HOME_AGENT = "pepper@miscsubjects.com"
+
+[[kv_namespaces]]
+binding = "STORE"
+id = "b04c42cf95164120923c97f5397f4140"

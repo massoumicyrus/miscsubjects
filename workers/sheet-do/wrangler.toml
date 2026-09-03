@@ -1,0 +1,28 @@
+name = "loop-safe-sheet-do"
+main = "src/index.js"
+compatibility_date = "2026-03-24"
+compatibility_flags = ["nodejs_compat_v2"]
+account_id = "<CLOUDFLARE_ACCOUNT_ID>"
+
+[observability]
+enabled = true
+
+# Write-through target. The DO is the writer; D1 stays readable by every existing surface.
+[[d1_databases]]
+binding = "DB"
+database_name = "loop-content-spine"
+database_id = "298eb858-37fb-4c73-8be4-135e8feb73fe"
+
+# Cell values larger than the inline cap spill to R2; the cell keeps a pointer.
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "miscsubjects-ledger"
+
+# One instance per sheet id. SQLite-backed: reads are local, not a network hop.
+[[durable_objects.bindings]]
+name = "SHEET_DO"
+class_name = "SheetDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SheetDO"]

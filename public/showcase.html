@@ -1,0 +1,168 @@
+<!doctype html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>miscsubjects.com — Regeneration vs. Degeneration</title>
+<style>
+@font-face{font-family:asap;src:url(/font/Asap-Regular.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:asap;src:url(/font/Asap-Bold.woff2) format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:din;src:url(/font/URW-DIN-Condensed-Bold.woff2) format("woff2");font-weight:700;font-display:swap}
+html{font-size:62.5%}*{box-sizing:border-box;margin:0;padding:0}
+:root{--orange:#ee5a24;--green:#5f9e3f;--ink:#1a1a1a;--cream:#faf6f0;--muted:#6b6b6b;--line:#e7e2da}
+body{background:var(--cream);color:var(--ink);font-family:asap,Arial,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.pvbar{background:#0a0a0a;color:#fff;font:700 1.05rem/1 ui-monospace,monospace;letter-spacing:.04em;text-align:center;padding:.6rem}
+
+/* HEADER — front | admin divide */
+header{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line)}
+.hd{max-width:1000px;margin:0 auto;display:flex;align-items:center;gap:1.4rem;padding:1.3rem 1.8rem}
+.burger{width:26px;height:18px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer}
+.burger i{height:3px;background:var(--ink);border-radius:2px}
+.brand{font:700 2.4rem/1 din,sans-serif;letter-spacing:.06em;margin:0 auto}
+.brand b{color:var(--orange)}
+.front-nav{display:flex;gap:1.6rem}
+.front-nav a{font:700 1.3rem/1 din,sans-serif;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);text-decoration:none}
+.admin-divide{display:flex;align-items:center;gap:1.2rem;padding-left:1.2rem;border-left:1px solid var(--line)}
+.admin-divide a{font:700 1.1rem/1 ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;color:#aaa;text-decoration:none}
+.msg{width:30px;height:30px;color:var(--ink)} .msg .dot{fill:var(--green)}
+@media(max-width:720px){.front-nav{display:none}.brand{margin:0 auto 0 0}}
+
+/* HERO (your REGENERATION vs DEGENERATION scene) */
+.hero{max-width:1000px;margin:0 auto;padding:0 1.8rem 2rem}
+.scene{position:relative;margin:1.8rem 0;border-radius:6px;overflow:hidden;aspect-ratio:1000/560;
+  background:linear-gradient(100deg,#eef3e6 0%,#dfe9cf 34%,#c9b9a6 50%,#3a322c 66%,#171311 100%)}
+.scene .glow-l{position:absolute;left:0;top:0;bottom:0;width:50%;background:radial-gradient(60% 80% at 20% 50%,rgba(120,190,60,.35),transparent 70%)}
+.scene .glow-r{position:absolute;right:0;top:0;bottom:0;width:50%;background:radial-gradient(60% 80% at 80% 60%,rgba(255,90,36,.25),transparent 70%)}
+.scene .label{position:absolute;inset:0;display:grid;place-items:center;font:700 1.3rem ui-monospace,monospace;color:rgba(255,255,255,.55);letter-spacing:.1em;text-transform:uppercase}
+.eyebrow{font:700 1.3rem/1 din,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--green);text-align:center}
+.eyebrow b{color:var(--orange)}.eyebrow span{color:var(--ink)}
+h1{font:700 clamp(4rem,11vw,6.6rem)/96% din,sans-serif;text-transform:uppercase;letter-spacing:-.01em;text-align:center;margin:1.2rem 0}
+h1 em{color:var(--orange);font-style:normal}
+.sub{font-size:1.9rem;line-height:148%;color:#444;text-align:center;max-width:42ch;margin:0 auto 2rem}
+.cta{display:flex;align-items:center;justify-content:center;gap:1rem;max-width:560px;margin:0 auto;background:var(--orange);color:#fff;
+  border-radius:12px;padding:1.7rem;font:700 2.2rem/1 din,sans-serif;letter-spacing:.04em;text-transform:uppercase;text-decoration:none;box-shadow:0 8px 24px rgba(238,90,36,.25)}
+.cta svg{width:30px;height:30px}
+.cta:active{transform:translateY(1px)}
+.locknote{display:flex;align-items:center;justify-content:center;gap:.7rem;font-size:1.4rem;color:var(--muted);margin:1.4rem 0 0}
+.locknote svg{width:16px;height:16px;color:var(--green)}
+
+/* category cards */
+.cats{max-width:1000px;margin:2.6rem auto 0;padding:0 1.8rem;display:grid;grid-template-columns:repeat(3,1fr);gap:1.4rem}
+@media(max-width:720px){.cats{grid-template-columns:1fr 1fr 1fr;gap:.9rem}}
+.cat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:2rem 1.4rem;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.cat .ic{font-size:3.2rem;line-height:1;margin-bottom:1rem}
+.cat h3{font:700 1.7rem/1.15 asap;margin-bottom:.6rem}
+.cat p{font-size:1.3rem;line-height:1.4;color:var(--muted);margin-bottom:1.2rem}
+.cat .ul{height:4px;width:60px;margin:0 auto;border-radius:99px}
+.cat.g .ul{background:var(--green)}.cat.o .ul{background:var(--orange)}.cat.r .ul{background:#d23f1f}
+
+/* how it works */
+.hiw{max-width:1000px;margin:3.5rem auto 0;padding:2.4rem 1.8rem;background:#fff;border:1px solid var(--line);border-radius:16px;margin-left:1.8rem;margin-right:1.8rem}
+.hiw .t{font:700 1.5rem/1 din,sans-serif;letter-spacing:.12em;text-transform:uppercase;text-align:center;color:var(--muted);margin-bottom:2rem}
+.steps{display:flex;align-items:flex-start;justify-content:center;gap:1rem}
+.step{flex:1;text-align:center;max-width:200px}
+.step .n{display:inline-grid;place-items:center;width:54px;height:54px;border-radius:50%;background:#f3efe8;font-size:2.4rem;position:relative}
+.step .b{position:absolute;top:-4px;right:-4px;width:22px;height:22px;border-radius:50%;color:#fff;font:800 1.2rem asap;display:grid;place-items:center}
+.step:nth-child(1) .b{background:var(--green)}.step:nth-child(3) .b{background:var(--orange)}.step:nth-child(5) .b{background:#f0a000}
+.step h4{font:700 1.5rem asap;margin:1rem 0 .4rem}.step p{font-size:1.3rem;line-height:1.4;color:var(--muted)}
+.arrow{align-self:center;color:#ccc;font-size:2rem}
+.tagline{max-width:1000px;margin:2rem auto;padding:1.6rem;border:1px solid var(--line);border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;gap:1rem;font:700 1.6rem asap;color:var(--ink);margin-left:1.8rem;margin-right:1.8rem}
+.tagline svg{width:22px;height:22px;color:var(--green)}
+
+/* ===== truthful widgets, sideways, below the scene ===== */
+.railwrap{max-width:1240px;margin:4rem auto 0;padding:0 1.8rem}
+.railhead{display:flex;align-items:center;gap:1rem;margin-bottom:1.4rem}
+.railhead h2{font:700 1.4rem/1 din,sans-serif;text-transform:uppercase;letter-spacing:.1em}
+.railhead .hint{font:600 1.2rem ui-monospace,monospace;color:#bbb}
+.navb{margin-left:auto;display:flex;gap:.7rem}.navb button{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:1.7rem}
+.rail{display:flex;gap:1.5rem;align-items:stretch;overflow-x:auto;scroll-snap-type:x proximity;padding:.4rem .4rem 2rem;scrollbar-width:none}.rail::-webkit-scrollbar{display:none}
+.card{flex:0 0 auto;width:clamp(290px,86vw,340px);scroll-snap-align:center;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 2px rgba(0,0,0,.05),0 10px 26px rgba(0,0,0,.05);overflow:hidden;display:flex;flex-direction:column}
+.tag{font:700 1rem/1 din,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#b3b3b3;padding:1.2rem 1.5rem 0}
+.pad{padding:1.3rem 1.5rem 1.5rem}
+.dis-q{font:800 1.85rem/1.2 din,sans-serif;text-transform:uppercase;margin-bottom:1rem}
+.mv{display:flex;justify-content:space-between;border:1px solid var(--line);border-radius:9px;padding:.7rem 1rem;font:600 1.35rem asap;margin-bottom:.5rem}.mv b{font-family:ui-monospace,monospace}
+.mv.y{background:#fbeeee;color:#922}.mv.n{background:#eef6e8;color:#3a6b1f}.mv.d{background:#fff5e6;color:#8a5a00}
+.dis-rev{width:100%;margin-top:.8rem;border:none;background:var(--ink);color:#fff;border-radius:10px;padding:.9rem;font:700 1.35rem asap;cursor:pointer}
+.dis-v{display:none;margin-top:.9rem;border-left:3px solid var(--orange);padding:.9rem 1.1rem;background:#f6f2ec;border-radius:0 10px 10px 0;font-size:1.35rem;line-height:1.5}.dis-v b{color:#d23f1f}
+.src .lg{display:flex;align-items:center;gap:1rem;margin-bottom:.9rem}.src .mk{width:38px;height:38px;border-radius:9px;border:1px solid var(--line);display:grid;place-items:center}.src .mk svg{width:36px;height:36px}.src .nm{font:800 1.6rem asap}.src .sb{font-size:1.2rem;color:#888}
+.src .tx{font-size:1.45rem;line-height:1.55;color:#222}.src .foot{display:flex;align-items:center;gap:1rem;margin-top:1.1rem;padding-top:1rem;border-top:1px solid #eee}.vchip{display:inline-flex;align-items:center;gap:.5rem;font:700 1.2rem asap;color:var(--green)}.vdot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.im-bar{display:flex;align-items:center;gap:.8rem;padding:1rem 1.3rem;border-bottom:1px solid #eee}.im-av{width:30px;height:30px;border-radius:50%;background:var(--orange);color:#fff;display:grid;place-items:center;font:800 1.4rem asap}.im-nm{font:700 1.4rem asap}.im-nm span{display:block;font-weight:400;font-size:1.15rem;color:#888}.im-th{padding:1.3rem;display:flex;flex-direction:column;gap:.7rem;min-height:90px}.bub{max-width:84%;padding:.8rem 1.3rem;border-radius:18px;font-size:1.5rem;line-height:1.34}.them{align-self:flex-start;background:#eee;color:#000;border-bottom-left-radius:5px}
+.sgtap{display:block;margin:.5rem 1.3rem 1.3rem;border:none;background:var(--orange);color:#fff;text-align:center;border-radius:12px;padding:1rem;font:700 1.4rem asap;text-decoration:none}
+.askcard{padding:1.5rem}.askcard h3{font:800 1.8rem din,sans-serif;text-transform:uppercase;margin-bottom:.6rem}.askcard p{font-size:1.4rem;color:var(--muted);line-height:1.45;margin-bottom:1.2rem}.askcard a{display:block;text-align:center;background:var(--ink);color:#fff;border-radius:12px;padding:1.1rem;font:700 1.5rem asap;text-decoration:none}
+
+footer{max-width:1000px;margin:5rem auto 3rem;padding:2rem 1.8rem;border-top:1px solid var(--line);font:600 1.1rem ui-monospace,monospace;color:#aaa;text-transform:uppercase;letter-spacing:.08em;text-align:center}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(18px);background:#0a0a0a;color:#fff;padding:1rem 1.6rem;border-radius:99px;font:600 1.3rem asap;opacity:0;transition:.25s;pointer-events:none}.toast.on{opacity:1;transform:translateX(-50%)}
+</style></head><body>
+<div class="pvbar">SANDBOX — squeeze page · SMS‑first · header front|admin divide · truthful widgets sideways</div>
+
+<header><div class="hd">
+  <div class="burger" onclick="toast('front nav')"><i></i><i></i><i></i></div>
+  <div class="brand"><b>misc</b>subjects.com</div>
+  <nav class="front-nav"><a href="#">Pain</a><a href="#">Recovery</a><a href="#">Decline</a><a href="#">Evidence</a></nav>
+  <div class="admin-divide">
+    <a href="/admin/ledger" title="admin">● Admin</a>
+    <svg class="msg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7A8.38 8.38 0 0 1 4 11.5 8.5 8.5 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/><circle class="dot" cx="19" cy="5" r="3" stroke="none"/></svg>
+  </div>
+</div></header>
+
+<section class="hero">
+  <div class="scene"><div class="glow-l"></div><div class="glow-r"></div><div class="label">hero scene — drop your Regeneration↔Degeneration image here</div></div>
+  <div class="eyebrow"><span>Repair</span> <b>vs.</b> <span>Decline</span></div>
+  <h1>Regeneration <em>vs.</em> Degeneration</h1>
+  <p class="sub">A research map for pain, performance, recovery, and evidence.</p>
+  <a class="cta" href="sms:[BUILD_PHONE]?&body=Text%20me%20my%20map">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7A8.38 8.38 0 0 1 4 11.5 8.5 8.5 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg>
+    TEXT ME MY MAP</a>
+  <div class="locknote"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Start by text. Follow the evidence.</div>
+</section>
+
+<section class="cats">
+  <div class="cat g"><div class="ic">🦴</div><h3>Pain &amp; Injury</h3><p>Understand what is breaking down.</p><div class="ul"></div></div>
+  <div class="cat o"><div class="ic">🏃</div><h3>Performance &amp; Recovery</h3><p>Improve how you feel and function.</p><div class="ul"></div></div>
+  <div class="cat r"><div class="ic">📉</div><h3>Drugs &amp; Decline</h3><p>See the risks and tradeoffs.</p><div class="ul"></div></div>
+</section>
+
+<section class="hiw">
+  <div class="t">How it works</div>
+  <div class="steps">
+    <div class="step"><div class="n">💬<span class="b">1</span></div><h4>Text in</h4><p>Tell us your goal or challenge.</p></div>
+    <div class="arrow">›</div>
+    <div class="step"><div class="n">🗺️<span class="b">2</span></div><h4>Get mapped</h4><p>We build your evidence path.</p></div>
+    <div class="arrow">›</div>
+    <div class="step"><div class="n">📖<span class="b">3</span></div><h4>Read the evidence</h4><p>Studies, reviews, and real stories.</p></div>
+  </div>
+</section>
+<div class="tagline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Evidence first. No hype.</div>
+
+<div class="railwrap">
+  <div class="railhead"><h2>Why it's different — swipe</h2><span class="hint">← drag →</span>
+    <div class="navb"><button onclick="railNav(-1)">‹</button><button onclick="railNav(1)">›</button></div></div>
+  <div class="rail" id="rail">
+
+    <div class="card"><div class="tag">The thesis</div><div class="pad">
+      <div class="dis-q">5,000 confident answers. One audited.</div>
+      <div class="mv y">A confident model<b>YES</b></div><div class="mv n">A cautious model<b>NO</b></div><div class="mv d">The audit<b>IT DEPENDS</b></div>
+      <button class="dis-rev" onclick="this.nextElementSibling.style.display='block';this.style.display='none';toast('One audit.')">↓ what's actually true</button>
+      <div class="dis-v"><b>The honest answer names the axis the others skipped</b> — dose, duration, and whether human data exists at all. Integrity, not flattery.</div></div></div>
+
+    <div class="card"><div class="tag">Source · proof</div><div class="pad src">
+      <div class="lg"><div class="mk"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="none" stroke="#1a1a1a" stroke-width="1.2"/><text x="20" y="27" text-anchor="middle" font-family="Georgia,serif" font-size="20" font-weight="700">§</text></svg></div><div><div class="nm">Every claim, graded</div><div class="sb">human · animal · anecdote</div></div></div>
+      <p class="tx" id="s1">Each statement carries its evidence tier and a link you can open yourself. Where there's no human data, it says so plainly.</p>
+      <div class="foot"><span class="vchip"><span class="vdot"></span>hash‑chained</span><span style="font:700 1.2rem ui-monospace,monospace;color:#999">re‑runnable</span></div></div></div>
+
+    <div class="card"><div class="tag">Action · iMessage</div>
+      <div class="im-bar"><div class="im-av">L</div><div class="im-nm">miscsubjects.com<span>iMessage</span></div></div>
+      <div class="im-th"><div class="bub them">Tell me your goal or what's breaking down — I'll map the evidence.</div></div>
+      <a class="sgtap" href="sms:[BUILD_PHONE]?&body=Map%20my%20back%20pain">Tap to text — map my situation</a></div>
+
+    <div class="card"><div class="tag">Ask</div><div class="askcard">
+      <h3>Ask a model anything</h3><p>It answers from the audited evidence — including where the evidence isn't there yet.</p>
+      <a href="sms:[BUILD_PHONE]?&body=Is%20this%20actually%20backed%20by%20evidence%3F">Text the build</a></div></div>
+
+  </div>
+</div>
+
+<footer>miscsubjects.com · sandbox · SMS‑first squeeze page · every page after this = evidence feed (no images yet)</footer>
+<div class="toast" id="toast"></div>
+<script>
+var t,tt;function toast(m){t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on')},1700);}
+var rail=document.getElementById('rail');function railNav(d){rail.scrollBy({left:d*330,behavior:'smooth'});}
+</script>
+</body></html>

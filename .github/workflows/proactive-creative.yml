@@ -1,0 +1,15 @@
+# Wakes the ARCADS creative agent every 4 hours for the creative-deck standing mission.
+# The agent decides whether to message the owner or stay silent (rules in its prompt).
+name: proactive-creative
+on:
+  # Disabled to stop GitHub notification noise. Re-enable by restoring the schedule block.
+  workflow_dispatch:
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    steps:
+      - name: wake /api/proactive
+        run: |
+          curl -s -X POST https://miscsubjects.com/api/proactive \
+            -H "x-loop-auth: ${{ secrets.LOOP_DELIVER_TOKEN }}" \
+            -o /dev/null -w "proactive wake: %{http_code}\n"

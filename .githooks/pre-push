@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PUSHES_MAIN=0
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then PUSHES_MAIN=1; fi
+done
+
+if [ "$PUSHES_MAIN" = "1" ]; then
+  node "$ROOT/scripts/check-protected-features.mjs"
+fi

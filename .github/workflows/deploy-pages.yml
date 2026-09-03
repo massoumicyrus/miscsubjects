@@ -1,0 +1,20 @@
+# Deploys the site exactly as scripts/ship.mjs does (wrangler pages deploy public), so a session
+# without the owner's Mac can still land code live. Dispatch-only. Prints ABSENT and stops if the
+# repo has no CLOUDFLARE_API_TOKEN secret — set one to enable this lane.
+name: deploy-pages
+on:
+  workflow_dispatch: {}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "CLOUDFLARE_API_TOKEN ABSENT — lane disabled"; exit 78; fi
+          npx wrangler@3 pages deploy public --project-name loop-safe-miscsubjects --branch main

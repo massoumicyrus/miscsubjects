@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design Law"
+  short_description: "Apply the recursive reductive design law"
+  default_prompt: "Use $design-law to audit and redesign this surface for clarity."

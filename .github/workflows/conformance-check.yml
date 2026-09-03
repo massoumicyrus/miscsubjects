@@ -1,0 +1,51 @@
+name: conformance-check
+on:
+  # Disabled to stop GitHub notification noise (owner order 2026-08-04). Re-enable by restoring the schedule block.
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prove catalogue projection parity from fixtures
+        run: |
+          node --test \
+            functions/_lib/projection_manifest.test.mjs \
+            functions/_lib/knowledge_loop.test.mjs \
+            functions/api/mcp.test.mjs \
+            functions/api/projections.test.mjs
+      - name: Run live conformance self-audit
+        run: |
+          curl -sf https://miscsubjects.com/api/metrics/conformance -o result.json
+          cat result.json
+          python3 -c "
+          import json, sys
+          d = json.load(open('result.json'))
+          if not d.get('pass'):
+              print('CONFORMANCE FAILED:', json.dumps(d['checks'], indent=2))
+              sys.exit(1)
+          print('conformance pass')
+          "
+      - name: Capture live machine and human projection manifests
+        run: |
+          curl -sf https://miscsubjects.com/api/projections -o projection-manifest.json
+          curl -sf 'https://miscsubjects.com/api/projections?format=markdown' -o projection-manifest.md
+          node -e "
+          const fs = require('fs')
+          const d = JSON.parse(fs.readFileSync('projection-manifest.json', 'utf8'))
+          if (!/^[a-f0-9]{64}$/.test(d.catalogue_snapshot_sha256 || '')) process.exit(1)
+          for (const name of ['discovery','contract','mcp','docs','skill','cli']) {
+            if (!d.projections?.[name]?.sha256) process.exit(1)
+          }
+          "
+      - uses: actions/upload-artifact@v4
+        with:
+          name: live-conformance-and-projections
+          path: |
+            result.json
+            projection-manifest.json
+            projection-manifest.md

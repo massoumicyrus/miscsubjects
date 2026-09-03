@@ -1,0 +1,246 @@
+{
+  "_what": "Every deploy gate in scripts/check-*.mjs, and WHEN it runs. This file is the single source of truth: scripts/ship.mjs runs the gates by reading this manifest, so a gate listed here cannot fail to be invoked, and scripts/check-gates-wired.mjs fails the deploy if any check-*.mjs on disk is missing from this manifest. Adding a gate file is therefore enough to have it enforced; forgetting to wire it is no longer possible.",
+  "_why": "On 2026-08-05 an audit found 20 of 31 gate scripts were never invoked by ship.mjs or by CI. check-owner-bcc.mjs was one of them, so the OWNER_BCC_LAW commit that said 'the gate asserts the new list and passes' described a gate that never ran on any deploy. check-receipt-adoption.mjs had been crashing on an undefined field since the field was deliberately removed, and nothing surfaced it because it never ran either. A law expressed as a gate that nobody executes is not enforcement, it is a comment.",
+  "_phases": {
+    "pre": "Runs before deploy, blocking. Local checks and anything that must stop a bad value from shipping at all.",
+    "post": "Runs after promotion, blocking. Needs the live site to answer, so it can only be judged once the new build is serving.",
+    "exempt": "Deliberately not run by ship. Requires a reason field. Use sparingly."
+  },
+  "_inline": "invoked_inline: true means ship.mjs calls this gate by name at a specific point because it needs special env or ordering. check-gates-wired.mjs verifies the literal filename still appears in ship.mjs, so deleting that call is caught.",
+  "gates": {
+    "check-protected-features.mjs": {
+      "phase": "pre",
+      "law": "WRITE_LAW",
+      "invoked_inline": true,
+      "note": "called inside verifyProductionLineage"
+    },
+    "check-owner-bcc.mjs": {
+      "phase": "pre",
+      "law": "OWNER_BCC_LAW",
+      "note": "must block before a send path with a bad owner address can ship"
+    },
+    "check-owner-destinations.mjs": {
+      "phase": "pre",
+      "law": "OWNER_DESTINATION_LAW",
+      "note": "no owner address the owner never named"
+    },
+    "check-failure-vault.mjs": {
+      "phase": "pre",
+      "law": "FAILURE_VAULT"
+    },
+    "check-receipt-adoption.mjs": {
+      "phase": "pre",
+      "law": "RECEIPT_ADOPTION",
+      "note": "pure payload assertions, no fetch"
+    },
+    "check-approved-copy.mjs": {
+      "phase": "pre",
+      "law": "NO_APPROVED_COPY"
+    },
+    "check-backend-navigation.mjs": {
+      "phase": "pre",
+      "law": "BACKEND_NAVIGATION"
+    },
+    "check-dark-component-contrast.mjs": {
+      "phase": "pre",
+      "law": "DARK_CONTRAST_LAW"
+    },
+    "check-design-tokens.mjs": {
+      "phase": "pre",
+      "law": "DESIGN_TOKEN_LAW"
+    },
+    "check-widget-contrast.mjs": {
+      "phase": "pre",
+      "law": "WIDGET_CONTRAST_LAW",
+      "note": "authored 2026-08-06 and left out of this manifest, so it would never have run \u2014 the same defect as CODING_LAW, whose gate was written and unwired for a day"
+    },
+    "check-ledger-continuity.mjs": {
+      "phase": "pre",
+      "law": "LEDGER_CONTINUITY"
+    },
+    "check-ledger-contrast.mjs": {
+      "phase": "pre",
+      "law": "LEDGER_CONTRAST"
+    },
+    "check-operator-gated-copy.mjs": {
+      "phase": "pre",
+      "law": "OPERATOR_GATED_COPY_LAW"
+    },
+    "check-prompts-not-in-code.mjs": {
+      "phase": "pre",
+      "law": "PROMPTS_NOT_IN_CODE"
+    },
+    "check-protected-widget-guard.mjs": {
+      "phase": "pre",
+      "law": "PROTECTED_WIDGET_GUARD_LAW"
+    },
+    "check-gates-wired.mjs": {
+      "phase": "pre",
+      "law": "GATES_ARE_WIRED",
+      "note": "the meta-gate: every gate on disk is in this manifest"
+    },
+    "check-authored-render.mjs": {
+      "phase": "post",
+      "law": "AUTHORED_RENDER_LAW",
+      "invoked_inline": true
+    },
+    "check-owner-name-leak.mjs": {
+      "phase": "post",
+      "law": "NAME_LAW",
+      "invoked_inline": true,
+      "note": "needs NAME_LAW_EGRESS=1"
+    },
+    "check-plain-language.mjs": {
+      "phase": "post",
+      "law": "PLAIN_LANGUAGE_LAW",
+      "invoked_inline": true
+    },
+    "check-one-object.mjs": {
+      "phase": "post",
+      "law": "ONE_OBJECT_LAW",
+      "invoked_inline": true
+    },
+    "check-source-quotes.mjs": {
+      "phase": "post",
+      "law": "SOURCE_QUOTE_LAW",
+      "invoked_inline": true
+    },
+    "check-article-claims.mjs": {
+      "phase": "post",
+      "law": "CLAIM_LAW",
+      "invoked_inline": true
+    },
+    "check-work-acceptance.mjs": {
+      "phase": "post",
+      "law": "WORK_ACCEPTANCE_LAW",
+      "invoked_inline": true
+    },
+    "check-governed-tables.mjs": {
+      "phase": "post",
+      "law": "GOVERNED_TABLE_LAW",
+      "invoked_inline": true
+    },
+    "check-citation-identity.mjs": {
+      "phase": "post",
+      "law": "CITATION_IDENTITY",
+      "invoked_inline": true,
+      "note": "slow: queries EuropePMC per source"
+    },
+    "check-pointer-files.mjs": {
+      "phase": "post",
+      "law": "POINTER_FILES_ARE_PROJECTIONS",
+      "invoked_inline": true
+    },
+    "check-content-counters.mjs": {
+      "phase": "post",
+      "law": "CONTENT_COUNTER_LAW"
+    },
+    "check-data-leaks.mjs": {
+      "phase": "post",
+      "law": "DATA_LEAK_LAW"
+    },
+    "check-directory-audit-drop.mjs": {
+      "phase": "post",
+      "law": "DIRECTORY_AUDIT_DROP"
+    },
+    "check-oip-governance.mjs": {
+      "phase": "post",
+      "law": "OIP_GOVERNANCE"
+    },
+    "check-opos-render.mjs": {
+      "phase": "post",
+      "law": "OPOS_RENDER_LAW"
+    },
+    "check-tap-go-drop-golden.mjs": {
+      "phase": "post",
+      "law": "TAP_GO_GOLDEN"
+    },
+    "check-web-model-lane.mjs": {
+      "phase": "post",
+      "law": "WEB_MODEL_LANE"
+    },
+    "check-write-law.mjs": {
+      "phase": "post",
+      "law": "WRITE_LAW"
+    },
+    "check-site-resolution.mjs": {
+      "phase": "pre",
+      "law": "SITE_RESOLUTION_LAW",
+      "note": "a paid Places lookup is bought at most once per lead, and a website is written only when the looked-up business is verifiably the same business. Built from the 2026-08-05 measurement: the lane had re-bought the same five nail-salon rows on every call since it was written, and resolved ALL-CAPS registry names to unrelated businesses."
+    },
+    "check-coding-law.mjs": {
+      "phase": "pre",
+      "law": "CODING_LAW",
+      "note": "a hash to start, a hash to commit \u2014 no changed code file ships without a committed lease matching its contents"
+    },
+    "check-inline-recursive-content.mjs": {
+      "phase": "pre",
+      "law": "INLINE_RECURSIVE_CONTENT",
+      "note": "blocks deployment unless the ordinary article surface supports the complete visible block editing contract"
+    },
+    "check-article-ledger.mjs": {
+      "phase": "post",
+      "law": "LEDGER_ON_EVERY_ARTICLE",
+      "note": "every article renders the model comment thread and the keyless mint call; probes oldest and newest live"
+    },
+    "check-email-send-law.mjs": {
+      "phase": "pre",
+      "why": "EMAIL_SEND_LAW: refuses owner identity, fabricated postal blocks, unauthorized commercial solicitation and unsigned outbound at the send path (owner incident 2026-08-06)"
+    },
+    "check-approval-tokens.mjs": {
+      "phase": "pre",
+      "law": "APPROVAL_TOKEN_LAW",
+      "note": "no self-issued approval: a shipping commit carrying #vault-approved / #widgets-approved fails the deploy, and the protection lists may not shrink (owner order 2026-08-06)"
+    },
+    "check-vault-download.mjs": {
+      "phase": "post",
+      "law": "VAULT_DOWNLOAD_LAW",
+      "note": "needs the live site: the whole corpus must be reachable through the paged export, ?all in every spelling must mean the same corpus, and format=zip must be a real archive"
+    },
+    "check-comment-hygiene.mjs": {
+      "phase": "post",
+      "law": "NO_PROBE_CONTENT",
+      "note": "needs the live corpus: pins the detector to the probe bodies that shipped on /a/semaglutide and /a/tirzepatide, and refuses any new probe rendered on a public thread"
+    },
+    "check-lbl-report-sanity.mjs": {
+      "phase": "pre",
+      "law": "PLAUSIBILITY_REVIEW_LAW",
+      "note": "a report figure that fails a business-plausibility check must render unavailable, and a headline failure must refuse the send"
+    },
+    "check-law-enforcement.mjs": {
+      "phase": "pre",
+      "law": "LAW_ENFORCEMENT",
+      "note": "every clause in every law object declares a named check or a written reason it cannot have one; the undeclared count and the open redundancy groups are ratcheted in law-enforcement-baseline.json and may only fall"
+    },
+    "check-migration-selection.mjs": {
+      "phase": "pre",
+      "law": "MIGRATION_SELECTION_LAW",
+      "note": "WF-0005: proves ship selects a real new migration over the 9999 reseed sentinel regardless of checkout mtimes; blocks the deploy if the selector could misfire"
+    },
+    "check-automation-wall-clock.mjs": {
+      "phase": "pre",
+      "law": "WALL_CLOCK_SCHEDULE_LAW",
+      "note": "a job with a time of day fires at that hour in Pacific, once per local day, and never also on an interval"
+    },
+    "check-proof-of-work.mjs": {
+      "phase": "pre",
+      "law": "PROOF_OF_WORK_LAW",
+      "note": "every outbound email carries a resolvable send-ledger receipt; rule 5 refuses; the verify door countersigns keylessly"
+    },
+    "check-execution-case-law.mjs": {
+      "phase": "pre",
+      "law": "EXECUTION_CASE_LAW",
+      "note": "WF-0006 repair: task-bound counts, decision completeness, candidate\u2192receipt binding and the reviewed-send gate must hold before anything ships"
+    },
+    "check-registry-matches-git.mjs": {
+      "phase": "pre",
+      "law": "CODE_LEASE_REGISTRY_LAW",
+      "note": "needs TERMINAL_KEY and the git history: proves every recent registry head is content that actually landed, so the staleness signal keeps meaning something"
+    },
+    "check-served-script-parses.mjs": {
+      "phase": "post",
+      "law": "SERVED_SCRIPT_PARSES_LAW",
+      "note": "needs TERMINAL_KEY and the live site: parses the inline JavaScript the browser is actually served, because a template literal eats single backslashes on the way out and node --check on the source cannot see it"
+    }
+  }
+}

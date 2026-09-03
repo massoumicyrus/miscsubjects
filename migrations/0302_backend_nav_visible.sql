@@ -1,0 +1,4 @@
+-- Owner correction 2026-07-21: every backend destination remains visible; no More menu.
+DELETE FROM directory_tests WHERE kind='e2e' AND note='owner correction 2026-07-21: backend menu never hides';
+INSERT INTO directory_tests (key,kind,args,expect_kind,expect_value,note,expected_text,tier) VALUES
+('ROUTER','e2e','Open the backend. Are all backend menu items directly visible, or are any hidden under More?','reply_ok','visible|PRIMARY_TABS|More|desktop|mobile|protected','owner correction 2026-07-21: backend menu never hides','Every PRIMARY_TABS destination is a direct visible anchor on every admin page. Desktop and mobile wrap the same complete list. There is no More button, overflow dropdown, collapsed subset, hidden secondary container, or width-based omission. The protected checker passes before deployment.','8');

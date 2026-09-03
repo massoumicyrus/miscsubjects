@@ -1,0 +1,33 @@
+-- 0059_fidelity_refit: drop tests targeting deleted keys; insert tests for consolidated rows
+DELETE FROM directory_tests WHERE key IN ('BLOOIO_CONTACTS_LIST','BLOOIO_LOOKUP_GET','CF_USER','CF_PAGES_LIST','CF_TOKENS_VERIFY','CF_WORKERS_LIST','CF_ZONES_LIST','STRIPE_ACCOUNT','STRIPE_BALANCE','STRIPE_CUSTOMERS_LIST','STRIPE_INVOICES_LIST','STRIPE_PAYOUTS_LIST','STRIPE_PRODUCTS_LIST');
+
+INSERT INTO directory_tests (key, kind, args, expect_kind, expect_value, note) VALUES
+  ('SHARED_LAW', 'positive', '', 'contains', '', 'fn target=noop returns input'),
+  ('BLOOIO', 'positive', 'chats_list|3|recent', 'contains', 'HTTP 200', 'target_map valid op'),
+  ('BLOOIO', 'positive', 'contacts_list|5|0', 'contains', 'contacts', ''),
+  ('BLOOIO', 'positive', 'lookup_get|[OWNER_PHONE]', 'contains', 'phone', ''),
+  ('BLOOIO', 'inverse', 'nope', 'startswith', 'ERR:target_map:unknown_op', ''),
+  ('BLOOIO', 'inverse', '', 'startswith', 'ERR:target_map:missing_op', ''),
+  ('CF', 'positive', 'tokens_verify', 'contains', 'valid and active', 'rotated token works'),
+  ('CF', 'inverse', 'nope', 'startswith', 'ERR:target_map:unknown_op', ''),
+  ('STRIPE_READ', 'positive', 'balance', 'contains', 'available', ''),
+  ('STRIPE_READ', 'positive', 'account', 'contains', 'acct_', ''),
+  ('STRIPE_READ', 'positive', 'customers_list|1', 'contains', 'cus_', ''),
+  ('STRIPE_READ', 'positive', 'invoices_list|1', 'contains', '"object":"invoice"', ''),
+  ('STRIPE_READ', 'positive', 'payouts_list|1', 'contains', 'po_', ''),
+  ('STRIPE_READ', 'positive', 'products_list|1', 'contains', 'prod_', ''),
+  ('STRIPE_READ', 'inverse', 'nope', 'startswith', 'ERR:target_map:unknown_op', ''),
+  ('STRIPE_WRITE', 'inverse', 'nope', 'startswith', 'ERR:target_map:unknown_op', ''),
+  ('GITHUB', 'inverse', 'nope', 'startswith', 'ERR:target_map:unknown_op', ''),
+  ('META', 'inverse', 'nope', 'startswith', 'ERR:target_map:unknown_op', ''),
+  ('KLAVIYO', 'inverse', 'nope', 'startswith', 'ERR:target_map:unknown_op', ''),
+  ('BC', 'inverse', 'nope', 'startswith', 'ERR:target_map:unknown_op', ''),
+  ('TW', 'inverse', 'nope', 'startswith', 'ERR:target_map:unknown_op', ''),
+  ('MCP', 'inverse', 'nope', 'startswith', 'ERR:target_map:unknown_op', ''),
+  ('ARCADS_ROUTES', 'inverse', 'nope', 'startswith', 'ERR:target_map:unknown_op', ''),
+  ('ROUTER', 'agent-route', 'channel=imessage from=[OWNER_PHONE] to=[BUILD_PHONE]\n\nNow: list my open PRs', 'contains', '[TERMINUS]', 'R2b terminal'),
+  ('ROUTER', 'agent-route', 'channel=imessage from=[OWNER_PHONE] to=[BUILD_PHONE]\n\nNow: what is my arcads credit balance', 'contains', '[OPS]', 'R2d ops'),
+  ('ROUTER', 'agent-route', 'channel=imessage from=[OWNER_PHONE] to=[BUILD_PHONE]\n\nNow: make me a 9:16 video of a sunlit kitchen', 'contains', '[ARCADS]', 'R2a creative'),
+  ('OPS', 'agent-route', 'what stripe customers do we have', 'contains', 'STRIPE_READ', 'O2k stripe read via consolidated'),
+  ('OPS', 'agent-route', 'void invoice in_test_123', 'contains', 'go ahead', 'O2l write gate'),
+  ('OPS', 'agent-route', 'send hi to [OWNER_PHONE]', 'contains', 'BLOOIO', 'O2e send via consolidated');

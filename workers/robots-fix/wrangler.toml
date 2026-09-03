@@ -1,0 +1,8 @@
+name = "miscsubjects-robots"
+main = "src/index.js"
+compatibility_date = "2026-03-24"
+account_id = "<CLOUDFLARE_ACCOUNT_ID>"
+
+[[routes]]
+pattern = "miscsubjects.com/robots.txt"
+zone_name = "miscsubjects.com"

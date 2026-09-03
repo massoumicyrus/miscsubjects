@@ -1,0 +1,87 @@
+<!doctype html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>miscsubjects.com — Evidence, Graded</title>
+<style>
+  :root{--ink:#0a0a0a;--muted:#6b7280;--line:#e6e6e9;--soft:#f7f7f8;--bg:#fff;--accent:#0a0a0a;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,monospace;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 16px 60px}
+  .pvbar{background:#0a0a0a;color:#fff;font:600 12px/1 var(--mono);text-align:center;padding:7px;letter-spacing:.04em}
+  header{padding:40px 0 26px;border-bottom:1px solid var(--line);margin-bottom:8px}
+  .eyebrow{font:700 11px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+  h1{font-size:clamp(30px,6vw,52px);letter-spacing:-.03em;font-weight:850;line-height:1.04;margin:14px 0 12px}
+  .sub{font-size:16px;line-height:1.55;color:#333;max-width:640px}
+  .sub b{font-weight:700}
+  .cta{margin-top:20px;display:inline-flex;flex-direction:column;gap:3px;background:#0a0a0a;color:#fff;border-radius:14px;padding:14px 20px;cursor:pointer;text-decoration:none}
+  .cta b{font:800 16px var(--mono)} .cta small{color:#b9b9c2;font-size:11.5px}
+  .bar{display:flex;align-items:center;gap:12px;margin:26px 0 14px;flex-wrap:wrap}
+  .bar h2{font-size:13px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted)}
+  .count{font:600 12px var(--mono);color:var(--muted)}
+  .filter{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+  .filter button{border:1px solid var(--line);background:#fff;border-radius:99px;padding:6px 12px;font:600 12.5px var(--font);cursor:pointer;color:#333}
+  .filter button.on{background:#0a0a0a;color:#fff;border-color:#0a0a0a}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+  .card{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:16px;padding:18px;text-decoration:none;color:var(--ink);background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);transition:transform .12s,box-shadow .12s}
+  .card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.07)}
+  .card .t{font-size:17px;font-weight:700;line-height:1.25;letter-spacing:-.01em}
+  .card .m{font:600 11px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:auto}
+  .card .reg{display:inline-block;font:600 10px var(--mono);padding:3px 8px;border-radius:99px;background:var(--soft);border:1px solid var(--line);color:#555;width:fit-content}
+  .empty{color:var(--muted);padding:30px 0;font-size:14px}
+  footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font:600 11px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+</style></head><body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">miscsubjects.com · evidence, graded</div>
+    <h1>Regeneration vs. Degeneration.</h1>
+    <div class="sub">Every claim tiered by evidence — human trial, animal, or anecdote — hashed and auditable. <b>No hype. No jargon.</b> Text us and ask anything.</div>
+    <a class="cta" href="sms:[BUILD_PHONE]"><b>Text +1 (424) 513‑4626</b><small>free AI assistant · ask about any peptide, drug, or your situation</small></a>
+  </header>
+
+  <div class="bar">
+    <h2>Articles</h2><span class="count" id="count">loading…</span>
+    <div class="filter" id="filter"></div>
+  </div>
+  <div class="grid" id="grid"><div class="empty">loading your live articles…</div></div>
+  <footer>miscsubjects.com · live evidence index · <span id="n">—</span> articles live</footer>
+</div>
+
+<script>
+// hosted on the build domain, so same-origin fetch of the real article list works.
+var ALL=[], CUR='all';
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function group(slug){
+  if(/^bpc/.test(slug)||/bpc-157/.test(slug))return 'BPC-157';
+  if(/^tb-500/.test(slug))return 'TB-500';
+  if(/^ara-290|ara-vs/.test(slug))return 'ARA-290';
+  if(/^semax|^selank|^pt-141|^dsip|bdnf|cognitive|adderall/.test(slug))return 'Neuro';
+  if(/stack|aging|recovery|wolverine/.test(slug))return 'Stacks';
+  if(/what-are|how-to|purity|structure-function|protocol/.test(slug))return 'Basics';
+  return 'Other';
+}
+function render(){
+  var g=document.getElementById('grid');
+  var rows=ALL.filter(function(a){return CUR==='all'||group(a.slug)===CUR;});
+  if(!rows.length){g.innerHTML='<div class="empty">none</div>';return;}
+  g.innerHTML=rows.map(function(a){
+    return '<a class="card" href="/a/'+esc(a.slug)+'">'+
+      '<span class="reg">'+esc((a.register||'standard'))+'</span>'+
+      '<div class="t">'+esc(a.title||a.slug)+'</div>'+
+      '<div class="m">'+esc((a.updated_at||'').slice(0,10))+'</div></a>';
+  }).join('');
+}
+function filters(){
+  var groups=['all'].concat(['BPC-157','TB-500','ARA-290','Neuro','Stacks','Basics','Other'].filter(function(gp){return ALL.some(function(a){return group(a.slug)===gp;});}));
+  document.getElementById('filter').innerHTML=groups.map(function(gp){
+    return '<button class="'+(gp===CUR?'on':'')+'" onclick="CUR=\''+gp+'\';filters();render()">'+gp+'</button>';
+  }).join('');
+}
+fetch('/api/articles').then(function(r){return r.json();}).then(function(d){
+  ALL=(d.articles||[]).filter(function(a){return a.home!==false && a.slug!=='protocol';})
+      .sort(function(a,b){return String(b.updated_at).localeCompare(String(a.updated_at));});
+  document.getElementById('count').textContent=ALL.length+' evidence articles';
+  document.getElementById('n').textContent=ALL.length;
+  filters();render();
+}).catch(function(e){document.getElementById('grid').innerHTML='<div class="empty">could not load articles: '+esc(e)+'</div>';});
+</script>
+</body></html>

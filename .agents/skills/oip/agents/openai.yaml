@@ -1,0 +1,4 @@
+interface:
+  display_name: "OIP"
+  short_description: "Operate tools through the OIP protocol"
+  default_prompt: "Use $oip to discover and invoke the correct tool with proof."

@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "description": "Tell Cloudflare Pages NOT to handle these paths \u2014 they belong to the miscsubjects-admin Worker via its route bindings.",
+  "include": [
+    "/*"
+  ],
+  "exclude": [
+    "/site.html",
+    "/site",
+    "/showcase",
+    "/showcase.html",
+    "/font/*",
+    "/control",
+    "/spec",
+    "/edit/*",
+    "/article/*",
+    "/condition/*",
+    "/import-export",
+    "/import",
+    "/export"
+  ]
+}

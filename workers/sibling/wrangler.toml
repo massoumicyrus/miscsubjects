@@ -1,0 +1,69 @@
+name = "loop-safe-sibling"
+main = "src/index.js"
+compatibility_date = "2026-03-24"
+compatibility_flags = ["nodejs_compat_v2"]
+account_id = "<CLOUDFLARE_ACCOUNT_ID>"
+
+[observability]
+enabled = true
+
+[triggers]
+# */1 = build ticks · 0 4 * * * = 9:00 PM America/Los_Angeles (PDT → 04:00 UTC)
+crons = ["*/1 * * * *", "0 4 * * *"]
+
+[ai]
+binding = "AI"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "loop-content-spine"
+database_id = "298eb858-37fb-4c73-8be4-135e8feb73fe"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "58b303e666a8431685624e0cfd2fd63f"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "miscsubjects-ledger"
+
+[[durable_objects.bindings]]
+name = "CF_EXPERT_DO"
+class_name = "ExpertDO"
+
+[[durable_objects.bindings]]
+name = "AGENT_DO"
+class_name = "AgentDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ExpertDO"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["AgentDO"]
+
+[[workflows]]
+name = "deliver-workflow"
+binding = "DELIVER_WF"
+class_name = "DeliverWorkflow"
+
+[[workflows]]
+name = "selftest-workflow"
+binding = "SELFTEST_WF"
+class_name = "SelfTestWorkflow"
+
+[browser]
+binding = "MYBROWSER"
+
+[[queues.producers]]
+binding = "TASKS"
+queue = "loop-tasks"
+
+[[queues.consumers]]
+queue = "loop-tasks"
+max_batch_size = 10
+max_batch_timeout = 5
+
+[[send_email]]
+name = "EMAIL"

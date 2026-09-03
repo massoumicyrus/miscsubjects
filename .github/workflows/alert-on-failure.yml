@@ -1,0 +1,39 @@
+# FAILURE → LEDGER → TROUBLESHOOTER (owner order 2026-08-03: "I don't want to have to tell
+# you there is a GitHub issue — alerts go straight to the ledger and build, and
+# troubleshooting triggers automatically").
+#
+# Fires whenever ANY workflow in this repo completes with a failure. It does two things
+# through the build's one door, both of which land on the public ledger as receipts:
+#   1. spawns a local troubleshooting agent (AGENT_SPAWN_CLI) on the owner's machine with
+#      the failing run's exact identity — the spawn itself is the ledger alert;
+#   2. nothing else — no email, no owner ping needed; the agent fixes or reports on the
+#      ledger the owner already reads.
+name: Alert build on workflow failure
+on:
+  workflow_run:
+    workflows:
+      - "Vault Protection — Auto-revert unauthorized mutations"
+      - "conformance-check"
+      - "proactive-creative"
+      - "snapshot-repo-to-kv"
+      - "vault-session-scan"
+    types: [completed]
+
+jobs:
+  alert:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Spawn troubleshooter through the build (ledgered)
+        run: |
+          PROMPT="GitHub workflow failure, troubleshoot now: workflow='${{ github.event.workflow_run.name }}' run=${{ github.event.workflow_run.id }} branch=${{ github.event.workflow_run.head_branch }} sha=${{ github.event.workflow_run.head_sha }} url=${{ github.event.workflow_run.html_url }} . Steps: gh run view ${{ github.event.workflow_run.id }} --repo ${{ github.repository }} --log-failed; diagnose the root cause; fix it in /Users/owner/miscsubjects-pages per its laws (commit as owner, ship via scripts/ship.mjs if functions changed); rerun the workflow with gh run rerun; verify green; append the outcome to STATE.md. If the cause is external (provider outage), record that finding on the ledger via OBJECTION_LOG instead of guessing."
+          BODY=$(python3 -c "import urllib.parse,os,sys; print(urllib.parse.quote('claude|'+sys.argv[1]+'|/Users/owner/miscsubjects-pages||'))" "$PROMPT")
+          curl -sf --max-time 60 "https://miscsubjects.com/api/dispatch?invoke=AGENT_SPAWN_CLI&body=${BODY}" \
+            -H "x-terminal-key: ${{ secrets.TERMINAL_KEY }}" \
+            -A "github-actions-failure-alert" | head -c 600
+      - name: File the failure as a build inbox task (owner order 2026-08-04 — failures go to the build, never to the owner's email)
+        run: |
+          TASK=$(python3 -c "import urllib.parse; print(urllib.parse.quote('GitHub failure: ${{ github.event.workflow_run.name }} run ${{ github.event.workflow_run.id }} — ${{ github.event.workflow_run.html_url }}'))")
+          curl -sf --max-time 30 "https://miscsubjects.com/api/dispatch?invoke=TASK_ADD&body=${TASK}" \
+            -H "x-terminal-key: ${{ secrets.TERMINAL_KEY }}" \
+            -A "github-actions-failure-alert" | head -c 300 || true

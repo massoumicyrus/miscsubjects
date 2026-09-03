@@ -1,0 +1,56 @@
+<svg viewBox="0 0 980 300" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif,system-ui" role="img" aria-label="The demonstrated purchase loop with real identifiers">
+  <style>
+    .box{fill:none;stroke:#1c1b17;stroke-width:1.2;rx:8}
+    .obj{fill:rgba(14,110,96,0.08);stroke:#0e6e60;stroke-width:1.6}
+    .t{fill:#1c1b17;font-size:13px}
+    .k{fill:#1c1b17;font-size:10px;opacity:.55;text-transform:uppercase;letter-spacing:.06em}
+    .m{fill:#1c1b17;font-size:11px;font-family:ui-monospace,monospace}
+    .a{stroke:#1c1b17;stroke-width:1.1;marker-end:url(#ar)}
+  </style>
+  <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6" fill="none" stroke="#1c1b17" stroke-width="1"/></marker></defs>
+
+  <rect class="box" x="12" y="96" width="150" height="86" rx="8"/>
+  <text class="k" x="24" y="118">request</text>
+  <text class="t" x="24" y="138">"Get me more</text>
+  <text class="t" x="24" y="155">customers" —</text>
+  <text class="t" x="24" y="172">plumber, Ottawa</text>
+
+  <line class="a" x1="162" y1="139" x2="196" y2="139"/>
+
+  <rect class="box" x="198" y="96" width="160" height="86" rx="8"/>
+  <text class="k" x="210" y="118">priced offer</text>
+  <text class="t" x="210" y="138">$0.25 / organization</text>
+  <text class="t" x="210" y="155">from the row itself:</text>
+  <text class="m" x="210" y="172">directory.price_usd</text>
+
+  <line class="a" x1="358" y1="139" x2="392" y2="139"/>
+
+  <rect class="box" x="394" y="96" width="170" height="86" rx="8"/>
+  <text class="k" x="406" y="118">invocation</text>
+  <text class="m" x="406" y="138">inv_yxg5jmhamu</text>
+  <text class="m" x="406" y="155">trace t_e13e9txt</text>
+  <text class="t" x="406" y="172">real cost $0.12</text>
+
+  <line class="a" x1="564" y1="139" x2="598" y2="139"/>
+
+  <rect class="obj" x="600" y="82" width="180" height="114" rx="8"/>
+  <text class="k" x="612" y="104">the unit of sale</text>
+  <text class="t" x="612" y="124">43 organization objects</text>
+  <text class="m" x="612" y="141">lead:11786 … lead:11828</text>
+  <text class="t" x="612" y="158">owner: t_plumber-demo</text>
+  <text class="t" x="612" y="175">receipt attached,</text>
+  <text class="t" x="612" y="190">readable by the next rung</text>
+
+  <line class="a" x1="780" y1="139" x2="814" y2="139"/>
+
+  <rect class="box" x="816" y="96" width="152" height="86" rx="8"/>
+  <text class="k" x="828" y="118">next offer</text>
+  <text class="t" x="828" y="138">enrichment</text>
+  <text class="t" x="828" y="155">$0.50 / contact,</text>
+  <text class="t" x="828" y="172">no re-entry</text>
+
+  <path class="a" d="M690 196 L690 236 L484 236 L484 186" fill="none"/>
+  <rect class="box" x="300" y="216" width="330" height="40" rx="8"/>
+  <text class="k" x="312" y="233">charge</text>
+  <text class="m" x="312" y="248">ch_bf8beb55e6d349e1a419 · 43 × $0.25 = $10.75 · balance 30.00→19.25</text>
+</svg>

@@ -1,0 +1,17 @@
+# Bounded Vault scan: reads recent Claude-code turns and writes one ledger event.
+# Limits are live at https://miscsubjects.com/api/vault/limits.
+name: vault-session-scan
+on:
+  # Disabled to stop GitHub notification noise (owner order 2026-08-04). Re-enable by restoring the schedule block.
+  workflow_dispatch: {}
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: scan recent sessions into vault ledger
+        run: |
+          curl -sS -f -X POST "https://miscsubjects.com/api/vault/session-scan" \
+            -H "x-terminal-key: ${{ secrets.TERMINAL_KEY }}" \
+            -H "content-type: application/json" \
+            --data '{"limit":25,"source":"github-cron"}'

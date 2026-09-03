@@ -1,0 +1,8 @@
+{
+  "law": "SOURCE_QUOTE_LAW",
+  "note": "Legacy quote-less source entries. This number may only fall. The write path refuses new ones.",
+  "quoteless": 804,
+  "non_object": 0,
+  "measured_at": "2026-08-05",
+  "total_sources": 9812
+}

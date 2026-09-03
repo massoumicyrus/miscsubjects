@@ -1,0 +1,73 @@
+<svg viewBox="0 0 980 330" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif,system-ui" role="img" aria-label="The loop as executed: solid boxes ran with receipts, dashed boxes name the missing column">
+  <style>
+    .ran{fill:rgba(14,110,96,0.06);stroke:#0e6e60;stroke-width:1.4}
+    .gap{fill:none;stroke:#1c1b17;stroke-width:1.2;stroke-dasharray:5 4}
+    .t{fill:#1c1b17;font-size:12.5px}
+    .k{fill:#1c1b17;font-size:10px;opacity:.55;letter-spacing:.06em}
+    .m{fill:#1c1b17;font-size:10.5px;font-family:ui-monospace,monospace}
+    .a{stroke:#1c1b17;stroke-width:1;marker-end:url(#ar2)}
+  </style>
+  <defs><marker id="ar2" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6" fill="none" stroke="#1c1b17" stroke-width="1"/></marker></defs>
+
+  <rect class="ran" x="12" y="30" width="178" height="92" rx="8"/>
+  <text class="k" x="24" y="50">RUNG 1 — RAN</text>
+  <text class="t" x="24" y="70">discover: 43 organizations</text>
+  <text class="m" x="24" y="87">inv_yxg5jmhamu</text>
+  <text class="m" x="24" y="102">ch_bf8beb… $10.75 / cost $0.12</text>
+
+  <line class="a" x1="190" y1="76" x2="216" y2="76"/>
+
+  <rect class="ran" x="218" y="30" width="178" height="92" rx="8"/>
+  <text class="k" x="230" y="50">RUNG 2 — RAN</text>
+  <text class="t" x="230" y="70">enrich: 6 contacts resolved</text>
+  <text class="m" x="230" y="87">inv_itzk33ejzz</text>
+  <text class="m" x="230" y="102">ch_71c7ba… $3.00 / cost $0</text>
+
+  <line class="a" x1="396" y1="76" x2="422" y2="76"/>
+
+  <rect class="ran" x="424" y="30" width="178" height="92" rx="8"/>
+  <text class="k" x="436" y="50">RUNG 3 — RAN</text>
+  <text class="t" x="436" y="70">verify MX: 6 domains, 6 ok</text>
+  <text class="m" x="436" y="87">inv_udch4ldam8</text>
+  <text class="m" x="436" y="102">ch_327cfa… $0.12 / cost $0</text>
+
+  <line class="a" x1="602" y1="76" x2="628" y2="76"/>
+
+  <rect class="ran" x="630" y="30" width="178" height="92" rx="8"/>
+  <text class="k" x="642" y="50">RUNG 4 — RAN</text>
+  <text class="t" x="642" y="70">score: 16 leads, 2 calls</text>
+  <text class="m" x="642" y="87">inv_t0hj0gnaqr inv_adqd0upv3p</text>
+  <text class="m" x="642" y="102">$1.60 / model cost $0.005</text>
+
+  <line class="a" x1="808" y1="76" x2="834" y2="76"/>
+
+  <rect class="ran" x="836" y="30" width="132" height="92" rx="8"/>
+  <text class="k" x="848" y="50">RUNG 5 — GATED</text>
+  <text class="t" x="848" y="70">draft refused:</text>
+  <text class="m" x="848" y="87">score 5 &lt; 65</text>
+  <text class="m" x="848" y="102">charge: none</text>
+
+  <rect class="gap" x="12" y="176" width="300" height="120" rx="8"/>
+  <text class="k" x="24" y="196">GAP — NAMED COLUMN</text>
+  <text class="t" x="24" y="216">Nothing records replies or conversions.</text>
+  <text class="t" x="24" y="233">The learning claim stays a bet until</text>
+  <text class="m" x="24" y="252">charges.outcome</text>
+  <text class="t" x="24" y="269">fills. The column exists and is NULL</text>
+  <text class="t" x="24" y="286">on every row today.</text>
+
+  <rect class="gap" x="336" y="176" width="300" height="120" rx="8"/>
+  <text class="k" x="348" y="196">GAP — ONE WHERE CLAUSE</text>
+  <text class="t" x="348" y="216">Enrich/verify/score work a global queue,</text>
+  <text class="t" x="348" y="233">not the tenant's own objects: batch 2 of</text>
+  <text class="t" x="348" y="250">scoring charged the tenant for another</text>
+  <text class="t" x="348" y="267">owner's rows. Fix:</text>
+  <text class="m" x="348" y="285">WHERE tenant_id = :caller</text>
+
+  <rect class="gap" x="660" y="176" width="308" height="120" rx="8"/>
+  <text class="k" x="672" y="196">GAP — PROVIDER LANE</text>
+  <text class="t" x="672" y="216">The planner's own model lane (xAI) was at</text>
+  <text class="t" x="672" y="233">its spending limit at demonstration time:</text>
+  <text class="m" x="672" y="252">inv_0dq1sobaua → PROVIDER_ERROR</text>
+  <text class="t" x="672" y="269">The interpretation ran through the gateway's</text>
+  <text class="t" x="672" y="286">GLM 5.2 lane instead, attributed as such.</text>
+</svg>

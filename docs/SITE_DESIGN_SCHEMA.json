@@ -1,0 +1,309 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://miscsubjects.com/schema/site-design-v2.json",
+  "title": "miscsubjects.com — interim site + article design schema v2",
+  "version": "1.1.0-interim",
+  "description": "Single source of truth for public site styling, article metadata, native brand widgets, user ledger entries, LLM agent surfaces, and auditable reasoning. Grounded in the live D1 articles table and Pages Functions.",
+
+  "design_tokens": {
+    "brand": {
+      "name": "LEO Research",
+      "tagline": "Regeneration vs. Degeneration — health hacks to heal",
+      "palette": "monochrome",
+      "note": "Keep current image sizes, text sizes, line spacing, and component geometry. Only color moves to black & white.",
+      "colors": {
+        "background": "#ffffff",
+        "surface": "#fafafa",
+        "panel": "#f4f4f4",
+        "ink": "#0a0a0a",
+        "soft_ink": "#444444",
+        "dim": "#737373",
+        "line": "#e5e5e5",
+        "line_strong": "#cccccc",
+        "accent": "#000000",
+        "accent_inverse": "#ffffff",
+        "muted_background": "#f0f0f0",
+        "verified": "#000000",
+        "unverified": "#666666",
+        "error": "#b00000"
+      },
+      "dark_surface": {
+        "background": "#0a0a0a",
+        "surface": "#111111",
+        "panel": "#1a1a1a",
+        "ink": "#ffffff",
+        "soft_ink": "#b0b0b0",
+        "dim": "#777777",
+        "line": "#2a2a2a",
+        "accent": "#ffffff",
+        "accent_inverse": "#000000"
+      }
+    },
+    "typography": {
+      "sans": "Inter, ui-sans-serif, system-ui, -apple-system, sans-serif",
+      "serif": "Iowan Old Style, Georgia, Times New Roman, serif",
+      "mono": "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, monospace",
+      "scale": {
+        "hero": "clamp(40px, 8vw, 92px)",
+        "h1": "clamp(34px, 5.2vw, 52px)",
+        "h2": "clamp(25px, 3.6vw, 34px)",
+        "body": "20px",
+        "small": "13px",
+        "tiny": "11px"
+      }
+    },
+    "spacing": {
+      "page_pad": "22px",
+      "max_content": "1180px",
+      "max_article": "690px",
+      "grid_gap": "10px",
+      "section_gap": "30px",
+      "card_radius": "12px",
+      "button_radius": "14px"
+    },
+    "breakpoints": {
+      "mobile": "880px",
+      "article_expand": "760px"
+    }
+  },
+
+  "article_schema": {
+    "required": ["slug", "title", "body", "created_at", "updated_at"],
+    "properties": {
+      "slug": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+      "title": { "type": "string", "maxLength": 200 },
+      "body": { "type": "string" },
+      "subject": { "type": "string" },
+      "published": { "type": "boolean", "default": true },
+      "created_at": { "type": "string", "format": "date-time" },
+      "updated_at": { "type": "string", "format": "date-time" },
+      "posted_at": { "type": "string", "format": "date-time" },
+      "meta": {
+        "type": "object",
+        "properties": {
+          "register": { "type": "string", "enum": ["accessible", "standard", "technical", "source_ledger", "combinatorial_accessible", "scientific", "clinical_plain"], "default": "standard" },
+          "status": { "type": "string", "enum": ["published", "retracted", "superseded"], "default": "published" },
+          "immutable_slug": { "type": "boolean", "default": false },
+          "home": { "type": "boolean", "default": true },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "hashtags": { "type": "array", "items": { "type": "string" }, "description": "Public-facing taxonomy hashtags." },
+          "style": {
+            "type": "object",
+            "properties": {
+              "theme": { "type": "string", "enum": ["light", "dark"], "default": "light" },
+              "accent": { "type": "string", "default": "#000000" },
+              "font": { "type": "string", "default": "Iowan Old Style, Georgia, Times New Roman, serif" },
+              "measure": { "type": "string", "default": "690px" }
+            }
+          },
+          "hero": { "type": ["string", "null"] },
+          "images": { "type": "array", "items": { "$ref": "#/image_schema" } },
+          "embeds": { "type": "array", "items": { "type": "string" } },
+          "widgets": { "type": "array", "items": { "$ref": "#/widget_schema" } },
+          "model": { "type": "string" },
+          "ledger": { "type": "object" },
+          "claims": { "type": "array", "items": { "$ref": "#/claim_schema" } },
+          "sources": { "type": "array", "items": { "$ref": "#/source_schema" } },
+          "reviews": { "type": "array" },
+          "contributions": { "type": "array" },
+          "provenance": { "type": "array" },
+          "revisions": { "type": "array" },
+          "extra": { "type": "object" }
+        }
+      }
+    }
+  },
+
+  "image_schema": {
+    "oneOf": [
+      { "type": "string" },
+      { "type": "object", "required": ["url"], "properties": { "url": {"type":"string"}, "alt": {"type":"string"}, "caption": {"type":"string"} } }
+    ]
+  },
+
+  "widget_schema": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "type": "string", "enum": ["imessage", "whatsapp", "instagram", "x", "tiktok", "wikipedia", "site_embed", "quote", "note", "stat", "gallery", "llm_agent", "user_entry", "audit_trail"] }
+    },
+    "discriminator": { "propertyName": "type" },
+    "oneOf": [
+      { "properties": { "type": {"const":"imessage"}, "id": {"type":"string"}, "subtitle": {"type":"string"}, "typing_indicator": {"type":"boolean"}, "suggested_question": {"type":"string"}, "style": {"type":"object", "properties": {"rotate":{"type":"number"}, "offset_x":{"type":"number"}, "offset_y":{"type":"number"}, "pulse":{"type":"boolean"}}}, "messages": {"type":"array", "items": {"type":"object", "properties": {"from":{"type":"string"}, "side":{"type":"string"}, "me":{"type":"boolean"}, "text":{"type":"string"}, "content":{"type":"string"}}}} }, "required": ["messages"] },
+      { "properties": { "type": {"const":"whatsapp"}, "chat_name": {"type":"string"}, "typing_indicator": {"type":"boolean"}, "suggested_question": {"type":"string"}, "style": {"type":"object", "properties": {"rotate":{"type":"number"}, "offset_x":{"type":"number"}, "offset_y":{"type":"number"}, "pulse":{"type":"boolean"}}}, "messages": {"type":"array", "items": {"type":"object", "properties": {"from":{"type":"string"}, "me":{"type":"boolean"}, "text":{"type":"string"}, "time":{"type":"string"}}}} }, "required": ["messages"] },
+      { "properties": { "type": {"const":"instagram"}, "profile": {"type":"object", "properties": {"name":{"type":"string"}, "avatar":{"type":"string"}, "verified":{"type":"boolean"}}}, "media": {"type":"array", "items": {"$ref":"#/image_schema"}}, "caption": {"type":"string"}, "likes": {"type":"number"}, "comments": {"type":"number"}, "timestamp": {"type":"string"} }, "required": ["profile"] },
+      { "properties": { "type": {"const":"x"}, "profile": {"type":"object", "properties": {"name":{"type":"string"}, "handle":{"type":"string"}, "avatar":{"type":"string"}, "verified":{"type":"boolean"}}}, "text": {"type":"string"}, "media": {"type":"array", "items": {"$ref":"#/image_schema"}}, "metrics": {"type":"object", "properties": {"replies":{"type":"number"}, "reposts":{"type":"number"}, "likes":{"type":"number"}, "bookmarks":{"type":"number"}}}, "timestamp": {"type":"string"} }, "required": ["profile", "text"] },
+      { "properties": { "type": {"const":"tiktok"}, "profile": {"type":"object", "properties": {"name":{"type":"string"}, "handle":{"type":"string"}, "avatar":{"type":"string"}}}, "video": {"type":"object", "properties": {"poster":{"type":"string"}, "url":{"type":"string"}, "views":{"type":"number"}}}, "caption": {"type":"string"}, "music": {"type":"string"} }, "required": ["profile"] },
+      { "properties": { "type": {"const":"wikipedia"}, "title": {"type":"string"}, "url": {"type":"string"}, "excerpt": {"type":"string"}, "image": {"type":"string"}, "infobox": {"type":"object"} }, "required": ["title", "url"] },
+      { "properties": { "type": {"const":"site_embed"}, "site": {"type":"string", "enum": ["harvard", "stanford", "mayo", "nih", "pubmed", "fda", "ema", "who", "cdc"]}, "url": {"type":"string"}, "title": {"type":"string"}, "excerpt": {"type":"string"}, "logo": {"type":"string"}, "institution": {"type":"string"}, "date": {"type":"string"} }, "required": ["site", "url", "title"] },
+      { "properties": { "type": {"const":"quote"}, "text": {"type":"string"}, "cite": {"type":"string"} }, "required": ["text"] },
+      { "properties": { "type": {"const":"note"}, "title": {"type":"string"}, "text": {"type":"string"}, "body": {"type":"string"} }, "required": ["text"] },
+      { "properties": { "type": {"const":"stat"}, "value": {}, "number": {}, "label": {"type":"string"} }, "required": ["label"] },
+      { "properties": { "type": {"const":"gallery"}, "images": {"type":"array", "items": {"$ref":"#/image_schema"}} }, "required": ["images"] },
+      { "properties": { "type": {"const":"llm_agent"}, "agent": {"type":"string", "enum": ["anthropic", "openai", "google", "grok", "kimi", "meta", "perplexity"]}, "prompt": {"type":"string"}, "response": {"type":"string"}, "model": {"type":"string"}, "hash": {"type":"string"}, "ledger_url": {"type":"string"}, "suggested_followups": {"type":"array", "items": {"type":"string"}} }, "required": ["agent", "prompt", "response"] },
+      { "properties": { "type": {"const":"user_entry"}, "subject": {"type":"string"}, "context": {"type":"string"}, "text": {"type":"string"}, "author": {"type":"string"}, "hash": {"type":"string"}, "ledger_url": {"type":"string"} }, "required": ["text"] },
+      { "properties": { "type": {"const":"audit_trail"}, "entries": {"type":"array", "items": {"type":"object", "properties": {"action":{"type":"string"}, "model":{"type":"string"}, "ts":{"type":"string"}, "hash":{"type":"string"}}}}, "head": {"type":"string"}, "verify_url": {"type":"string"} }, "required": ["entries"] }
+    ]
+  },
+
+  "claim_schema": {
+    "type": "object",
+    "required": ["id", "text", "tier"],
+    "properties": {
+      "id": { "type": "string" },
+      "text": { "type": "string" },
+      "section": { "type": "string" },
+      "tier": { "type": "string", "enum": ["human", "preclinical", "anecdotal", "mechanistic", "speculative"] },
+      "source_ids": { "type": "array", "items": { "type": "string" } },
+      "source_status": { "type": "string" },
+      "why_material": { "type": "string" },
+      "extra": { "type": "object" }
+    }
+  },
+
+  "source_schema": {
+    "type": "object",
+    "required": ["id", "type", "url"],
+    "properties": {
+      "id": { "type": "string" },
+      "type": { "type": "string", "enum": ["pubmed", "clinical_trial", "review", "medical", "reddit", "x", "instagram", "youtube", "news", "business", "anecdotal", "other"] },
+      "url": { "type": "string" },
+      "title": { "type": "string" },
+      "quote": { "type": "string" },
+      "summary": { "type": "string" },
+      "author": { "type": "string" },
+      "publisher": { "type": "string" },
+      "date": { "type": "string" },
+      "claim_ids": { "type": "array", "items": { "type": "string" } },
+      "prev": { "type": "string" },
+      "hash": { "type": "string" },
+      "link_status": { "type": "string" },
+      "quote_status": { "type": "string" }
+    }
+  },
+
+  "homepage_schema": {
+    "feed": {
+      "source": "GET /api/articles",
+      "sort_default": "updated_at DESC",
+      "filter_default": "home !== false AND status != 'retracted' AND published = true",
+      "pagination": { "type": "infinite_scroll", "batch_size": 12, "next_frag": "/a/{slug}?frag=1" },
+      "card": { "$ref": "#/component_registry/article_card" },
+      "facets": [
+        { "key": "tag", "label": "Tag", "type": "multi_select" },
+        { "key": "hashtag", "label": "Hashtag", "type": "multi_select" },
+        { "key": "register", "label": "Register", "type": "single_select" },
+        { "key": "tier", "label": "Highest evidence tier", "type": "single_select" },
+        { "key": "model", "label": "Model", "type": "multi_select" },
+        { "key": "updated_since", "label": "Updated since", "type": "date" }
+      ]
+    },
+    "hero": {
+      "enabled": true,
+      "palette": "monochrome",
+      "elements": ["brand lockup", "headline", "subhead", "ebook CTA", "spine illustration"],
+      "note": "Keep layout and image sizes identical; swap colors to black & white."
+    }
+  },
+
+  "component_registry": {
+    "shell": {
+      "max_width": "1180px",
+      "page_padding": "22px",
+      "nav": { "style": "pill links", "items": ["Articles", "Members", "Privacy"] },
+      "rule": "1px solid var(--line)",
+      "background": "var(--background)"
+    },
+    "article_card": {
+      "shape": "compact row or grid tile",
+      "required_fields": ["slug", "title", "updated_at"],
+      "optional_fields": ["hero", "tags", "hashtags", "register", "excerpt", "model", "tier_badge", "posted_at"],
+      "link": "/a/{slug}",
+      "timestamp_display": "{posted_at} · updated {updated_at}",
+      "hover": "border-color transitions to var(--accent)"
+    },
+    "article_page": {
+      "required_sections": ["kicker/register", "title", "tags/hashtags", "content", "footer timestamps"],
+      "optional_sections": ["hero", "claims", "source ledger", "contributions", "provenance", "widgets", "gallery", "embeds", "related", "audit graph"],
+      "nav": { "prev_next": true, "home_link": true }
+    },
+    "native_widget": {
+      "common_style": {
+        "border": "1px solid var(--line)",
+        "radius": "12px",
+        "background": "var(--surface)",
+        "shadow": "none",
+        "padding": "14px",
+        "font": "var(--sans)",
+        "note": "Use official brand colors only in the logo/avatar; the chrome stays monochrome."
+      },
+      "required": ["type", "profile", "timestamp", "hash", "ledger_url"],
+      "variants": ["instagram", "x", "tiktok", "whatsapp", "imessage", "llm_agent", "user_entry", "audit_trail"]
+    },
+    "source_card": {
+      "type_badge": { "pubmed": "study", "clinical_trial": "study", "review": "study", "reddit": "reddit", "x": "x", "instagram": "insta", "youtube": "yt", "news": "news", "business": "biz", "anecdotal": "anec", "other": "other" },
+      "fields": ["mark", "type label", "title", "profile", "quote", "summary", "status badge", "ledger id", "hash"]
+    },
+    "claim_row": {
+      "fields": ["tier badge", "text", "why material", "section", "source links"]
+    },
+    "tag_pill": {
+      "prefix": "#",
+      "link": "/?tag={tag}"
+    },
+    "user_input_widget": {
+      "type": "user_entry",
+      "prompts": [
+        "I took this and it helped me…",
+        "I took this and it hurt me…",
+        "I am a [demographic] considering [substance]…"
+      ],
+      "post_endpoint": "POST /api/event_log_ingest",
+      "stored_fields": ["subject", "context", "text", "author", "ts", "hash", "source_url"]
+    },
+    "llm_agent_widget": {
+      "type": "llm_agent",
+      "logos": { "anthropic": "anthropic.svg", "openai": "openai.svg", "google": "google.svg", "grok": "grok.svg", "kimi": "kimi.svg", "meta": "meta.svg", "perplexity": "perplexity.svg" },
+      "required_fields": ["agent", "prompt", "response", "model", "hash", "ledger_url"],
+      "interaction": "Click a suggested follow-up or type a custom question. The response becomes a new ledger entry and is rendered as the same widget type."
+    }
+  },
+
+  "interaction_model": {
+    "user_to_ledger": {
+      "description": "Any reader can add an experience or question to the ledger via a native-looking input widget.",
+      "entry_types": ["experience_positive", "experience_negative", "question", "demographic_context"],
+      "visibility": "public, hash-chained, filterable by subject/tag",
+      "follow_up": "LLM agents can read these entries and respond in the same thread."
+    },
+    "llm_agent_thread": {
+      "description": "Each article hosts a graph of model passes: writer, reviewer, adversary, endorser. Readers can ask any agent a follow-up question.",
+      "audit": "Every prompt/response is hashed and linked to the article provenance ledger.",
+      "suggested_prompts": "Derived from claims, sources, and user entries."
+    },
+    "harvest_loop": {
+      "description": "Background agents fetch public comments (Reddit, X, etc.) about a subject, normalize them into source entries, and add them to the source ledger.",
+      "output": "new source rows + summary widgets on the article"
+    },
+    "subject_graph": {
+      "description": "Sideways navigation: related subjects, models, evidence tiers, and user experiences.",
+      "filters": ["subject", "tag", "hashtag", "model", "tier", "source_type"]
+    }
+  },
+
+  "routing": {
+    "/": { "source": "public/index.html", "type": "hero_feed", "status": "redesign to monochrome" },
+    "/a/{slug}": { "source": "functions/a/[slug].js", "type": "article_page", "status": "redesign to monochrome + add widgets" },
+    "/content": { "source": "functions/content/index.js", "type": "legacy_content_map", "status": "retired — all items archived" },
+    "/api/articles": { "source": "functions/api/articles/[[path]].js", "type": "article_api" },
+    "/matrix": { "source": "functions/matrix.js", "type": "legacy_matrix", "status": "retire or redirect" }
+  },
+
+  "migration_notes": {
+    "old_content_items": "374 rows in content_items archived (status='archived'). /content now returns 0 items.",
+    "old_pages": "17 rows in pages table remain (a1, a2, b3, esh-a1..a9, reta, topology, success, privacy, m). Decide per-row whether to keep or delete.",
+    "new_articles": "72 rows in articles table, all created 2026-06-21. These are the live batch.",
+    "timestamp_gaps": "articles table has created_at/updated_at; meta.posted_at optional. Home page now shows posted date + register + tags.",
+    "next_phase": ["Apply monochrome CSS to home + article pages", "Add native widget renderer to functions/a/[slug].js", "Build user_entry input endpoint", "Add LLM follow-up endpoint", "Implement subject graph filters"]
+  }
+}

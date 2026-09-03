@@ -1,0 +1,52 @@
+# One dispatched command through the Mac bridge, for sessions that hold no terminal key.
+# Dispatch-only; the command lands on the invocation ledger like every LOCAL_EXEC. Guarded to a
+# small allowlist of binaries so this lane stays an operations lane, not a general shell.
+name: bridge-exec
+on:
+  workflow_dispatch:
+    inputs:
+      cmd:
+        description: 'Shell command to run on the Mac (must start with git|node|npx|wrangler|curl|tail|ls)'
+        required: true
+        type: string
+jobs:
+  exec:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch LOCAL_EXEC
+        env:
+          TERMINAL_KEY: ${{ secrets.TERMINAL_KEY }}
+          CMD: ${{ inputs.cmd }}
+        run: |
+          case "$CMD" in
+            git\ *|node\ *|npx\ *|wrangler\ *|curl\ *|tail\ *|ls\ *|cd\ *|osascript\ *|open\ *|screencapture\ *|defaults\ *|/usr/bin/*) ;;
+            *) echo "refused: command must start with an allowlisted binary"; exit 1;;
+          esac
+          curl -sS -m 180 -X POST https://miscsubjects.com/api/dispatch \
+            -H "x-terminal-key: $TERMINAL_KEY" -H 'content-type: application/json' \
+            --data "$(python3 -c 'import json,os; print(json.dumps({"key":"LOCAL_EXEC","body":os.environ["CMD"],"actor":"bridge-exec-workflow"}))')" \
+            -o /tmp/resp.json
+          # Print ONLY the command's stdout/stderr, not the OIP contract doc that buries it.
+          python3 - <<'PY'
+          import json,re
+          raw=open('/tmp/resp.json').read()
+          def emit(o):
+              if isinstance(o,dict):
+                  if 'stdout' in o or 'stderr' in o:
+                      print('=== STDOUT ==='); print((o.get('stdout') or '')[:11000])
+                      if o.get('stderr'): print('=== STDERR ==='); print(o['stderr'][:2000])
+                      print('=== EXIT',o.get('exit'),'==='); return True
+                  for v in o.values():
+                      if emit(v): return True
+              if isinstance(o,str):
+                  m=re.search(r'\{.*\}',o,re.S)
+                  if m:
+                      try: return emit(json.loads(m.group(0)))
+                      except: pass
+              return False
+          try:
+              d=json.loads(raw)
+              if not emit(d): print(raw[:4000])
+          except Exception as e:
+              print('raw:',raw[:4000])
+          PY

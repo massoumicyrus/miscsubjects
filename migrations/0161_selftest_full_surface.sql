@@ -1,0 +1,28 @@
+-- Audit the full functionality surface. Read-only where possible. Many will FAIL until wired — that
+-- is the point: find every broken/unproven capability.
+INSERT INTO directory_tests (key, kind, args, tier, expect_kind, expect_value, expected_text, note) VALUES
+('ROUTER','e2e','how many rows are in the directory table',2,'reply_ok','[0-9]','Real count via D1_QUERY.','t2 d1 count'),
+('ROUTER','e2e','show me the definition of the ARTICLES tool',2,'reply_ok','article|get|list|http|target','Real DIR_GET ARTICLES.','t2 dir_get'),
+('ROUTER','e2e','search the directory for stripe tools',2,'reply_ok','stripe|tool|row|found','Real TOOLS_SEARCH stripe.','t2 tools_search'),
+('ROUTER','e2e','list the mcp servers',2,'reply_ok','mcp|server|none|list','Real MCP_LIST.','t2 mcp list'),
+('ROUTER','e2e','what have you learned so far',2,'reply_ok','reasoning|tool|ledger|memory|learned','Real ROUTER memory.','t2 memory'),
+('ROUTER','e2e','how many klaviyo profiles do I have',2,'reply_ok','[0-9]|profile|klaviyo','Real Klaviyo count.','t2 klaviyo'),
+('ROUTER','e2e','how many bigcommerce orders are there',2,'reply_ok','[0-9]|order|bigcommerce','Real BigCommerce orders.','t2 bigcommerce'),
+('ROUTER','e2e','what is my meta ad spend',2,'reply_ok','[0-9]|spend|meta|\\$','Real Meta spend.','t2 meta'),
+('ROUTER','e2e','what is my triple whale roas',2,'reply_ok','[0-9]|roas|whale','Real Triple Whale ROAS.','t2 triplewhale'),
+('ROUTER','e2e','list objects in r2 storage',3,'reply_ok','r2|object|none|file|key','Real R2 list.','t3 r2'),
+('ROUTER','e2e','set a kv key called selftest_ping to ok and read it back',3,'reply_ok','ok|selftest_ping|kv|set','Real KV put+get round-trip.','t3 kv roundtrip'),
+('ROUTER','e2e','list my github repos',3,'reply_ok','repo|github|miscsubjects','Real gh repo list.','t3 github'),
+('ROUTER','e2e','what is on my google calendar today',3,'reply_ok','calendar|event|none|today','Real calendar read.','t3 calendar'),
+('ROUTER','e2e','list my google tasks',3,'reply_ok','task|none|list','Real tasks read.','t3 tasks'),
+('ROUTER','e2e','generate an image of a blue peptide vial',4,'reply_ok','image|http|generated|url|png','Real GROK_IMAGE returns a URL.','t4 image gen'),
+('ROUTER','e2e','say hello out loud',4,'reply_ok','audio|spoke|said|url|hello','Real VOICE/AUDIO output.','t4 voice'),
+('ROUTER','e2e','what was the last deploy',3,'reply_ok','deploy|deployment|[0-9]|commit','Real deployment info.','t3 deploy info'),
+('ROUTER','e2e','what percent of your tools have been exercised',8,'reply_ok','[0-9]|percent|%|coverage|unproven','Real coverage number.','t8 coverage pct'),
+('ROUTER','e2e','read the current ROUTER prompt and tell me how long it is',5,'reply_ok','[0-9]|char|prompt|router|line','Real DIR_GET ROUTER length.','t5 self read'),
+('ROUTER','e2e','what bindings does the build have on cloudflare',5,'reply_ok','d1|kv|r2|ai|queue|binding','Real binding list.','t5 bindings'),
+('ROUTER','e2e','count how many self-test questions exist',8,'reply_ok','[0-9]','Real count from directory_tests.','t8 selftest count'),
+('ROUTER','e2e','what is the cost of the last self-test run',8,'reply_ok','[0-9]|cost|\\$|run','Real cost from selftest_runs.','t8 cost'),
+('ROUTER','e2e','show me a customer lookup by email test@example.com',4,'reply_ok','customer|email|none|not found|lookup','Real customer lookup.','t4 customer lookup'),
+('ROUTER','e2e','what flows are in the directory',3,'reply_ok','flow|[0-9]|list','Real flow list.','t3 flows'),
+('ROUTER','e2e','check what http status the homepage returns',6,'reply_ok','200|301|302|redirect|cloak|home|status','Real curl/browser of the homepage. The cloaker 302-redirects humans to the money page, so 302 is the correct answer when CLOAKER_ENABLED=true.','t6 homepage status (cloaker 302)');

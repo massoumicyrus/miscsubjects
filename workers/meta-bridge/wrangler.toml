@@ -1,0 +1,22 @@
+name = "loop-meta-bridge"
+main = "src/index.js"
+compatibility_date = "2024-09-01"
+# Reachable ONLY via service binding (no public route). Single-responsibility Meta
+# read module: binds the shared Secrets Store Meta token by reference (no copy) and
+# fronts the Graph API for any build that service-binds to it.
+workers_dev = false
+
+[[secrets_store_secrets]]
+binding = "META_ACCESS_TOKEN"
+store_id = "99642fd1a1414862b3181d313ad9df03"
+secret_name = "META_ACCESS_TOKEN"
+
+[[secrets_store_secrets]]
+binding = "META_BUSINESS_ID"
+store_id = "99642fd1a1414862b3181d313ad9df03"
+secret_name = "META_BUSINESS_ID"
+
+[[secrets_store_secrets]]
+binding = "META_API_VERSION"
+store_id = "99642fd1a1414862b3181d313ad9df03"
+secret_name = "META_API_VERSION"

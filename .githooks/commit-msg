@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Commit-message hook: protected-file edits are refused here.
+#
+# This hook used to accept #vault-approved / #widgets-approved in the message as authorization. That
+# is an approval the applicant issues to itself, and it is skippable with --no-verify, so it was never
+# enforcement. Owner order 2026-08-06: no override is possible. The token now blocks instead of
+# clearing, and scripts/check-approval-tokens.mjs fails the deploy if one reaches the shipping range,
+# so there is nothing to route around by skipping the hook.
+#
+# The lawful path is the owner's: he takes the file off the list in PROTECTED_FEATURES.md or
+# PROTECTED_WIDGETS.md.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+COMMIT_MSG_FILE="${1:?commit message file required}"
+COMMIT_MSG="$(cat "$COMMIT_MSG_FILE")"
+STAGED_FILES="$(cd "$ROOT" && git diff --cached --name-only --diff-filter=ACM)"
+
+protected_paths() {
+  local manifest="$1"
+  local extensions="$2"
+  [ -f "$manifest" ] || return 0
+  grep -oE '`[^`]+\.('"${extensions}"')`' "$manifest" | tr -d '\`' || true
+}
+
+WIDGET_FILES="$(protected_paths "$ROOT/PROTECTED_WIDGETS.md" 'js|mjs')"
+VAULT_FILES="$(protected_paths "$ROOT/PROTECTED_FEATURES.md" 'js|mjs|sh|json|yml')"
+WIDGET_TOUCHED=""
+VAULT_TOUCHED=""
+
+while IFS= read -r file; do
+  [ -n "$file" ] || continue
+  if printf '%s\n' "$WIDGET_FILES" | grep -Fqx "$file"; then WIDGET_TOUCHED="$WIDGET_TOUCHED $file"; fi
+  if printf '%s\n' "$VAULT_FILES" | grep -Fqx "$file"; then VAULT_TOUCHED="$VAULT_TOUCHED $file"; fi
+done <<< "$STAGED_FILES"
+
+if [ -n "$WIDGET_TOUCHED" ]; then
+  echo "BLOCKED: staged protected widget files:$WIDGET_TOUCHED" >&2
+  echo "These are protected because the owner said so. There is no approval token you can write." >&2
+  echo "Unstage them, or ask the owner to remove the entry from PROTECTED_WIDGETS.md." >&2
+  exit 1
+fi
+
+if [ -n "$VAULT_TOUCHED" ]; then
+  echo "BLOCKED: staged protected feature files:$VAULT_TOUCHED" >&2
+  echo "These are protected because the owner said so. There is no approval token you can write." >&2
+  echo "Unstage them, or ask the owner to remove the entry from PROTECTED_FEATURES.md." >&2
+  exit 1
+fi
+
+if printf '%s\n' "$COMMIT_MSG" | grep -Eq '#(vault|widgets)-approved'; then
+  echo "BLOCKED: this commit message carries a self-issued approval token." >&2
+  echo "It no longer authorizes anything, and scripts/check-approval-tokens.mjs fails the deploy if" >&2
+  echo "it reaches the shipping range. Remove it from the message." >&2
+  exit 1
+fi

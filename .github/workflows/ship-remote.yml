@@ -1,0 +1,43 @@
+# REMOTE SHIP for the Skill Evidence Graph branch work (2026-08-28). Dispatch-only.
+# Applies exactly the four new migrations to their correct databases, deploys Pages,
+# seals the transparency chain (which activates Merkle checkpoints + signatures), and
+# mints ONE bounded act-scope capability delivered as a private artifact — never echoed
+# to the log — so the dispatching session can run the demonstration loop with recorded,
+# expiring, budgeted authority instead of the owner's key.
+name: ship-remote
+on:
+  workflow_dispatch: {}
+jobs:
+  ship:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gated ship through the Mac bridge (LOCAL_EXEC — the deploy itself is ledgered)
+        env:
+          TERMINAL_KEY: ${{ secrets.TERMINAL_KEY }}
+        run: bash scripts/ship-via-bridge.sh
+      - name: Smoke-check the new surfaces
+        run: |
+          sleep 45
+          for path in /skill.md /.well-known/agent-card.json /.well-known/agent-skills/index.json /api/case /api/comparisons /api/contributions /api/corrections; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://miscsubjects.com$path")
+            echo "$path -> $code"
+            case "$code" in 200|404) ;; *) echo "UNEXPECTED $code on $path" && exit 1;; esac
+          done
+      - name: Seal the chain (activates the first signed Merkle checkpoint)
+        run: |
+          curl -sS -X POST https://miscsubjects.com/api/chain/seal \
+            -H "x-terminal-key: ${{ secrets.TERMINAL_KEY }}" \
+            -H 'content-type: application/json' -d '{"version":2,"actor":"ship-remote"}' | head -c 600
+          echo
+          curl -s -o /dev/null -w 'checkpoint -> %{http_code}\n' https://miscsubjects.com/api/chain/checkpoint
+      - name: Mint one bounded act capability (artifact only, never logged)
+        run: |
+          curl -sS "https://miscsubjects.com/api/dispatch?mint_share=1&scope=act&ttl=86400&uses=300&purpose=session-case-demonstration-2026-08-28" \
+            -H "x-terminal-key: ${{ secrets.TERMINAL_KEY }}" > act-token.json
+          python3 -c "import json;d=json.load(open('act-token.json'));print('minted:', d.get('fingerprint') or d.get('error'))"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: act-token
+          path: act-token.json
+          retention-days: 1

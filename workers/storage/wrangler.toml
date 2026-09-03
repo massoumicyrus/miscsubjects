@@ -1,0 +1,25 @@
+name = "loop-safe-storage"
+main = "src/index.js"
+compatibility_date = "2026-03-24"
+compatibility_flags = ["nodejs_compat_v2"]
+account_id = "<CLOUDFLARE_ACCOUNT_ID>"
+# Private: reachable only via the STORE service binding from the Pages project.
+workers_dev = false
+
+[observability]
+enabled = true
+
+# Bulk blobs (vendored API docs, the old build, any reference sprawl).
+# Create first:  npx wrangler r2 bucket create miscsubjects-store
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "miscsubjects-store"
+
+# Queryable index over what's in R2 (path, size, sha, tag, ts).
+# Create first:  npx wrangler d1 create loop-storage-index   -> paste the id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "loop-storage-index"
+database_id = "54843465-f8d7-4807-981e-092b6404c23f"
+
+# STORE_KEY is a secret, not committed:  npx wrangler secret put STORE_KEY

@@ -1,0 +1,70 @@
+# Regenerates the public projection after every real commit to main and pushes it to the mirror
+# repository (private today; publishing is a visibility toggle on that repository, never a change
+# to this one). The exporter is scripts/publish-mirror.mjs; what it excludes and substitutes is in
+# scripts/publish-mirror.config.json; the reasoning is in docs/PUBLISHING.md.
+#
+# Ledger-mirror and guard-baseline commits are ignored by path (they also carry [skip ci]). The
+# vault is not available here, so the vault-value gate is skipped in CI and runs on the operator's
+# machine; the pattern gates, the identity gate, the path gate and gitleaks run in both places.
+name: publish-mirror
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'ledger-mirror/**'
+      - '.protected/**'
+      - '.witness/**'
+  workflow_dispatch: {}
+
+concurrency:
+  group: publish-mirror
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install gitleaks (pinned, checksum-verified)
+        env:
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          curl -sSfLO "$base/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfLO "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          sha256sum --check --ignore-missing "gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          tar -xzf "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" gitleaks
+          install -m 0755 gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Deploy key for the mirror
+        env:
+          MIRROR_DEPLOY_KEY: ${{ secrets.MIRROR_DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$MIRROR_DEPLOY_KEY" ]; then echo "MIRROR_DEPLOY_KEY ABSENT — mirror lane disabled"; exit 78; fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$MIRROR_DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Export, push the projection, announce the manifest
+        env:
+          TERMINAL_KEY: ${{ secrets.TERMINAL_KEY }}
+        run: |
+          set -euo pipefail
+          remote="$(node -e "console.log(JSON.parse(require('fs').readFileSync('scripts/publish-mirror.config.json','utf8')).mirror.ssh_remote)")"
+          announce=""; [ -n "$TERMINAL_KEY" ] && announce="--announce" || echo "TERMINAL_KEY ABSENT — manifest not announced"
+          node scripts/publish-mirror.mjs --out "$RUNNER_TEMP/projection/mirror" --push --remote "$remote" --require-gitleaks $announce

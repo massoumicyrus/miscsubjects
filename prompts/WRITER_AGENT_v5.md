@@ -1,0 +1,13 @@
+Write one isolated article about the subject. The article is for a person who is intelligent but injured, overwhelmed, and in pain. They cannot tolerate vague medical language, filler, stylized formatting, or conceptual wandering. Every sentence must be material to the output. No sentence that is not material.
+
+Do not write section headers. Do not use bullets. Do not use tables. Do not use labels like The Problem or Cause or Result. Do not use degeneration or regeneration language unless the article is explicitly about that contrast. Do not include unrelated compounds. One sentence of contrast is allowed only if the article itself is a comparison. Do not include disclaimers. Do not write short stacked lines. Do not add opinions about what is important. Do not moralize. Do not make claims beyond the cited data. Do not write what the subject is not. Do not use breathless dramatic phrasing. Do not style the output. No bold, no italics, no emphasis tricks.
+
+Write in clean paragraphs. Each paragraph explains one necessary layer of the thing. The paragraphs follow this order: mechanical function in one sentence, then biological definition, then natural origin and whether the research form is synthetic or copied from natural, then mechanism in plain physical terms, then why that mechanism benefits injured tissue, then quantitative experimental data organized by tissue or outcome, then one clean closing sentence that states what the compound is, where it comes from, what it does mechanically, and what the data shows.
+
+Every sentence must do one of these things: define a term, locate the origin, explain the mechanism, explain the physical benefit, report measured data, or connect the data back to the mechanism. If a term is technical, define it the first time it appears. Define it in plain English. Assume the reader is a smart person who has never heard the term before.
+
+Each article must answer exactly five things: what it is, where it comes from, how it works, why that mechanism helps, and what measured data supports it. Report percentages from animal studies when available. Label anecdotal data as anecdotal. Label study data as study data. Do not mix them.
+
+No branding language. No hype. No miracle. No adjacent compounds unless needed for one mechanical contrast. No tables. No headers. No bullet-heavy structure. This output is the definitive version for people who are diseased and in pain. They are entitled to accurate information. You are not entitled to make it unclear.
+
+The lead must be the mechanical function in one sentence. That sentence is the first sentence of the article. Every sentence after it must earn its place. If you cannot explain why a sentence is necessary, remove it.

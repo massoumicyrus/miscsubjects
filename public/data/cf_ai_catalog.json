@@ -1,0 +1,1481 @@
+{
+  "fetched_at": "2026-06-20",
+  "source": "Cloudflare AI Models API + Docs",
+  "total_models": 60,
+  "text_generation_models": [
+    {
+      "name": "@cf/openai/gpt-oss-120b",
+      "provider": "OpenAI",
+      "task": "Text Generation",
+      "context_window": 128000,
+      "pricing": {
+        "input": 0.35,
+        "output": 0.75,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": true,
+        "reasoning": true,
+        "vision": false,
+        "web_search": false
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.7
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "max_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 128000,
+          "default": 1024
+        },
+        "max_completion_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 128000
+        },
+        "frequency_penalty": {
+          "type": "number",
+          "min": -2,
+          "max": 2,
+          "default": 0
+        },
+        "presence_penalty": {
+          "type": "number",
+          "min": -2,
+          "max": 2,
+          "default": 0
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object",
+          "default": {
+            "type": "text"
+          },
+          "enum": [
+            {
+              "type": "text"
+            },
+            {
+              "type": "json_object"
+            }
+          ]
+        },
+        "tools": {
+          "type": "array"
+        },
+        "tool_choice": {
+          "type": "object",
+          "enum": [
+            "auto",
+            "none",
+            {
+              "type": "function"
+            }
+          ]
+        },
+        "modalities": {
+          "type": "array",
+          "enum": [
+            "text",
+            "audio"
+          ]
+        },
+        "audio": {
+          "type": "object"
+        },
+        "stream_options": {
+          "type": "object"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "stop": {
+          "type": "array",
+          "items": "string"
+        },
+        "n": {
+          "type": "integer",
+          "min": 1,
+          "max": 10,
+          "default": 1
+        },
+        "reasoning_effort": {
+          "type": "string",
+          "enum": [
+            "none",
+            "low",
+            "medium",
+            "high"
+          ],
+          "default": "none"
+        },
+        "messages": {
+          "type": "array",
+          "required": true,
+          "items": {
+            "role": "string",
+            "content": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "@cf/openai/gpt-oss-20b",
+      "provider": "OpenAI",
+      "task": "Text Generation",
+      "context_window": 128000,
+      "pricing": {
+        "input": 0.15,
+        "output": 0.35,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": true,
+        "reasoning": true,
+        "vision": false,
+        "web_search": false
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.7
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "max_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 128000,
+          "default": 1024
+        },
+        "frequency_penalty": {
+          "type": "number",
+          "min": -2,
+          "max": 2,
+          "default": 0
+        },
+        "presence_penalty": {
+          "type": "number",
+          "min": -2,
+          "max": 2,
+          "default": 0
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object",
+          "default": {
+            "type": "text"
+          }
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "stop": {
+          "type": "array",
+          "items": "string"
+        },
+        "n": {
+          "type": "integer",
+          "min": 1,
+          "max": 10,
+          "default": 1
+        },
+        "reasoning_effort": {
+          "type": "string",
+          "enum": [
+            "none",
+            "low",
+            "medium",
+            "high"
+          ],
+          "default": "none"
+        },
+        "messages": {
+          "type": "array",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "provider": "Meta",
+      "task": "Text Generation",
+      "context_window": 128000,
+      "pricing": {
+        "input": 0.5,
+        "output": 1.5,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": false,
+        "reasoning": false,
+        "vision": false,
+        "web_search": false,
+        "lora": true
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 5,
+          "default": 0.6
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "max_tokens": {
+          "type": "integer",
+          "min": 1,
+          "max": 128000,
+          "default": 256
+        },
+        "frequency_penalty": {
+          "type": "number",
+          "min": -2,
+          "max": 2,
+          "default": 0
+        },
+        "presence_penalty": {
+          "type": "number",
+          "min": -2,
+          "max": 2,
+          "default": 0
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object",
+          "default": {
+            "type": "text"
+          }
+        },
+        "lora": {
+          "type": "string"
+        },
+        "messages": {
+          "type": "array",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "@cf/moonshotai/kimi-k2.7-code",
+      "provider": "Moonshot",
+      "task": "Text Generation",
+      "context_window": 262144,
+      "pricing": {
+        "input": 0.95,
+        "output": 4.0,
+        "cached_input": 0.19,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": true,
+        "reasoning": true,
+        "vision": true,
+        "web_search": false
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.7
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "max_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 262144,
+          "default": 4096
+        },
+        "frequency_penalty": {
+          "type": "number",
+          "min": -2,
+          "max": 2,
+          "default": 0
+        },
+        "presence_penalty": {
+          "type": "number",
+          "min": -2,
+          "max": 2,
+          "default": 0
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object",
+          "default": {
+            "type": "text"
+          }
+        },
+        "tools": {
+          "type": "array"
+        },
+        "tool_choice": {
+          "type": "object"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "stop": {
+          "type": "array",
+          "items": "string"
+        },
+        "n": {
+          "type": "integer",
+          "min": 1,
+          "max": 10,
+          "default": 1
+        },
+        "messages": {
+          "type": "array",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "@cf/moonshotai/kimi-k2.6",
+      "provider": "Moonshot",
+      "task": "Text Generation",
+      "context_window": 200000,
+      "pricing": {
+        "input": 0.75,
+        "output": 3.0,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": true,
+        "reasoning": true,
+        "vision": true,
+        "web_search": false
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.7
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "max_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 200000,
+          "default": 4096
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object",
+          "default": {
+            "type": "text"
+          }
+        },
+        "tools": {
+          "type": "array"
+        },
+        "tool_choice": {
+          "type": "object"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "stop": {
+          "type": "array",
+          "items": "string"
+        },
+        "messages": {
+          "type": "array",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
+      "provider": "DeepSeek",
+      "task": "Text Generation",
+      "context_window": 80000,
+      "pricing": {
+        "input": 0.497,
+        "output": 4.881,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": false,
+        "reasoning": true,
+        "vision": false,
+        "web_search": false
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.6
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "max_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 80000,
+          "default": 4096
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object",
+          "default": {
+            "type": "text"
+          }
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "stop": {
+          "type": "array",
+          "items": "string"
+        },
+        "messages": {
+          "type": "array",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "@cf/qwen/qwq-32b",
+      "provider": "Qwen",
+      "task": "Text Generation",
+      "context_window": 128000,
+      "pricing": {
+        "input": 0.5,
+        "output": 2.0,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": true,
+        "reasoning": true,
+        "vision": false,
+        "web_search": false
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.6
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "max_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 128000,
+          "default": 4096
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object",
+          "default": {
+            "type": "text"
+          }
+        },
+        "tools": {
+          "type": "array"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "stop": {
+          "type": "array",
+          "items": "string"
+        },
+        "messages": {
+          "type": "array",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "@cf/meta/llama-4-scout-17b-16e-instruct",
+      "provider": "Meta",
+      "task": "Text Generation",
+      "context_window": 256000,
+      "pricing": {
+        "input": 0.3,
+        "output": 0.9,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": true,
+        "reasoning": false,
+        "vision": true,
+        "web_search": false
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.6
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "max_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 256000,
+          "default": 4096
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object",
+          "default": {
+            "type": "text"
+          }
+        },
+        "tools": {
+          "type": "array"
+        },
+        "tool_choice": {
+          "type": "object"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "stop": {
+          "type": "array",
+          "items": "string"
+        },
+        "messages": {
+          "type": "array",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "@cf/qwen/qwen3-30b-a3b-fp8",
+      "provider": "Qwen",
+      "task": "Text Generation",
+      "context_window": 128000,
+      "pricing": {
+        "input": 0.4,
+        "output": 1.5,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": true,
+        "reasoning": true,
+        "vision": false,
+        "web_search": false
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.6
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "max_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 128000,
+          "default": 4096
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object",
+          "default": {
+            "type": "text"
+          }
+        },
+        "tools": {
+          "type": "array"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "stop": {
+          "type": "array",
+          "items": "string"
+        },
+        "messages": {
+          "type": "array",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "@cf/qwen/qwen2.5-coder-32b-instruct",
+      "provider": "Qwen",
+      "task": "Text Generation",
+      "context_window": 128000,
+      "pricing": {
+        "input": 0.35,
+        "output": 1.2,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": true,
+        "reasoning": false,
+        "vision": false,
+        "web_search": false
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.6
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "max_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 128000,
+          "default": 4096
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object",
+          "default": {
+            "type": "text"
+          }
+        },
+        "tools": {
+          "type": "array"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "stop": {
+          "type": "array",
+          "items": "string"
+        },
+        "messages": {
+          "type": "array",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "@cf/mistralai/mistral-small-3.1-24b-instruct",
+      "provider": "Mistral",
+      "task": "Text Generation",
+      "context_window": 128000,
+      "pricing": {
+        "input": 0.25,
+        "output": 0.8,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": true,
+        "reasoning": false,
+        "vision": false,
+        "web_search": false
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.7
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "max_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 128000,
+          "default": 4096
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object",
+          "default": {
+            "type": "text"
+          }
+        },
+        "tools": {
+          "type": "array"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "stop": {
+          "type": "array",
+          "items": "string"
+        },
+        "messages": {
+          "type": "array",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "@cf/nvidia/nemotron-3-120b-a12b",
+      "provider": "NVIDIA",
+      "task": "Text Generation",
+      "context_window": 128000,
+      "pricing": {
+        "input": 0.8,
+        "output": 2.5,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": true,
+        "reasoning": false,
+        "vision": false,
+        "web_search": false
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.7
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "max_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 128000,
+          "default": 4096
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object",
+          "default": {
+            "type": "text"
+          }
+        },
+        "tools": {
+          "type": "array"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "stop": {
+          "type": "array",
+          "items": "string"
+        },
+        "messages": {
+          "type": "array",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "@cf/zai-org/glm-5.2",
+      "provider": "ZAI",
+      "task": "Text Generation",
+      "context_window": 128000,
+      "pricing": {
+        "input": 0.3,
+        "output": 1.0,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": true,
+        "reasoning": false,
+        "vision": false,
+        "web_search": false
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.7
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "max_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 128000,
+          "default": 4096
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object",
+          "default": {
+            "type": "text"
+          }
+        },
+        "tools": {
+          "type": "array"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "stop": {
+          "type": "array",
+          "items": "string"
+        },
+        "messages": {
+          "type": "array",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "@cf/ibm-granite/granite-4.0-h-micro",
+      "provider": "IBM",
+      "task": "Text Generation",
+      "context_window": 128000,
+      "pricing": {
+        "input": 0.2,
+        "output": 0.6,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": false,
+        "reasoning": false,
+        "vision": false,
+        "web_search": false
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.7
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "max_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 128000,
+          "default": 4096
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object",
+          "default": {
+            "type": "text"
+          }
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "stop": {
+          "type": "array",
+          "items": "string"
+        },
+        "messages": {
+          "type": "array",
+          "required": true
+        }
+      }
+    }
+  ],
+  "external_models": [
+    {
+      "name": "grok-4.3",
+      "provider": "xAI",
+      "endpoint": "https://api.x.ai/v1/chat/completions",
+      "auth": "Bearer token",
+      "context_window": 200000,
+      "pricing": {
+        "input": 1.25,
+        "output": 2.5,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": true,
+        "reasoning": true,
+        "vision": true,
+        "web_search": true
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.7
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "max_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 200000,
+          "default": 4096
+        },
+        "frequency_penalty": {
+          "type": "number",
+          "min": -2,
+          "max": 2,
+          "default": 0
+        },
+        "presence_penalty": {
+          "type": "number",
+          "min": -2,
+          "max": 2,
+          "default": 0
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object",
+          "default": {
+            "type": "text"
+          }
+        },
+        "tools": {
+          "type": "array"
+        },
+        "tool_choice": {
+          "type": "object"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "stop": {
+          "type": "array",
+          "items": "string"
+        },
+        "n": {
+          "type": "integer",
+          "min": 1,
+          "max": 10,
+          "default": 1
+        },
+        "reasoning_effort": {
+          "type": "string",
+          "enum": [
+            "none",
+            "low",
+            "medium",
+            "high"
+          ],
+          "default": "none"
+        },
+        "messages": {
+          "type": "array",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "gpt-4o",
+      "provider": "OpenAI",
+      "endpoint": "https://api.openai.com/v1/chat/completions",
+      "auth": "Bearer token",
+      "context_window": 128000,
+      "pricing": {
+        "input": 2.5,
+        "output": 10.0,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": true,
+        "reasoning": false,
+        "vision": true,
+        "web_search": false
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.7
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "max_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 128000,
+          "default": 4096
+        },
+        "max_completion_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 128000
+        },
+        "frequency_penalty": {
+          "type": "number",
+          "min": -2,
+          "max": 2,
+          "default": 0
+        },
+        "presence_penalty": {
+          "type": "number",
+          "min": -2,
+          "max": 2,
+          "default": 0
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object",
+          "default": {
+            "type": "text"
+          }
+        },
+        "tools": {
+          "type": "array"
+        },
+        "tool_choice": {
+          "type": "object"
+        },
+        "modalities": {
+          "type": "array",
+          "enum": [
+            "text",
+            "audio"
+          ]
+        },
+        "audio": {
+          "type": "object"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "stop": {
+          "type": "array",
+          "items": "string"
+        },
+        "n": {
+          "type": "integer",
+          "min": 1,
+          "max": 10,
+          "default": 1
+        },
+        "messages": {
+          "type": "array",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "gpt-4o-mini",
+      "provider": "OpenAI",
+      "endpoint": "https://api.openai.com/v1/chat/completions",
+      "auth": "Bearer token",
+      "context_window": 128000,
+      "pricing": {
+        "input": 0.15,
+        "output": 0.6,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": true,
+        "reasoning": false,
+        "vision": true,
+        "web_search": false
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.7
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "max_tokens": {
+          "type": "number",
+          "min": 1,
+          "max": 128000,
+          "default": 4096
+        },
+        "frequency_penalty": {
+          "type": "number",
+          "min": -2,
+          "max": 2,
+          "default": 0
+        },
+        "presence_penalty": {
+          "type": "number",
+          "min": -2,
+          "max": 2,
+          "default": 0
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object",
+          "default": {
+            "type": "text"
+          }
+        },
+        "tools": {
+          "type": "array"
+        },
+        "tool_choice": {
+          "type": "object"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "stop": {
+          "type": "array",
+          "items": "string"
+        },
+        "n": {
+          "type": "integer",
+          "min": 1,
+          "max": 10,
+          "default": 1
+        },
+        "messages": {
+          "type": "array",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "claude-sonnet-4.5",
+      "provider": "Anthropic",
+      "endpoint": "https://api.anthropic.com/v1/messages",
+      "auth": "x-api-key header",
+      "context_window": 200000,
+      "pricing": {
+        "input": 3.0,
+        "output": 15.0,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": true,
+        "reasoning": true,
+        "vision": true,
+        "web_search": false
+      },
+      "parameters": {
+        "max_tokens": {
+          "type": "number",
+          "min": 1,
+          "required": true
+        },
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.7
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "top_k": {
+          "type": "number",
+          "min": 0
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "system": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "stop_sequences": {
+          "type": "array",
+          "items": "string"
+        },
+        "tools": {
+          "type": "array"
+        },
+        "tool_choice": {
+          "type": "object"
+        },
+        "thinking": {
+          "type": "object",
+          "budget_tokens": {
+            "type": "integer",
+            "min": 1,
+            "max": 200000
+          }
+        },
+        "messages": {
+          "type": "array",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "gemini-1.5-pro",
+      "provider": "Google",
+      "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent",
+      "auth": "x-goog-api-key header",
+      "context_window": 2000000,
+      "pricing": {
+        "input": 1.25,
+        "output": 5.0,
+        "unit": "per M tokens"
+      },
+      "features": {
+        "function_calling": true,
+        "reasoning": true,
+        "vision": true,
+        "web_search": true
+      },
+      "parameters": {
+        "temperature": {
+          "type": "number",
+          "min": 0,
+          "max": 2,
+          "default": 0.7
+        },
+        "top_p": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.95
+        },
+        "top_k": {
+          "type": "integer",
+          "min": 0
+        },
+        "max_output_tokens": {
+          "type": "integer",
+          "min": 1,
+          "max": 8192,
+          "default": 4096
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false
+        },
+        "response_format": {
+          "type": "object"
+        },
+        "tools": {
+          "type": "array"
+        },
+        "tool_choice": {
+          "type": "object"
+        },
+        "system_instruction": {
+          "type": "object"
+        },
+        "contents": {
+          "type": "array",
+          "required": true
+        }
+      }
+    }
+  ],
+  "web_search_capable": [
+    "grok-4.3",
+    "gemini-1.5-pro"
+  ],
+  "parameter_reference": {
+    "temperature": {
+      "description": "Controls randomness. 0 = deterministic, 2 = very random.",
+      "common_range": "0-2",
+      "default": 0.7
+    },
+    "top_p": {
+      "description": "Nucleus sampling. Only consider tokens with cumulative probability <= top_p.",
+      "common_range": "0-1",
+      "default": 0.95
+    },
+    "max_tokens": {
+      "description": "Maximum number of tokens to generate.",
+      "common_range": "1-2M (varies by model)",
+      "default": 4096
+    },
+    "frequency_penalty": {
+      "description": "Penalize tokens that appear frequently. -2 = encourage repetition, 2 = strongly discourage.",
+      "common_range": "-2 to 2",
+      "default": 0
+    },
+    "presence_penalty": {
+      "description": "Penalize tokens that have appeared at all. -2 = encourage reuse, 2 = strongly discourage.",
+      "common_range": "-2 to 2",
+      "default": 0
+    },
+    "stream": {
+      "description": "Stream response tokens as they are generated.",
+      "type": "boolean",
+      "default": false
+    },
+    "response_format": {
+      "description": "Force JSON or text output.",
+      "type": "object",
+      "options": [
+        {
+          "type": "text"
+        },
+        {
+          "type": "json_object"
+        }
+      ]
+    },
+    "tools": {
+      "description": "Array of function definitions the model can call.",
+      "type": "array"
+    },
+    "tool_choice": {
+      "description": "How the model should use tools. 'auto', 'none', or force a specific function.",
+      "type": "object"
+    },
+    "seed": {
+      "description": "Deterministic seed for reproducible outputs.",
+      "type": "integer"
+    },
+    "stop": {
+      "description": "Array of strings that will stop generation.",
+      "type": "array",
+      "items": "string"
+    },
+    "n": {
+      "description": "Number of completions to generate.",
+      "type": "integer",
+      "min": 1,
+      "max": 10,
+      "default": 1
+    },
+    "reasoning_effort": {
+      "description": "Control reasoning depth. none = no reasoning, high = maximum reasoning.",
+      "type": "string",
+      "options": [
+        "none",
+        "low",
+        "medium",
+        "high"
+      ],
+      "default": "none"
+    },
+    "messages": {
+      "description": "Array of message objects. Required for all chat completions.",
+      "type": "array",
+      "required": true
+    }
+  }
+}

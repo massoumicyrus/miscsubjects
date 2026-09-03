@@ -1,0 +1,4 @@
+-- Owner correction 2026-07-21: the floating Owner Tap & Go carries the whole-build audit DROP.
+DELETE FROM directory_tests WHERE kind='e2e' AND note='owner correction 2026-07-21: floating admin audit copies complete payload';
+INSERT INTO directory_tests (key,kind,args,expect_kind,expect_value,note,expected_text,tier) VALUES
+('ROUTER','e2e','In the floating Owner Tap & Go, press Audit this build. What is copied?','reply_ok','floating|complete|payload|six|articles|generic|not a URL','owner correction 2026-07-21: floating admin audit copies complete payload','The floating admin Owner Tap & Go fetches and copies the complete generic whole-build audit Markdown payload, not a URL. It includes the audit contract, evidence and comparison surfaces, capability inventory, and all six embedded OPOS root article bodies. Token DROPs remain model-specific and unchanged.','8');

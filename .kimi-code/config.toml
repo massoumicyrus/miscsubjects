@@ -1,0 +1,6 @@
+default_model = "kimi-code/kimi-for-coding"
+[[hooks]]
+event = "Stop"
+matcher = ""
+command = 'node "/Users/owner/miscsubjects-pages/hooks/kimi-turn-log.js"'
+timeout = 30

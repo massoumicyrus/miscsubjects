@@ -1,0 +1,45 @@
+# Repo-as-prompt-cache (TERMINAL_ANNEX Phase L). On every push to main, concatenate
+# the operational source into one text snapshot and POST it to
+# https://miscsubjects.com/api/snapshot_ingest (auth: TERMINAL_KEY secret). The kernel
+# prepends it to every agent model call so Grok-4.3 sees the entire build each turn;
+# the byte-identical prefix rides the xAI prompt cache.
+#
+# Included: functions/ (minus admin UI), bridge/ (minus node_modules), root docs
+# (STATE.md tail only), wrangler.toml, .github/workflows. Excluded (logged in the
+# snapshot header): functions/admin (HTML chrome), migrations (history — live rows
+# are already in the directory), public/, package-lock.json.
+
+name: snapshot-repo-to-kv
+on:
+  # Disabled to stop GitHub notification noise. Re-enable by restoring the push block.
+  workflow_dispatch: {}
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build snapshot
+        run: |
+          SNAP=/tmp/snapshot.txt
+          {
+            echo "REPO SNAPSHOT — [OWNER_HANDLE]/miscsubjects-pages @ ${GITHUB_SHA}"
+            echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "EXCLUDED from this snapshot: functions/admin/ (UI chrome), migrations/ (history; live rows are in the D1 directory), public/, node_modules, package-lock.json, STATE.md beyond its last 20000 bytes."
+            echo
+          } > "$SNAP"
+          emit() { for f in "$@"; do [ -f "$f" ] || continue; printf '\n===== FILE: %s =====\n' "$f" >> "$SNAP"; cat "$f" >> "$SNAP"; done; }
+          emit wrangler.toml README.md HANDOFF.md TERMINAL_ANNEX.md
+          printf '\n===== FILE: STATE.md (last 20000 bytes) =====\n' >> "$SNAP"
+          tail -c 20000 STATE.md >> "$SNAP" 2>/dev/null || true
+          emit $(find functions -name '*.js' ! -path 'functions/admin/*' | sort)
+          emit $(find bridge -maxdepth 2 -type f ! -path '*node_modules*' ! -name package-lock.json | sort)
+          emit $(find .github/workflows -type f | sort)
+          wc -c "$SNAP"
+      - name: POST to snapshot_ingest
+        run: |
+          curl -sS -f -X POST "https://miscsubjects.com/api/snapshot_ingest" \
+            -H "x-terminal-key: ${{ secrets.TERMINAL_KEY }}" \
+            -H "x-snapshot-sha: ${GITHUB_SHA}" \
+            -H "Content-Type: text/plain" \
+            --data-binary @/tmp/snapshot.txt

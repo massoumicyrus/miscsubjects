@@ -1,0 +1,28 @@
+.DS_Store
+node_modules
+.wrangler
+*.log
+archive/
+docs/api/openai/llms-full.txt
+docs/api/grok/llms-full.txt
+.vscode/settings.json
+.env
+.env.*
+.dev.vars
+.dev.vars.*
+*.pem
+*.key
+_worker.bundle
+.tmp/
+.worktrees/
+outputs/
+.protected/quarantine/
+.protected/pending/
+data.db
+scripts/__pycache__/
+# npm scratch. `npx wrangler` writes these when it resolves a package, so every ship recreated
+# them and the NEXT ship refused to deploy with "uncommitted runtime changes" — a loop where each
+# deploy blocked the following one. Neither file has ever been tracked; this repo has no npm
+# manifest of its own.
+package.json
+package-lock.json

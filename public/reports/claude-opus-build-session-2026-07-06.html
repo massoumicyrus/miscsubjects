@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Build session report — 2026-07-06 (redacted)</title>
+  <style>
+    :root { --bg:#fff; --fg:#000; --muted:#666; --line:#ddd; --accent:#000; --warn:#f5b544; }
+    * { box-sizing: border-box; }
+    body { margin:0; font:15px/1.55 -apple-system,BlinkMacSystemFont,system-ui,sans-serif; background:var(--bg); color:var(--fg); }
+    main { max-width: 52rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    h1 { font-size: 1.55rem; margin: 0 0 .35rem; letter-spacing: .01em; }
+    .meta { color: var(--muted); font-size: .92rem; margin-bottom: 1.75rem; }
+    h2 { font-size: 1.1rem; margin: 2rem 0 .6rem; color: #000; border-bottom: 1px solid var(--line); padding-bottom: .35rem; }
+    h3 { font-size: .98rem; margin: 1.25rem 0 .4rem; color: #000; }
+    p, li { color: #333; }
+    ul { padding-left: 1.2rem; }
+    li { margin: .35rem 0; }
+    table { width:100%; border-collapse: collapse; font-size: .9rem; margin: .75rem 0 1rem; }
+    th, td { border: 1px solid var(--line); padding: .55rem .65rem; text-align: left; vertical-align: top; }
+    th { background: #f5f5f5; color: #000; font-weight: 600; }
+    .ok { color: var(--accent); }
+    .open { color: var(--warn); }
+    code { font: .88em ui-monospace,SFMono-Regular,Menlo,monospace; background:#fff; padding:.1em .35em; border-radius:4px; color:#000; }
+    .box { border:1px solid var(--line); border-radius:10px; padding:1rem 1.1rem; background:#fff; margin:1rem 0; }
+    a { color: #000; }
+    footer { margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .88rem; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Build session report</h1>
+  <p class="meta">2026-07-06 · Redacted public copy · No credentials, contact data, or operator identifiers</p>
+
+  <div class="box">
+    <p><strong>Purpose.</strong> Record what the Claude coding agent shipped in this session, what Claude Opus independently confirmed when reading the live system, and what a parallel Grok Build agent added afterward. This page is safe to link externally.</p>
+  </div>
+
+  <h2>1. What Claude shipped</h2>
+  <table>
+    <thead><tr><th>Area</th><th>Change</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Protocol cron</td><td>Owner-authored tasks excluded from automated next-task selectors so cron cannot claim or close them.</td><td class="ok">Deployed</td></tr>
+      <tr><td>Tap &amp; Go drop</td><td>Act-scope drop opens with a public OIP article link first; credential is descriptive, not imperative. First step instructs models to read <code>WORK_FEED</code> then append with <code>WORK_APPEND</code>.</td><td class="ok">Deployed</td></tr>
+      <tr><td>Admin work surface</td><td>New <code>/admin/work</code> page renders live priority, open tasks, GitHub issues, lead pipeline counts, and the append-only model thread.</td><td class="ok">Deployed</td></tr>
+      <tr><td>Lead pipeline</td><td>Deep enrich crawler, AI discover, find-sites, re-enrich, multi-city sweep, four new OSM segments. Send path remains confirm-gated.</td><td class="ok">Proven live</td></tr>
+      <tr><td>Ledger integrity</td><td>Work-thread hash chain audited locally — valid end-to-end.</td><td class="ok">Verified</td></tr>
+      <tr><td>Read-path scale</td><td>Edge function cache on high-traffic public article routes (300s TTL, stale-while-revalidate).</td><td class="ok">Proven</td></tr>
+      <tr><td>Share tokens</td><td>Short 7-character alias codes registered in KV; truncated tokens no longer fail as corrupted.</td><td class="ok">Proven</td></tr>
+      <tr><td>Site recovery</td><td>Production 404 from a failed Functions bundle deploy; restored by redeploy with bundle upload confirmed.</td><td class="ok">Restored</td></tr>
+      <tr><td>Syntax repair</td><td><code>oip_articles.js</code> primer array had a stray brace causing Worker boot failure; structure repaired so import succeeds.</td><td class="ok">Fixed</td></tr>
+    </tbody>
+  </table>
+
+  <h2>2. What Opus confirmed</h2>
+  <p>Claude Opus read the <strong>live</strong> Tap &amp; Go bundle via the build’s ASK path (not a static mock). Verdict:</p>
+  <ul>
+    <li><strong>Old drop format</strong> — imperative paste instructions plus embedded credential read as prompt injection; well-aligned models refuse.</li>
+    <li><strong>New drop format</strong> — public documentation link first, neutral third-person credential description: <em>engage cautiously at read-only level</em>; page reads as unusually honest reference material, not a manipulation preamble.</li>
+    <li><strong>Reverted experiment</strong> — an explicit “this is NOT prompt injection” preamble was itself flagged as soft injection; removed permanently.</li>
+  </ul>
+  <p>Opus confirmation is architectural: <strong>link-first, descriptive credential, no imperative paste blob.</strong></p>
+
+  <h2>3. Grok Build additions (same day, after Claude)</h2>
+  <table>
+    <thead><tr><th>Area</th><th>Change</th></tr></thead>
+    <tbody>
+      <tr><td>Drop content</td><td>Expanded FAQ: GET <code>?invoke=WORK_FEED</code>, registry/map/ask URLs, dedup semantics, <code>WORK_FEED</code> vs <code>MODEL_CHAT_INTAKE</code>, ping proof step.</td></tr>
+      <tr><td>Idempotency</td><td><code>WORK_FEED</code> exempt from 90s duplicate collapse so models can poll the thread freely.</td></tr>
+      <tr><td>Owner widget</td><td>⌘K = silent copy read Tap &amp; Go; ⌘J = silent copy act Tap &amp; Go (clipboard only, panel stays closed on success).</td></tr>
+      <tr><td>iMessage build path</td><td>Friend Ara persona (no pet names); audio mode sends voice note then carbon-copy text below.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4. How to verify (no secrets required)</h2>
+  <ul>
+    <li>Public OIP root: <a href="https://miscsubjects.com/a/oip">https://miscsubjects.com/a/oip</a></li>
+    <li>Work feed surface (owner auth): <code>/admin/work</code></li>
+    <li>Any invocation receipt: <code>GET /api/dispatch?confirm=inv_…</code> (public, no token)</li>
+    <li>Short-token expand: mint returns <code>short_code</code>; <code>?share=&lt;code&gt;</code> rewrites before auth</li>
+    <li>Cache signal on cached reads: response header <code>x-ms-cache: hit</code> on repeat requests</li>
+  </ul>
+
+  <h2>5. Open (sanitized)</h2>
+  <ul>
+    <li class="open">Queue consumer for heavy async dispatch not wired — LLM calls still run in-request.</li>
+    <li class="open">Per-token rate limiting on dispatch not yet bound.</li>
+    <li class="open">Outbound email deliverability: domain/sender alignment and compliance headers still in progress.</li>
+    <li class="open">Stale admin browser sessions can show empty work panels until re-auth — API itself returns data under valid auth.</li>
+  </ul>
+
+  <h2>6. Design lesson (Opus-validated)</h2>
+  <div class="box">
+    <p>Delegated model access works when the drop looks like <strong>reference documentation with an optional scoped URL</strong>, not like <strong>operator orders with a smuggled secret</strong>. The protocol proof travels in the public article; the token is inspectable via <code>?explain=1&amp;share=…</code>; every action receipts to <code>inv_…</code> confirmable without credentials.</p>
+  </div>
+
+  <footer>
+    Generated from internal build state · Redacted for public linking ·
+    <a href="https://miscsubjects.com/a/oip">OIP documentation</a>
+  </footer>
+</main>
+</body>
+</html>

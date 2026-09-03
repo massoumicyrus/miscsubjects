@@ -1,0 +1,2 @@
+-- Reset contaminated st_wf scoreboard before the next clean run.
+UPDATE directory_tests SET last_actual=NULL, last_passed=NULL, last_run_id=NULL, last_cost=NULL WHERE kind='e2e' AND last_run_id='st_wf';

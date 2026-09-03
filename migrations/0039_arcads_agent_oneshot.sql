@@ -1,0 +1,2 @@
+-- 0039: ARCADS_AGENT emits tool+REPLY+DONE in one message (no second Grok turn).
+UPDATE directory SET content = content || ' Emit the tool tag, your [REPLY], and [DONE] together in ONE message so there is no second round-trip — e.g. [ARCADS_GENERATE]...[/ARCADS_GENERATE] [REPLY]Made a nano-banana version, ~24 credits — want the vial bigger?[/REPLY] [DONE]generated[/DONE].', updated_at=datetime('now') WHERE key='ARCADS_AGENT';

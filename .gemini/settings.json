@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "BeforeTool": [],
+    "AfterTool": [],
+    "BeforeAgent": [],
+    "AfterAgent": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$GEMINI_PROJECT_DIR/hooks/gemini-turn-log.js\""
+          }
+        ]
+      }
+    ],
+    "Notification": [],
+    "SessionStart": [],
+    "SessionEnd": [],
+    "PreCompress": [],
+    "BeforeModel": [],
+    "AfterModel": [],
+    "BeforeToolSelection": []
+  }
+}

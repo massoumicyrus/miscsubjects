@@ -1,0 +1,97 @@
+name: Vault Protection — Auto-revert unauthorized mutations
+
+# Fixed 2026-07-03 (owner order — "run failed" alert storm):
+#   1. The old path filters used [slug].js / [[path]].js literally — `[...]` is a character
+#      class in Actions glob syntax, so the filter was broken and matched routine sync pushes.
+#      Every 10-minute ledger-mirror commit triggered a false "violation" whose revert step
+#      exited 1 BY DESIGN → a failure alert on the owner's phone every cycle. Globs now use valid
+#      directory patterns; routine quadsync commits also carry [skip ci] and never start runs.
+#   2. A clean auto-revert now concludes SUCCESS (the protection WORKED) — the job fails only
+#      when it cannot revert. The revert commit carries #vault-approved [skip ci] so it can
+#      never retrigger this workflow into a revert war.
+
+# OWNER ORDER 2026-08-04: auto-revert OFF. The owner has repeatedly ordered that nothing
+# writes over build progress on its own authority — this workflow reverted commits it deemed
+# unauthorized and pushed those reverts to main. It now runs only when a human dispatches it.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  vault-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check for vault approval tag
+        id: check
+        run: |
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.sha }}"
+          if [ -z "$BEFORE" ] || echo "$BEFORE" | grep -q '^0\{40\}$'; then BEFORE="$AFTER^"; fi
+          OFFENDING=""
+          for SHA in $(git rev-list --reverse "$BEFORE..$AFTER"); do
+            PARENTS=$(git rev-list --parents -n 1 "$SHA" | awk '{print NF-1}')
+            if [ "$PARENTS" -gt 1 ]; then
+              TOUCHED=$(git diff-tree --cc --no-commit-id --name-only -r "$SHA")
+            else
+              TOUCHED=$(git diff-tree --no-commit-id --name-only -r "$SHA")
+            fi
+            PROTECTED=$(printf '%s\n' "$TOUCHED" | grep -E '^(functions/a/|functions/_lib/widgets\.js$|functions/_lib/widgets/|functions/_lib/fn_runners\.js$|functions/_lib/agent_turn_log\.js$|functions/_lib/ledger_event_view\.js$|functions/api/protocol/|functions/api/opos\.js$|functions/api/agent_log\.js$|functions/admin/_layout\.js$|functions/admin/directory/index\.js$|functions/admin/content-map\.js$|functions/admin/ledger/index\.js$|functions/opos/index\.js$|functions/build-audit/index\.js$|hooks/codex-turn-log\.js$|hooks/_lib/agent-turn-common\.js$|\.codex/hooks\.json$|scripts/ship\.mjs$|scripts/quadsync\.sh$|scripts/check-(backend-navigation|directory-audit-drop|ledger-continuity|protected-features)\.mjs$|PROTECTED_(FEATURES|WIDGETS)\.md$|\.protected/guard-baseline/|\.githooks/|\.github/workflows/vault-protection\.yml$)' || true)
+            [ -n "$PROTECTED" ] || continue
+            COMMIT_MSG=$(git log -1 --pretty=%B "$SHA")
+            if printf '%s\n' "$COMMIT_MSG" | grep -qiE '#vault-approved|#widgets-approved'; then
+              echo "Approved protected mutation: $SHA"
+            elif git log "$BEFORE..$AFTER" --format=%B | grep -qiE "(#vault-approved|#widgets-approved).*${SHA:0:12}|${SHA:0:12}.*(#vault-approved|#widgets-approved)"; then
+              echo "Approved by exact follow-up reference: $SHA"
+            else
+              echo "VAULT VIOLATION: $SHA changed protected paths without an approval marker"
+              printf '%s\n' "$PROTECTED"
+              OFFENDING="$OFFENDING $SHA"
+            fi
+          done
+          OFFENDING=$(echo "$OFFENDING" | xargs)
+          if [ -z "$OFFENDING" ]; then
+            echo "approved=true" >> "$GITHUB_OUTPUT"
+            echo "offending_count=0" >> "$GITHUB_OUTPUT"
+          else
+            COUNT=$(echo "$OFFENDING" | wc -w | xargs)
+            echo "approved=false" >> "$GITHUB_OUTPUT"
+            echo "offending_count=$COUNT" >> "$GITHUB_OUTPUT"
+            echo "offending_sha=$(echo "$OFFENDING" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run protected feature contracts
+        if: steps.check.outputs.approved == 'true'
+        run: node scripts/check-protected-features.mjs
+
+      - name: Revert unauthorized changes
+        if: steps.check.outputs.approved == 'false'
+        run: |
+          OFFENDING_SHA="${{ steps.check.outputs.offending_sha }}"
+          OFFENDING_COUNT="${{ steps.check.outputs.offending_count }}"
+          PARENTS=$(git rev-list --parents -n 1 "$OFFENDING_SHA" | awk '{print NF-1}')
+          if [ "$OFFENDING_COUNT" != "1" ] || [ "$OFFENDING_SHA" != "${{ github.sha }}" ] || [ "$PARENTS" != "1" ]; then
+            echo "::error::Protected mutation was not auto-reverted: safe auto-revert handles one unauthorized non-merge HEAD only. Offending: $OFFENDING_SHA"
+            exit 1
+          fi
+          git config user.name "Vault Bot"
+          git config user.email "vault@miscsubjects.com"
+          git revert --no-edit "$OFFENDING_SHA"
+          git commit --amend -m "vault-bot: auto-revert unauthorized mutation of protected paths #vault-approved [skip ci]" \
+            -m "Reverted: ${{ github.sha }} by ${{ github.actor }}. Include #vault-approved to change protected files."
+          PUSHED=0
+          for try in 1 2 3; do
+            if git pull --rebase origin ${GITHUB_REF#refs/heads/} && git push origin HEAD:${{ github.ref }}; then PUSHED=1; break; fi
+            sleep 5
+          done
+          [ "$PUSHED" = "1" ] || { echo "::error::Vault revert could not be pushed"; exit 1; }
+          echo "::warning::VAULT: unauthorized mutation by ${{ github.actor }} (${{ github.sha }}) was auto-reverted. Protection worked — this run is green."
+
+      - name: Log vault event to the ledger
+        if: steps.check.outputs.approved == 'false'
+        run: |
+          curl -s -X POST "https://miscsubjects.com/api/event_log_ingest" \
+            -H "x-terminal-key: ${{ secrets.TERMINAL_KEY }}" -H "content-type: application/json" \
+            -d "{\"kind\":\"vault_auto_revert\",\"actor\":\"${{ github.actor }}\",\"sha\":\"${{ github.sha }}\"}" || true

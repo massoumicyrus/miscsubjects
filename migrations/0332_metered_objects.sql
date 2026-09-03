@@ -1,0 +1,27 @@
+-- 0332: the minimum proof from /a/buy-outcomes-not-subscriptions §minimum-proof.
+-- Four columns, one table, one route. APPLIED DIRECTLY to the live databases on
+-- 2026-07-28 (D1_EXEC / LEDGER_EXEC) before this file ran, so the DDL here is recorded
+-- as documentation, not re-executed: SQLite has no ADD COLUMN IF NOT EXISTS and the
+-- migration runner replays against the same single production database.
+--
+-- Main DB (applied):
+--   ALTER TABLE directory ADD COLUMN price_usd REAL;
+--   ALTER TABLE directory ADD COLUMN meter_unit TEXT;
+--   ALTER TABLE leads ADD COLUMN tenant_id TEXT;
+-- LEDGER DB, loop-shared-events (applied):
+--   ALTER TABLE tenants ADD COLUMN balance_usd REAL DEFAULT 0;
+--   CREATE TABLE charges (
+--     id            TEXT PRIMARY KEY,
+--     ts            TEXT NOT NULL,
+--     tenant_id     TEXT NOT NULL,
+--     invocation_id TEXT,
+--     trace_id      TEXT,
+--     capability    TEXT,
+--     units         INTEGER DEFAULT 0,
+--     meter_unit    TEXT,
+--     cost_usd      REAL DEFAULT 0,   -- recorded provider cost of the invocation
+--     price_usd     REAL DEFAULT 0,   -- amount charged: units × directory.price_usd
+--     object_refs   TEXT,             -- JSON array of object ids the charge bought, e.g. ["lead:9101"]
+--     outcome       TEXT              -- reply/conversion/performance once something records it
+--   );
+SELECT 1;
