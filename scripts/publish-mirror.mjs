@@ -457,6 +457,9 @@ if (flag('--announce')) {
   if (!key) die(2, '--announce needs TERMINAL_KEY in the environment');
   if (!CFG.announce?.api) die(2, 'config has no announce.api');
   manifest.mirror = pushed && pushed.changed ? { commit: pushed.commit } : (pushed ? { note: pushed.note } : null);
+  // A flat key as well: the site's JSON door re-serialises this document on the way out, so a reader
+  // (or an acceptance test) must not depend on nesting or whitespace to find the mirror commit.
+  manifest.mirror_commit = pushed && pushed.changed ? pushed.commit : null;
   const body = JSON.stringify(manifest, null, 1) + '\n';
   const put = async (name) => {
     const r = await fetch(CFG.announce.api + CFG.announce.r2_key_prefix + name, {
