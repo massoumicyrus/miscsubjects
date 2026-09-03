@@ -2,9 +2,9 @@
  "_what": "This repository is a generated projection of a private operating repository. Every file here was produced by scripts/publish-mirror.mjs from the source commit below, with identity substituted and gates run against the output. See docs/PUBLISHING.md.",
  "source": {
   "repository": "the private operating repository",
-  "commit": "ea4a687096a3bb9d9b8a5db4e42cad995463ea0c"
+  "commit": "e81d1e2bb6aa18366301fdd612629b684b9037e2"
  },
- "generated_at": "2026-09-03T01:20:37.006Z",
+ "generated_at": "2026-09-03T01:24:48.938Z",
  "files": 1635,
  "bytes": 16640609,
  "tracked_in_source": 5756,
@@ -2094,10 +2094,10 @@
   },
   {
    "name": "vault_values",
-   "examined": 1631,
+   "examined": 0,
    "hits": 0,
    "ok": true,
-   "note": "62 vault values searched for (4 public resource names exempt)"
+   "skipped": "no vault on this machine (CI); the pattern gates and gitleaks still ran"
   },
   {
    "name": "size",
