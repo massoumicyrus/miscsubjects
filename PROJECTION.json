@@ -4,7 +4,7 @@
   "repository": "the private operating repository",
   "commit": "b3ab02e4cbc78c6eb351f6be3c23ee373bd1107a"
  },
- "generated_at": "2026-09-03T04:38:00.676Z",
+ "generated_at": "2026-09-03T04:38:43.720Z",
  "files": 1176,
  "bytes": 9548638,
  "tracked_in_source": 5779,
@@ -4107,10 +4107,10 @@
   },
   {
    "name": "vault_values",
-   "examined": 1173,
+   "examined": 0,
    "hits": 0,
    "ok": true,
-   "note": "62 vault values searched for (4 public resource names exempt)"
+   "skipped": "no vault on this machine (CI); the pattern gates and gitleaks still ran"
   },
   {
    "name": "size",
