@@ -109,8 +109,15 @@ for (const p of tracked) {
 
 // ───────────────────────────── 2 + 3. substitution ─────────────────────────────
 const binaryExt = new Set(CFG.binary_extensions || []);
+// Source and document extensions are ALWAYS text, whatever bytes they contain. A module in this tree
+// carries a literal NUL byte inside a string, git calls it binary, and the first export copied it
+// through unsubstituted and unscanned — the one identity hit a fresh clone then showed. A NUL sniff
+// decides only for extensions this list does not know.
+const textExt = new Set(CFG.text_extensions || ['.js', '.mjs', '.cjs', '.ts', '.json', '.jsonc', '.md', '.txt', '.sql', '.sh', '.yml', '.yaml', '.toml', '.html', '.css', '.svg', '.xml', '.plist', '.gs', '.py', '.csv', '.env.example', '.gitignore']);
 function isBinary(path, buf) {
-  if (binaryExt.has(extname(path).toLowerCase())) return true;
+  const ext = extname(path).toLowerCase();
+  if (binaryExt.has(ext)) return true;
+  if (textExt.has(ext) || textExt.has(path.split('/').pop())) return false;
   const n = Math.min(buf.length, 8000);
   for (let i = 0; i < n; i += 1) if (buf[i] === 0) return true;
   return false;
@@ -243,14 +250,17 @@ function contextOf(text, idx, len) {
   const hits = [];
   let examined = 0;
   for (const f of files) {
-    if (f.binary) continue;
     examined += 1;
-    const text = readFileSync(join(OUT, f.dst), 'utf8');
+    // Binary files are scanned too, as raw bytes: an ASCII identity string inside a font, an image
+    // comment or a file wrongly classed as binary is still an identity string. Only text files were
+    // substituted, so a hit here on a binary file names a file that must be excluded.
+    const buf = readFileSync(join(OUT, f.dst));
+    const text = f.binary ? buf.toString('latin1') : buf.toString('utf8');
     for (const rule of rules) {
       rule.re.lastIndex = 0;
       let m;
       while ((m = rule.re.exec(text))) {
-        hits.push(`${f.dst}:${lineOf(text, m.index)} ${rule.what} :: ${contextOf(text, m.index, m[0].length)}`);
+        hits.push(`${f.dst}:${lineOf(text, m.index)} ${rule.what}${f.binary ? ' (binary file: exclude it)' : ''} :: ${contextOf(text, m.index, m[0].length)}`);
         if (m.index === rule.re.lastIndex) rule.re.lastIndex += 1;
       }
     }

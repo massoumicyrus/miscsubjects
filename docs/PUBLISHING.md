@@ -88,7 +88,7 @@ table is itself substituted in the projection; that is expected and recorded.
 
 | Gate | Examines | Fails when |
 |---|---|---|
-| `forbidden_strings` | every text file | any identity string, personal email domain, real home directory, account id, phone, or any of fourteen credential shapes (OpenAI, Anthropic, xAI, GitHub, Stripe, AWS, Google, Slack, GitLab, webhook secrets, JWTs, private key blocks) remains |
+| `forbidden_strings` | every file; text after substitution, binary files as raw bytes | any identity string, personal email domain, real home directory, account id, phone, or any of fourteen credential shapes (OpenAI, Anthropic, xAI, GitHub, Stripe, AWS, Google, Slack, GitLab, webhook secrets, JWTs, private key blocks) remains |
 | `paths` | every path | a path carries identity |
 | `vault_values` | every text file, local runs only | the exact value of any credential or identifier in the operator's vault appears. A secret here is a defect in the source and is never laundered; the export refuses and names the file and the vault key, not the value |
 | `size` | every file | any file over 2 MB or total over 120 MB |

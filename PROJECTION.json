@@ -4,9 +4,9 @@
   "repository": "the private operating repository",
   "commit": "e81d1e2bb6aa18366301fdd612629b684b9037e2"
  },
- "generated_at": "2026-09-03T01:24:48.938Z",
+ "generated_at": "2026-09-03T01:26:17.612Z",
  "files": 1635,
- "bytes": 16640609,
+ "bytes": 16641784,
  "tracked_in_source": 5756,
  "dropped": {
   "not in allow-list": 4102,
@@ -17,7 +17,7 @@
   "URW DIN is a commercially licensed font; the site serves it but the repository cannot redistribute it": 1,
   "this file lists the identity strings it removes": 1
  },
- "substituted_files": 319,
+ "substituted_files": 320,
  "substitutions": [
   {
    "path": ".agents/skills/loop-law/SKILL.md",
@@ -537,6 +537,13 @@
     "email": 2,
     "owner_identity": 1,
     "phone": 1
+   }
+  },
+  {
+   "path": "functions/_lib/owner_privacy.js",
+   "substitutions": {
+    "literal": 1,
+    "owner_identity": 1
    }
   },
   {
@@ -2082,7 +2089,7 @@
  "gates": [
   {
    "name": "forbidden_strings",
-   "examined": 1631,
+   "examined": 1634,
    "hits": 0,
    "ok": true
   },
@@ -2094,10 +2101,10 @@
   },
   {
    "name": "vault_values",
-   "examined": 0,
+   "examined": 1632,
    "hits": 0,
    "ok": true,
-   "skipped": "no vault on this machine (CI); the pattern gates and gitleaks still ran"
+   "note": "62 vault values searched for (4 public resource names exempt)"
   },
   {
    "name": "size",
@@ -2114,5 +2121,5 @@
   }
  ],
  "all_gates_ok": true,
- "content_hash": "30651abe7b27db78d498924a969f37ce8ca90d326d65e7d6426e7d033b01d8e6"
+ "content_hash": "08ddb63419db2aef810eaa9a6ca347cca56266826e800550c0e5d7731e871e47"
 }
