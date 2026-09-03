@@ -1,8 +1,3 @@
----
-name: shared-failure-to-skill
-description: Use when the owner reports a recurring failure, repeated fix, or systemic issue. Convert the failure into a skill and a mechanical gate so it stops repeating.
----
-
 # Failure → Skill — stop the same problem from recurring
 
 ## When to Use

@@ -21,7 +21,6 @@ The agent has global access to the build and its history. Never tell the owner y
 
 - **Never claim lack of access.** If the data exists anywhere the build can reach, you can reach it.
 - **Query before assuming.** If the owner says "this has happened before", read the ledger. If you need history, grep session logs. If you need state, query D1/KV.
-- **Current sessions come from the live turn ledger first.** When the owner asks you to read a session they are having now, identify the active session in `agent_turns` by recency, agent, and session ID, then read every row for that session in timestamp order. Local `.claude`, `.codex`, or attachment transcripts are secondary evidence and must not replace the ledger unless the ledger has no matching turns.
 - **Use the MCP as the primary interface** to the build's live systems (ledger, D1, KV, governor). It is faster and more authoritative than shell guesses.
 - **Do not ask the owner for context you can fetch yourself.** Asking for information you have access to is a new problem.
 - **Cross-check claims with evidence.** A previous agent said something happened? Verify it in the ledger or git log before repeating it.

@@ -1136,7 +1136,7 @@ function hitCell(e){
   var v=Math.floor(y/ROW_H), vi=colAtX(x);
   return {v:v, vi:vi, inRows:v>=0&&v<T.view.length};
 }
-// Google-Sheets focus rule (owner ask 2026-08-30, point 1): clicking the grid returns
+// Google-Sheets focus rule: clicking the grid returns
 // typing to the grid. Without this, a click after using the name box / formula bar / a
 // shell field leaves that field focused (the grid's mousedown preventDefault blocks the
 // browser's own focus move), so keys land in the old field instead of opening the editor.
@@ -2236,7 +2236,7 @@ var ed=$('gs-editor');
 ed.addEventListener('blur',function(){ setTimeout(function(){ if(document.activeElement!==ed) closeEditor(true); },0); });
 wireGrid();
 // The workbook fills the viewport under whatever the shell header actually measures —
-// the fixed calc() left the tab strip below the fold on tall headers (owner report 2026-08-29).
+// the fixed calc() left the tab strip below the fold on tall headers.
 function fitHeight(){
   var wb=document.getElementById('ms-sheets-workbook');
   var top=wb.getBoundingClientRect().top + (window.pageYOffset||document.documentElement.scrollTop||0);

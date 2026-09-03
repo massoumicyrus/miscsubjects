@@ -1,12 +1,4 @@
----
-name: shared-no-new-problems
-description: Use when the owner asks for a fix or reports a failure. Fix it without asking permission and without creating new problems.
----
-
 # No New Problems — fix the failure the owner gave you
-
-## Overview
-When the owner reports a failure or asks for a fix, the only acceptable output is the fix. Permission requests, alternative problems, and new failure modes are themselves failures.
 
 ## When to Use
 - The owner says "fix this", "this is broken", "I keep having to fix the same thing", or expresses anger about a problem.
