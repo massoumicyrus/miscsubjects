@@ -1427,7 +1427,7 @@ export function buildSelfModel({ forHandoff = false } = {}) {
       what: "A Cloudflare Pages app at miscsubjects.com. Code on GitHub; state in D1 + KV + R2; agents run on the Mac bridge, the edge, and sibling Workers.",
       repo: "https://github.com/[OWNER_HANDLE]/miscsubjects-pages (branch main)",
       read_a_file: "raw: https://raw.githubusercontent.com/[OWNER_HANDLE]/miscsubjects-pages/main/<path>  ·  or POST /api/dispatch {key:'LOCAL_READ', body:'<path>'} for the live file on the Mac",
-      deploy: "Cloudflare Pages project miscsubjects-miscsubjects; production https://miscsubjects.com",
+      deploy: "Cloudflare Pages project miscsubjects-pages; production https://miscsubjects.com",
       storage: {
         articles_and_directory: "D1 miscsubjects-content (binding DB) — articles, claims, sources, and the directory (capabilities + prompts)",
         ledger: "D1 miscsubjects-events (binding LEDGER) — events + invocations (every turn and every call)",

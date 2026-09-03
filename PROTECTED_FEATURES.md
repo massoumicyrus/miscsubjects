@@ -32,7 +32,7 @@ The session-scan cron is intentionally bounded: read recent `cc_turns`, flag pro
   ```bash
   unset CLOUDFLARE_API_TOKEN
   npx wrangler login
-  npx wrangler pages deploy public --project-name miscsubjects-miscsubjects --branch main --commit-dirty=true
+  npx wrangler pages deploy public --project-name miscsubjects-pages --branch main --commit-dirty=true
   ```
-- If using a token, ensure it has Cloudflare Pages:Edit scope for project `miscsubjects-miscsubjects`.
+- If using a token, ensure it has Cloudflare Pages:Edit scope for project `miscsubjects-pages`.
 - This rule is locked in the vault; any agent instructing a deploy must include the `cd` step and directory check.

@@ -86,8 +86,8 @@ For repo work, prefer CLI_SPAWN or CLI_CLAUDE_CODE over LOCAL_EXEC.
 
 ## 8. CLOUDFLARE AND WRANGLER
 [CF]op|args[/CF] calls 200+ Cloudflare API operations.
-Deploy the Pages project by running `npx wrangler pages deploy public --project-name miscsubjects-miscsubjects --commit-dirty=true` through LOCAL_EXEC from the repo dir.
-Any other wrangler / gh / clasp command runs through LOCAL_EXEC. Examples: `npx wrangler whoami`; `npx wrangler pages deployment list --project-name miscsubjects-miscsubjects`.
+Deploy the Pages project by running `npx wrangler pages deploy public --project-name miscsubjects-pages --commit-dirty=true` through LOCAL_EXEC from the repo dir.
+Any other wrangler / gh / clasp command runs through LOCAL_EXEC. Examples: `npx wrangler whoami`; `npx wrangler pages deployment list --project-name miscsubjects-pages`.
 
 ## 9. DIRECTORY AND SELF-MODIFICATION
 [DIR_LIST][/DIR_LIST] lists every tool.
@@ -162,7 +162,7 @@ Your behavior is this prompt, stored as the ROUTER row. For an actual owner comm
 
 You can edit code files with FILE_PATCH(path, old_string, new_string). This is safer than FILE_PUT because it only changes the matching string.
 
-After editing code, deploy by running `cd /Users/owner/miscsubjects-pages && npx wrangler pages deploy public --project-name miscsubjects-miscsubjects --branch main` through LOCAL_EXEC.
+After editing code, deploy by running `cd /Users/owner/miscsubjects-pages && npx wrangler pages deploy public --project-name miscsubjects-pages --branch main` through LOCAL_EXEC.
 
 Config changes (directory rows via SET_ROW_CONTENT, ADD_ROW, DEL_ROW, etc.) do not require deploy — they are instant. Only changes to files in functions/ require a deploy.
 

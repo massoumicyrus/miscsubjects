@@ -21,7 +21,7 @@ sed -i '' "s|replace-with-32-byte-hex-from-openssl-rand|$(openssl rand -hex 32)|
 # 4. Mirror the same secret into miscsubjects as a Pages secret.
 TERMINAL_KEY=$(grep '^TERMINAL_KEY=' ~/.config/grok-bridge.env | cut -d= -f2-)
 cd ~/miscsubjects-pages
-echo "$TERMINAL_KEY" | npx wrangler pages secret put TERMINAL_KEY --project-name miscsubjects-miscsubjects
+echo "$TERMINAL_KEY" | npx wrangler pages secret put TERMINAL_KEY --project-name miscsubjects-pages
 cd bridge
 
 # 5. Stop the old bare-node bridge if it is running.

@@ -9,7 +9,7 @@ import { PROTOCOL_LAWS } from '../functions/_lib/protocol_laws.js';
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const MIGRATIONS = join(ROOT, 'migrations');
 const KV_NAMESPACE_ID = '58b303e666a8431685624e0cfd2fd63f';
-const DEPLOY_LOCK_KEY = 'locks:deploy:miscsubjects-miscsubjects';
+const DEPLOY_LOCK_KEY = 'locks:deploy:miscsubjects-pages';
 const LOCK_TTL_SECONDS = 1800;
 const env = { ...process.env };
 delete env.CLOUDFLARE_API_TOKEN;
@@ -368,13 +368,13 @@ async function smokeCheck(baseUrl, label, paths) {
 function deployPagesCapture(branch) {
   const r = runCapture('wrangler', [
     'pages', 'deploy', 'public',
-    '--project-name', 'miscsubjects-miscsubjects',
+    '--project-name', 'miscsubjects-pages',
     '--branch', branch,
   ]);
   console.log(r.stdout);
   if (r.stderr) console.error(r.stderr);
   if (!r.ok) throw new Error('preview deploy failed: ' + (r.stderr || r.stdout));
-  const m = (r.stdout + '\n' + r.stderr).match(/https:\/\/[a-z0-9-]+\.miscsubjects-miscsubjects\.pages\.dev/i);
+  const m = (r.stdout + '\n' + r.stderr).match(/https:\/\/[a-z0-9-]+\.miscsubjects-pages\.pages\.dev/i);
   if (!m) throw new Error('could not parse preview deployment URL from wrangler output');
   return m[0];
 }
@@ -425,7 +425,7 @@ try {
   if (skipGate) {
     run('wrangler', [
       'pages', 'deploy', 'public',
-      '--project-name', 'miscsubjects-miscsubjects',
+      '--project-name', 'miscsubjects-pages',
       '--branch', 'main',
     ]);
   } else {
@@ -450,7 +450,7 @@ try {
     // 3) Preview is healthy → promote the identical bundle to production.
     run('wrangler', [
       'pages', 'deploy', 'public',
-      '--project-name', 'miscsubjects-miscsubjects',
+      '--project-name', 'miscsubjects-pages',
       '--branch', 'main',
     ]);
     // 4) Now smoke-test PRODUCTION (real bindings) across the full critical set — the tripwire

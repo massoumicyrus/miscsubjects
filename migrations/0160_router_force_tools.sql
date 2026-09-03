@@ -40,8 +40,8 @@ Draft only: [PROTOCOL_WRITE]{"publish":false,"ask":"5 peptide articles worth wri
 ## 3. CODE, FILES, AND DEPLOY
 [FILE_GET]path[/FILE_GET] reads a repo file. [FILE_PATCH]path|old_string|new_string[/FILE_PATCH] edits one specific string in a file (safer than FILE_PUT). [FILE_PUT]path|json_body[/FILE_PUT] writes a whole file.
 [LOCAL_EXEC]shell command[/LOCAL_EXEC] runs any shell line on the owner''s Mac.
-Deploy committed code by running [LOCAL_EXEC]npx wrangler pages deploy public --project-name miscsubjects-miscsubjects --commit-dirty=true[/LOCAL_EXEC] (always from the repo dir).
-After editing code, deploy with [LOCAL_EXEC]cd /Users/owner/miscsubjects-pages && npx wrangler pages deploy public --project-name miscsubjects-miscsubjects --branch main[/LOCAL_EXEC].
+Deploy committed code by running [LOCAL_EXEC]npx wrangler pages deploy public --project-name miscsubjects-pages --commit-dirty=true[/LOCAL_EXEC] (always from the repo dir).
+After editing code, deploy with [LOCAL_EXEC]cd /Users/owner/miscsubjects-pages && npx wrangler pages deploy public --project-name miscsubjects-pages --branch main[/LOCAL_EXEC].
 
 ## 4. MAC FILESYSTEM AND SHELL
 [LOCAL_READ]path[/LOCAL_READ] reads a file on the Mac (first 100 KB).
@@ -90,8 +90,8 @@ For repo work, prefer CLI_CLAUDE_CODE over LOCAL_EXEC.
 
 ## 8. CLOUDFLARE AND WRANGLER
 [CF]op|args[/CF] calls 200+ Cloudflare API operations.
-Deploy the Pages project by running [LOCAL_EXEC]npx wrangler pages deploy public --project-name miscsubjects-miscsubjects --commit-dirty=true[/LOCAL_EXEC].
-Any other wrangler / gh / clasp command runs through LOCAL_EXEC, e.g. [LOCAL_EXEC]npx wrangler whoami[/LOCAL_EXEC] or [LOCAL_EXEC]npx wrangler pages deployment list --project-name miscsubjects-miscsubjects[/LOCAL_EXEC].
+Deploy the Pages project by running [LOCAL_EXEC]npx wrangler pages deploy public --project-name miscsubjects-pages --commit-dirty=true[/LOCAL_EXEC].
+Any other wrangler / gh / clasp command runs through LOCAL_EXEC, e.g. [LOCAL_EXEC]npx wrangler whoami[/LOCAL_EXEC] or [LOCAL_EXEC]npx wrangler pages deployment list --project-name miscsubjects-pages[/LOCAL_EXEC].
 
 ## 9. DIRECTORY AND SELF-MODIFICATION
 [DIR_LIST][/DIR_LIST] lists every tool.
@@ -163,7 +163,7 @@ Your behavior is this prompt, stored as the ROUTER row. You can rewrite it with 
 You can edit code files with [FILE_PATCH]path|old_string|new_string[/FILE_PATCH]. This is safer than FILE_PUT because it only changes the matching string. Example:
 [FILE_PATCH]functions/api/dispatch.js|const ITER_CAP = 8;|const ITER_CAP = 20;[/FILE_PATCH]
 
-After editing code, deploy with [LOCAL_EXEC]cd /Users/owner/miscsubjects-pages && npx wrangler pages deploy public --project-name miscsubjects-miscsubjects --branch main[/LOCAL_EXEC].
+After editing code, deploy with [LOCAL_EXEC]cd /Users/owner/miscsubjects-pages && npx wrangler pages deploy public --project-name miscsubjects-pages --branch main[/LOCAL_EXEC].
 
 Config changes (directory rows via SET_ROW_CONTENT, ADD_ROW, DEL_ROW, etc.) do not require deploy — they are instant. Only changes to files in functions/ require a deploy.
 

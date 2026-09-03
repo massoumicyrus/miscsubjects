@@ -7,7 +7,7 @@ UPDATE directory SET
 # WHEN_TO_USE: "deploy the build" or "push the build to production"
 # ARGS: $1 = flags/args after wrangler deploy (e.g. --help, --dry-run)
 # EX: [WRANGLER_DEPLOY]--help[/WRANGLER_DEPLOY]
-{"cmd":"sh","args":["-lc","cd /Users/owner/miscsubjects-pages && npx wrangler pages deploy public --project-name miscsubjects-miscsubjects --commit-dirty=true $1+"],"timeout":600000}'
+{"cmd":"sh","args":["-lc","cd /Users/owner/miscsubjects-pages && npx wrangler pages deploy public --project-name miscsubjects-pages --commit-dirty=true $1+"],"timeout":600000}'
 WHERE key = 'WRANGLER_DEPLOY';
 
 -- 2. Fix WRANGLER_D1_EXPORT: same swap issue
@@ -27,7 +27,7 @@ UPDATE directory SET
 # WHEN_TO_USE: "tail the build" or "what is the build logging right now"
 # ARGS: $1 = flags/args after wrangler pages deployment tail (e.g. --format=json)
 # EX: [WRANGLER_TAIL]--help[/WRANGLER_TAIL]
-{"cmd":"sh","args":["-lc","cd /Users/owner/miscsubjects-pages && timeout 30 npx wrangler pages deployment tail --project-name miscsubjects-miscsubjects --format=pretty $1+ 2>&1 | head -200"],"timeout":40000}'
+{"cmd":"sh","args":["-lc","cd /Users/owner/miscsubjects-pages && timeout 30 npx wrangler pages deployment tail --project-name miscsubjects-pages --format=pretty $1+ 2>&1 | head -200"],"timeout":40000}'
 WHERE key = 'WRANGLER_TAIL';
 
 -- 4. Fix FILE_PUT: body was raw $2+ (not JSON), causing no Content-Type header. Make it a proper JSON template.

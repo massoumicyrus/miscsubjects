@@ -795,7 +795,7 @@ export function makeFnMap(D) {
   },
   async deployLease(env, op, holder, nonceArg) {
     if (!env.KV) return 'ERR:deploy_lease:no_kv';
-    const key = 'locks:deploy:miscsubjects-miscsubjects';
+    const key = 'locks:deploy:miscsubjects-pages';
     const action = String(op || 'check').toLowerCase();
     const holderName = String(holder || env.TRACE_CTX?.actor || 'unknown').slice(0, 160);
     const currentRaw = await env.KV.get(key);

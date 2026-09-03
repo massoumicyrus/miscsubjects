@@ -6,7 +6,7 @@ the `workers/*/wrangler.toml` files, and live counts are at `/api/work` and `/ap
 
 ## 1. Shape
 
-One Cloudflare Pages project (`miscsubjects-miscsubjects`, serving `miscsubjects.com`) holds the
+One Cloudflare Pages project (`miscsubjects-pages`, serving `miscsubjects.com`) holds the
 whole HTTP surface as Pages Functions under `functions/`. Seven Workers sit beside it: one holds
 what Pages Functions cannot host (cron triggers, Durable Objects, queue consumers, Workflows,
 browser rendering, inbound e-mail), and six are single-purpose services (directory snapshot, sheets,

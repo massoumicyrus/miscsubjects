@@ -67,7 +67,7 @@ const BODY = `<div class="manual-page">
 </div>
 
 <h2 id="overview">1. What this project is</h2>
-<p>This is a Cloudflare Pages project named <code>miscsubjects-miscsubjects</code>. It is bound to the domain <a href="https://miscsubjects.com">https://miscsubjects.com</a>. Its source is at <code>/Users/owner/miscsubjects-pages</code>.</p>
+<p>This is a Cloudflare Pages project named <code>miscsubjects-pages</code>. It is bound to the domain <a href="https://miscsubjects.com">https://miscsubjects.com</a>. Its source is at <code>/Users/owner/miscsubjects-pages</code>.</p>
 <p>It does five things:</p>
 <ol>
   <li>Serves the marketing site at <a href="https://miscsubjects.com">https://miscsubjects.com</a>. The homepage is a static file. Other pages are stored in a database and edited from the browser.</li>
@@ -189,7 +189,7 @@ const BODY = `<div class="manual-page">
 
 <h3>2.3 Static files on disk — <code>public/</code></h3>
 <ul>
-  <li><code>/Users/owner/miscsubjects-pages/public/index.html</code> — the homepage with the cloaker script. Served at <a href="https://miscsubjects.com/">https://miscsubjects.com/</a>. To change, edit the file and run <code>npx wrangler pages deploy public --project-name miscsubjects-miscsubjects --commit-dirty=true</code>.</li>
+  <li><code>/Users/owner/miscsubjects-pages/public/index.html</code> — the homepage with the cloaker script. Served at <a href="https://miscsubjects.com/">https://miscsubjects.com/</a>. To change, edit the file and run <code>npx wrangler pages deploy public --project-name miscsubjects-pages --commit-dirty=true</code>.</li>
   <li><code>/Users/owner/miscsubjects-pages/public/_routes.json</code> — tells Cloudflare which paths to exclude from this project (because another Worker handles them).</li>
 </ul>
 
@@ -512,7 +512,7 @@ const BODY = `<div class="manual-page">
 <p>Note: static files in <code>public/</code> are served before the Worker function runs. The homepage <code>index.html</code> stays static; <code>m.html</code>, <code>privacy.html</code>, <code>success.html</code> have been deleted, which is why <code>functions/[slug].js</code> now answers those paths.</p>
 
 <h2 id="wrangler">14. Project config & bindings (wrangler.toml)</h2>
-<pre>name = "miscsubjects-miscsubjects"
+<pre>name = "miscsubjects-pages"
 pages_build_output_dir = "public"
 compatibility_date = "2024-09-01"
 
@@ -524,16 +524,16 @@ database_id = "298eb858-37fb-4c73-8be4-135e8feb73fe"
 [[kv_namespaces]]
 binding = "KV"
 id = "58b303e666a8431685624e0cfd2fd63f"</pre>
-<p>To add a new binding (e.g. R2 bucket), edit this file and run <code>npx wrangler pages deploy public --project-name miscsubjects-miscsubjects --commit-dirty=true</code>. Bindings cannot be added at runtime.</p>
+<p>To add a new binding (e.g. R2 bucket), edit this file and run <code>npx wrangler pages deploy public --project-name miscsubjects-pages --commit-dirty=true</code>. Bindings cannot be added at runtime.</p>
 
 <h2 id="secrets">15. Secrets</h2>
 <p>Stored encrypted in the Cloudflare Pages project, NOT in this repo. Available in code as <code>env.&lt;NAME&gt;</code>.</p>
 <table>
 <thead><tr><th>secret</th><th>used by</th><th>set with</th></tr></thead>
 <tbody>
-<tr><td><code>GROK_API_KEY</code></td><td>/blooio, /grok/audit (sent as <code>Authorization: Bearer $GROK_API_KEY</code> to xAI)</td><td><code>npx wrangler pages secret put GROK_API_KEY --project-name miscsubjects-miscsubjects</code></td></tr>
-<tr><td><code>BLOOIO_API_KEY</code></td><td>/blooio (outbound reply to Blooio backend)</td><td><code>npx wrangler pages secret put BLOOIO_API_KEY --project-name miscsubjects-miscsubjects</code></td></tr>
-<tr><td><code>META_CAPI_TOKEN</code></td><td>/capi (sent as <code>access_token</code> query param to Meta Graph)</td><td><code>npx wrangler pages secret put META_CAPI_TOKEN --project-name miscsubjects-miscsubjects</code></td></tr>
+<tr><td><code>GROK_API_KEY</code></td><td>/blooio, /grok/audit (sent as <code>Authorization: Bearer $GROK_API_KEY</code> to xAI)</td><td><code>npx wrangler pages secret put GROK_API_KEY --project-name miscsubjects-pages</code></td></tr>
+<tr><td><code>BLOOIO_API_KEY</code></td><td>/blooio (outbound reply to Blooio backend)</td><td><code>npx wrangler pages secret put BLOOIO_API_KEY --project-name miscsubjects-pages</code></td></tr>
+<tr><td><code>META_CAPI_TOKEN</code></td><td>/capi (sent as <code>access_token</code> query param to Meta Graph)</td><td><code>npx wrangler pages secret put META_CAPI_TOKEN --project-name miscsubjects-pages</code></td></tr>
 </tbody>
 </table>
 
@@ -541,7 +541,7 @@ id = "58b303e666a8431685624e0cfd2fd63f"</pre>
 
 <h3>16.1 Deploy</h3>
 <pre>cd /Users/owner/miscsubjects-pages
-npx wrangler pages deploy public --project-name miscsubjects-miscsubjects --commit-dirty=true</pre>
+npx wrangler pages deploy public --project-name miscsubjects-pages --commit-dirty=true</pre>
 <p>This uploads <code>public/</code> as static assets and the entire <code>functions/</code> tree as the Pages Functions bundle. The output line ending in <code>pages.dev</code> is the preview hash; the production hostname is <a href="https://miscsubjects.com">https://miscsubjects.com</a>.</p>
 
 <h3>16.2 Apply a database migration</h3>
@@ -570,9 +570,9 @@ npx wrangler kv key put --namespace-id 58b303e666a8431685624e0cfd2fd63f --remote
 npx wrangler kv key delete --namespace-id 58b303e666a8431685624e0cfd2fd63f --remote grok_temperature</pre>
 
 <h3>16.5 Manage secrets</h3>
-<pre>npx wrangler pages secret put GROK_API_KEY --project-name miscsubjects-miscsubjects
-npx wrangler pages secret list --project-name miscsubjects-miscsubjects
-npx wrangler pages secret delete GROK_API_KEY --project-name miscsubjects-miscsubjects</pre>
+<pre>npx wrangler pages secret put GROK_API_KEY --project-name miscsubjects-pages
+npx wrangler pages secret list --project-name miscsubjects-pages
+npx wrangler pages secret delete GROK_API_KEY --project-name miscsubjects-pages</pre>
 
 <h2 id="cannot">17. What you cannot do without redeploying</h2>
 <ul>
@@ -843,7 +843,7 @@ PATCH /api/settings/grok_model → dispatch('SETTINGS_PATCH', {key:'grok_model',
 <tr><td><code>DEPLOY_PAGE</code></td><td>http</td><td><code>POST https://api.cloudflare.com/client/v4/accounts/$ACCT/pages/projects/$1/deployments</code></td><td><code>bearer:CF_API_TOKEN</code></td></tr>
 </tbody>
 </table>
-<p>Effect: an agent emitting <code>[EDIT_WORKER]miscsubjects-miscsubjects|&lt;new TS source&gt;[/EDIT_WORKER]</code> replaces this Worker. Emitting <code>[PUT_R2]articles/post-001.md|&lt;markdown body&gt;[/PUT_R2]</code> writes a content file. Emitting <code>[DEPLOY_PAGE]miscsubjects-miscsubjects|{...}[/DEPLOY_PAGE]</code> ships a new build. Every part of the Cloudflare account is reachable from inside one tag.</p>
+<p>Effect: an agent emitting <code>[EDIT_WORKER]miscsubjects-pages|&lt;new TS source&gt;[/EDIT_WORKER]</code> replaces this Worker. Emitting <code>[PUT_R2]articles/post-001.md|&lt;markdown body&gt;[/PUT_R2]</code> writes a content file. Emitting <code>[DEPLOY_PAGE]miscsubjects-pages|{...}[/DEPLOY_PAGE]</code> ships a new build. Every part of the Cloudflare account is reachable from inside one tag.</p>
 
 <h3>20.9 Totals</h3>
 <p>~700 lines of per-feature JavaScript across seven function files collapse into:</p>
@@ -943,7 +943,7 @@ PATCH /api/settings/grok_model → dispatch('SETTINGS_PATCH', {key:'grok_model',
 <table>
 <thead><tr><th>Apps Script</th><th>Cloudflare equivalent</th><th>Where</th></tr></thead>
 <tbody>
-<tr><td><code>PropertiesService.getScriptProperties().getProperty('GROK_API_KEY')</code></td><td>Pages secret. <code>env.GROK_API_KEY</code> inside a Worker.</td><td>Set with <code>npx wrangler pages secret put GROK_API_KEY --project-name miscsubjects-miscsubjects</code></td></tr>
+<tr><td><code>PropertiesService.getScriptProperties().getProperty('GROK_API_KEY')</code></td><td>Pages secret. <code>env.GROK_API_KEY</code> inside a Worker.</td><td>Set with <code>npx wrangler pages secret put GROK_API_KEY --project-name miscsubjects-pages</code></td></tr>
 <tr><td>Hot-read configuration that changes more than secrets</td><td>D1 <code>settings</code> table + KV mirror for the four hot keys (see §2.2).</td><td><code>SETTINGS_GET</code>, <code>KV_GET</code></td></tr>
 </tbody>
 </table>
@@ -982,7 +982,7 @@ PATCH /api/settings/grok_model → dispatch('SETTINGS_PATCH', {key:'grok_model',
 <table>
 <thead><tr><th>Apps Script</th><th>Cloudflare equivalent</th><th>Row(s)</th></tr></thead>
 <tbody>
-<tr><td><code>Logger.log(s)</code> / <code>console.log(s)</code></td><td><code>console.log</code> inside a Worker is captured by <code>wrangler pages deployment tail --project-name miscsubjects-miscsubjects</code>.</td><td>—</td></tr>
+<tr><td><code>Logger.log(s)</code> / <code>console.log(s)</code></td><td><code>console.log</code> inside a Worker is captured by <code>wrangler pages deployment tail --project-name miscsubjects-pages</code>.</td><td>—</td></tr>
 <tr><td>Custom LOG sheet rows</td><td>D1 <code>log</code> table. Every dispatch writes one row automatically.</td><td><code>LOG_TAIL</code> reads recent.</td></tr>
 </tbody>
 </table>
@@ -1036,8 +1036,8 @@ PATCH /api/settings/grok_model → dispatch('SETTINGS_PATCH', {key:'grok_model',
 <h2 id="cf-rest">25. Cloudflare REST endpoints — row mappings</h2>
 <p>Each operation becomes one <code>http</code> row in <code>directory</code>. Base URL: <code>https://api.cloudflare.com/client/v4</code>.</p>
 <p>Prerequisite for every row below:</p>
-<pre>npx wrangler pages secret put CF_API_TOKEN --project-name miscsubjects-miscsubjects
-npx wrangler pages secret put CF_ACCOUNT_ID --project-name miscsubjects-miscsubjects</pre>
+<pre>npx wrangler pages secret put CF_API_TOKEN --project-name miscsubjects-pages
+npx wrangler pages secret put CF_ACCOUNT_ID --project-name miscsubjects-pages</pre>
 <p>Token scopes per Cloudflare dashboard: Workers Scripts (Edit), Workers KV (Edit), D1 (Edit), Pages (Edit), Workers R2 (Edit).</p>
 
 <h3>25.1 D1 — direct REST (alternative to the binding)</h3>
@@ -1088,7 +1088,7 @@ npx wrangler pages secret put CF_ACCOUNT_ID --project-name miscsubjects-miscsubj
 <tr><td>Get Worker tail (real-time log)</td><td><code>POST /accounts/$CF_ACCOUNT_ID/workers/scripts/$1/tails</code></td><td><code>TAIL_WORKER</code></td></tr>
 </tbody>
 </table>
-<p>This is the row that makes the kernel editable from inside itself. Emit <code>[EDIT_WORKER]miscsubjects-miscsubjects|&lt;new TS source&gt;[/EDIT_WORKER]</code> from any agent to replace this Worker.</p>
+<p>This is the row that makes the kernel editable from inside itself. Emit <code>[EDIT_WORKER]miscsubjects-pages|&lt;new TS source&gt;[/EDIT_WORKER]</code> from any agent to replace this Worker.</p>
 
 <h3>25.5 Pages projects</h3>
 <table>
@@ -1295,8 +1295,8 @@ echo "=== bad key ===";  curl -s -X POST https://miscsubjects.com/api/dispatch -
 <table>
 <thead><tr><th>row</th><th>type</th><th>prerequisite</th><th>enables</th></tr></thead>
 <tbody>
-<tr><td><code>CLAUDE_CHAT</code></td><td>agent</td><td><code>npx wrangler pages secret put ANTHROPIC_API_KEY --project-name miscsubjects-miscsubjects</code></td><td>Anthropic Claude callable; target <code>claude-haiku-4-5-20251001</code> or <code>claude-opus-4-7</code>.</td></tr>
-<tr><td><code>GEMINI_CHAT</code></td><td>agent</td><td><code>npx wrangler pages secret put GEMINI_API_KEY --project-name miscsubjects-miscsubjects</code></td><td>Gemini callable; target <code>gemini-2.5-pro</code> or <code>gemini-2.5-flash</code>.</td></tr>
+<tr><td><code>CLAUDE_CHAT</code></td><td>agent</td><td><code>npx wrangler pages secret put ANTHROPIC_API_KEY --project-name miscsubjects-pages</code></td><td>Anthropic Claude callable; target <code>claude-haiku-4-5-20251001</code> or <code>claude-opus-4-7</code>.</td></tr>
+<tr><td><code>GEMINI_CHAT</code></td><td>agent</td><td><code>npx wrangler pages secret put GEMINI_API_KEY --project-name miscsubjects-pages</code></td><td>Gemini callable; target <code>gemini-2.5-pro</code> or <code>gemini-2.5-flash</code>.</td></tr>
 <tr><td><code>CF_LLAMA</code> (or any <code>@cf/...</code>)</td><td>agent</td><td>None — AI binding live, verified.</td><td>Workers AI at edge, no API key.</td></tr>
 <tr><td><code>EDIT_WORKER</code>, <code>DEPLOY_PAGE</code>, REST KV/R2/D1 rows, <code>CRON_SET</code>, <code>DNS_*</code> (§25)</td><td>http</td><td><code>CF_API_TOKEN</code> + <code>CF_ACCOUNT_ID</code> secrets.</td><td>Cloudflare account control as rows. Agents can replace the Worker, deploy, write KV/R2, etc.</td></tr>
 <tr><td><code>R2_PUT</code> / <code>R2_GET</code> / <code>R2_DEL</code></td><td>fn</td><td><code>[[r2_buckets]] binding = "R2" bucket_name = "..."</code> in <code>wrangler.toml</code> + <code>r2*</code> entries in <code>FN_MAP</code>.</td><td>Object store for files / images / backups.</td></tr>

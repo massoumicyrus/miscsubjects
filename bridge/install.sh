@@ -6,7 +6,7 @@ REPO="${HOME}/miscsubjects-pages"
 BRIDGE="${REPO}/bridge"
 ENV_FILE="${HOME}/.config/grok-bridge.env"
 LAUNCHD="${HOME}/Library/LaunchAgents"
-PROJECT="miscsubjects-miscsubjects"
+PROJECT="miscsubjects-pages"
 
 cd "$BRIDGE"
 

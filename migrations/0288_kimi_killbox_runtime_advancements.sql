@@ -31,7 +31,7 @@ INSERT OR REPLACE INTO directory
   (key,type,target,auth,content,updated_at,category,allowed_categories,seq,enabled,planner_visible,planner_rank,input_schema,examples,sensitive,runner,includes)
 VALUES (
   'DEPLOY_LEASE','fn','deployLease','',
-  '# WHAT: Inspect, acquire or release the single production deployment door for miscsubjects-miscsubjects. The canonical ship script holds the same KV lease from before migrations through the Pages result and ledgers acquire/release.
+  '# WHAT: Inspect, acquire or release the single production deployment door for miscsubjects-pages. The canonical ship script holds the same KV lease from before migrations through the Pages result and ledgers acquire/release.
 # ARGS: op check|acquire|release | holder | nonce. Acquire returns a 30-minute nonce. Release requires the exact nonce. Check is read-only.
 # TESTS: A second live acquire is rejected; a wrong nonce cannot release; acquisition and release create DEPLOY_LEASE ledger events.
 ["$1","$2","$3"]',

@@ -148,7 +148,7 @@ wrangler d1 execute miscsubjects-content --file=migrations/0196_oip_directory_ro
 
 ```bash
 cd /Users/owner/miscsubjects-pages
-wrangler pages deploy public --project-name=miscsubjects-miscsubjects
+wrangler pages deploy public --project-name=miscsubjects-pages
 ```
 
 Commits: `18148f2` (OIP v0.1 core), `2a01792` (protocol logging + token yield).

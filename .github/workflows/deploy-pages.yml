@@ -14,4 +14,4 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "CLOUDFLARE_API_TOKEN ABSENT — lane disabled"; exit 78; fi
-          npx wrangler@3 pages deploy public --project-name miscsubjects-miscsubjects --branch main
+          npx wrangler@3 pages deploy public --project-name miscsubjects-pages --branch main

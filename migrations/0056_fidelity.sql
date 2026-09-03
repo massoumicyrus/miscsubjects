@@ -49,7 +49,7 @@ INSERT INTO directory_tests (key, kind, args, expect_kind, expect_value, note) V
   ('DIRECTORY_GET',          'positive', 'ROUTER',                                        'contains',   'R1: IDENTITY',                                 'new clause-style ROUTER'),
   ('CF_USER',                'positive', '',                                              'contains',   '"email"',                                      'requires CLOUDFLARE_API_TOKEN'),
   ('CF_ZONES_LIST',          'positive', '',                                              'contains',   '"id"',                                         ''),
-  ('CF_PAGES_LIST',          'positive', '<CLOUDFLARE_ACCOUNT_ID>',              'contains',   'miscsubjects-miscsubjects',                       ''),
+  ('CF_PAGES_LIST',          'positive', '<CLOUDFLARE_ACCOUNT_ID>',              'contains',   'miscsubjects-pages',                       ''),
   ('STRIPE_ACCOUNT',         'positive', '',                                              'contains',   'acct_',                                        ''),
   ('STRIPE_BALANCE',         'positive', '',                                              'contains',   'available',                                    ''),
   ('STRIPE_CUSTOMERS_LIST',  'positive', '1',                                             'contains',   'cus_',                                         ''),
