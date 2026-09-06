@@ -92,7 +92,9 @@ export async function onRequestGet(context) {
   // grant redeem: /go/_/enter?g=<token>
   if (parts[0] === '_' && parts[1] === 'enter') {
     const token = url.searchParams.get('g') || '';
-    const v = await verifyGrant(env.TRAFFIC_GRANT_SECRET || env.TERMINAL_KEY || '', token, { aud: url.hostname });
+    // The grant's audience is the DESTINATION host, not this redemption host — so verify the
+    // signature and expiry here, then let resolveDestination/the cookie gate the destination itself.
+    const v = await verifyGrant(env.TRAFFIC_GRANT_SECRET || env.TERMINAL_KEY || '', token, {});
     if (!v.ok) return new Response(`<!doctype html><meta charset=utf-8><title>Link not valid</title><h1>This link is not valid</h1><p>${v.error}</p>`, { status: 403, headers: HTML });
     const consumed = await consumeGrant(env, { tenant, payload: v.payload, consumer: request.headers.get('cf-connecting-ip') || 'redeem' });
     if (!consumed.ok) return new Response(`<!doctype html><meta charset=utf-8><title>Link already used</title><h1>This link was already used</h1>`, { status: 410, headers: HTML });

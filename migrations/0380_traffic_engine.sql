@@ -441,3 +441,7 @@ CREATE INDEX IF NOT EXISTS traffic_features_profile ON traffic_features(tenant_i
 -- stay distinct, so engine events are unaffected).
 CREATE UNIQUE INDEX IF NOT EXISTS traffic_identifiers_tenant_val ON traffic_identifiers(tenant_id, kind, value_hash);
 CREATE UNIQUE INDEX IF NOT EXISTS traffic_events_source_unique ON traffic_events(tenant_id, source, source_event_id);
+
+-- profileView reads traffic_identifiers.revoked_at (a revoked identifier is retained, not deleted);
+-- 0378 shipped the table without it. Duplicate-column on re-run is the migration having succeeded.
+ALTER TABLE traffic_identifiers ADD COLUMN revoked_at TEXT;
