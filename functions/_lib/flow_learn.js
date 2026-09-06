@@ -107,7 +107,38 @@ export function makeFlowLearnFnMap({ loadDirectory, logEvent, readEventFull, get
 
   async function stepsFromTrace(env, trace) {
     const r = await env.LEDGER.prepare('SELECT id, ts, object_id, actor, material, event_id, invocation_json FROM invocations WHERE trace_id = ? ORDER BY ts ASC LIMIT 60').bind(trace).all();
-    return hydrate(env, r.results || []);
+    const fromInvocations = await hydrate(env, r.results || []);
+    if (fromInvocations.length >= MIN_STEPS) return fromInvocations;
+    // A top-level dispatch is ONE invocation, but every step it took — each flow member, each tool an
+    // agent called — is a ledger row under the same trace (dispatch.js logStep). Those rows are where
+    // a procedure lives, so a trace that is one invocation with six steps compiles from the steps.
+    const ev = await env.LEDGER.prepare(
+      "SELECT id, ts, key, action, step, request_json, response_json FROM events WHERE trace_id = ? AND source = 'dispatch' ORDER BY ts ASC, step ASC LIMIT 200",
+    ).bind(trace).all();
+    return stepsFromEvents(ev.results || []);
+  }
+
+  // The ledger writes two rows per http step (the outbound request, then the row with the body the
+  // caller gave) and two per fn step; collapse consecutive rows of the same key into one step whose
+  // input is the caller's body, not the outbound URL. The outermost flow row, when the trace IS a
+  // flow, is dropped: it is already a capability.
+  function stepsFromEvents(rows) {
+    const list = [];
+    for (const r of rows) {
+      const key = String(r.key || '');
+      if (!key || META_KEYS.test(key)) continue;
+      const input = String(r.request_json == null ? '' : r.request_json);
+      const isOutbound = /^\s*\{\s*"url"/.test(input);
+      const last = list[list.length - 1];
+      if (last && last.key === key) {
+        if (!isOutbound) last.input = input;
+        if (r.response_json != null) last.output = String(r.response_json);
+        continue;
+      }
+      list.push({ inv: r.id, key, action: String(r.action || ''), input: isOutbound ? '' : input, output: String(r.response_json == null ? '' : r.response_json), ts: r.ts });
+    }
+    if (list.length && list[list.length - 1].action === 'flow') list.pop();
+    return list;
   }
   async function stepsFromIds(env, ids) {
     const rows = [];
@@ -217,28 +248,27 @@ export function makeFlowLearnFnMap({ loadDirectory, logEvent, readEventFull, get
       let rows;
       try {
         rows = (await env.LEDGER.prepare(
-          "SELECT trace_id, object_id, ts, material, invocation_json FROM invocations WHERE ts >= ? AND trace_id IS NOT NULL AND trace_id != '' AND object_id NOT LIKE 'TRAIL_%' AND object_id NOT LIKE 'FLOW_%' AND object_id NOT IN ('D1_QUERY','LEDGER_QUERY','WEBMODEL_STATUS','AUTOMATE_LIST','DIRECTORY_LIST','DIR_LIST') ORDER BY ts ASC LIMIT 20000",
+          "SELECT id, ts, key, action, step, trace_id, substr(request_json,1,200) AS request_json, substr(response_json,1,40) AS response_json FROM events WHERE ts >= ? AND source = 'dispatch' AND trace_id IS NOT NULL AND trace_id != '' AND action IN ('fn','http','flow','agent') ORDER BY ts ASC LIMIT 20000",
         ).bind(since).all()).results || [];
       } catch (e) { return err('CONTEXT_STORE_UNAVAILABLE', e.message); }
       const byTrace = new Map();
-      for (const r of rows) {
-        const t = byTrace.get(r.trace_id) || { keys: [], failed: false, ts: r.ts };
-        let out = ''; try { out = String(JSON.parse(r.invocation_json || '{}').output_preview || ''); } catch {}
-        if (out.startsWith('ERR')) t.failed = true;
-        if (t.keys[t.keys.length - 1] !== r.object_id) t.keys.push(r.object_id);
-        byTrace.set(r.trace_id, t);
-      }
+      for (const r of rows) { const a = byTrace.get(r.trace_id) || []; a.push(r); byTrace.set(r.trace_id, a); }
       const sigs = new Map();
-      for (const [trace, t] of byTrace) {
-        if (t.failed || t.keys.length < MIN_STEPS || t.keys.length > MAX_STEPS) continue;
-        const sig = t.keys.join(' → ');
-        const s = sigs.get(sig) || { signature: sig, steps: t.keys.length, count: 0, traces: [], last: t.ts };
-        s.count++; if (s.traces.length < 5) s.traces.push(trace); if (t.ts > s.last) s.last = t.ts;
-        sigs.set(sig, s);
+      let compiledAlready = 0;
+      for (const [trace, evs] of byTrace) {
+        const outer = evs[evs.length - 1];
+        if (outer && String(outer.action) === 'flow') { compiledAlready++; continue; }     // already a capability
+        const steps = stepsFromEvents(evs);
+        if (steps.length < MIN_STEPS || steps.length > MAX_STEPS) continue;
+        if (steps.some((st) => String(st.output || '').startsWith('ERR'))) continue;
+        const sig = steps.map((st) => st.key).join(' → ');
+        const rec = sigs.get(sig) || { signature: sig, steps: steps.length, count: 0, traces: [], last: evs[0].ts };
+        rec.count++; if (rec.traces.length < 5) rec.traces.push(trace); if (evs[0].ts > rec.last) rec.last = evs[0].ts;
+        sigs.set(sig, rec);
       }
-      const candidates = [...sigs.values()].filter((s) => s.count >= minRepeats).sort((a, b) => b.count - a.count || b.steps - a.steps).slice(0, 25)
-        .map((s) => ({ ...s, learn: `FLOW_LEARN <NAME>|${s.traces[0]}`, side_effecting: s.signature.split(' → ').filter((k) => SIDE_EFFECT_KEY.test(k)) }));
-      return ok({ window_days: days, min_repeats: minRepeats, traces_examined: byTrace.size, candidates });
+      const candidates = [...sigs.values()].filter((c) => c.count >= minRepeats).sort((a, b) => b.count - a.count || b.steps - a.steps).slice(0, 25)
+        .map((c) => ({ ...c, learn: `FLOW_LEARN <NAME>|${c.traces[0]}`, side_effecting: c.signature.split(' → ').filter((k) => SIDE_EFFECT_KEY.test(k)) }));
+      return ok({ window_days: days, min_repeats: minRepeats, ledger_rows_examined: rows.length, traces_examined: byTrace.size, traces_already_flows: compiledAlready, candidates });
     },
   };
 }
