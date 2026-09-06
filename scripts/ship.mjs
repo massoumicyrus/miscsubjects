@@ -231,8 +231,12 @@ function ledgerLease(action, lease, status = 200) {
 async function acquireDeployLease() {
   const existing = readDeployLease();
   const now = Date.now();
-  if (existing?.expires_at && Date.parse(existing.expires_at) > now) {
+  const myOwner = 'deployer-' + createHash('sha256').update(`${process.env.USER || 'unknown'}@${hostname()}`).digest('hex').slice(0, 10);
+  if (existing?.expires_at && Date.parse(existing.expires_at) > now && existing.owner !== myOwner) {
     throw new Error('Deploy lease held by ' + (existing.owner || 'unknown') + ' until ' + existing.expires_at);
+  }
+  if (existing?.expires_at && Date.parse(existing.expires_at) > now && existing.owner === myOwner) {
+    console.log('deploy lease: taking over a stale lease held by this machine (' + myOwner + ', expires ' + existing.expires_at + ')');
   }
   const nonce = now.toString(36) + '-' + Math.random().toString(36).slice(2, 10);
   const lease = {
