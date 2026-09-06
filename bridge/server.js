@@ -172,6 +172,42 @@ function proxyToMcp(req, res) {
 
 app.use("/mcp", proxyToMcp);
 
+// BROWSER-MODEL GATEWAY. The persistent web-model worker (bridge/webmodel) runs as its own
+// process on 3011 so it can hold Chrome open across bridge restarts and vice versa. It is
+// mounted here rather than given its own tunnel: the Cloudflare build already reaches this
+// host through agent.miscsubjects.com with x-terminal-key, and a second tunnel would be a
+// second thing to authenticate, rotate and forget. Only the narrow /webmodel verbs cross —
+// no CDP, no arbitrary JavaScript, no arbitrary navigation.
+const WEBMODEL_PORT = parseInt(process.env.WEBMODEL_PORT || "3011", 10);
+function proxyToWebmodel(req, res) {
+  const proxyReq = http.request(
+    {
+      hostname: "127.0.0.1",
+      port: WEBMODEL_PORT,
+      path: req.originalUrl || req.url,
+      method: req.method,
+      headers: {
+        "content-type": req.headers["content-type"] || "application/json",
+        "x-terminal-key": req.headers["x-terminal-key"] || "",
+        host: `127.0.0.1:${WEBMODEL_PORT}`,
+      },
+    },
+    (proxyRes) => {
+      res.status(proxyRes.statusCode);
+      for (const [k, v] of Object.entries(proxyRes.headers)) { try { res.setHeader(k, v); } catch {} }
+      proxyRes.pipe(res);
+    }
+  );
+  // A browser turn can legitimately take minutes; the default socket timeout would cut a
+  // captured answer off mid-flight and report a worker failure that never happened.
+  proxyReq.setTimeout(600000, () => { try { proxyReq.destroy(new Error("webmodel worker timeout")); } catch {} });
+  proxyReq.on("error", (e) => {
+    if (!res.headersSent) res.status(200).json({ ok: false, error: "BROWSER_WORKER_OFFLINE", message: e.message });
+  });
+  req.pipe(proxyReq);
+}
+app.use("/webmodel", proxyToWebmodel);
+
 app.use(express.json({ limit: "20mb" }));
 app.use(express.text({ limit: "20mb", type: "text/*" }));
 

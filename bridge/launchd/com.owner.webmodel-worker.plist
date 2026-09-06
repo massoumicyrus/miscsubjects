@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The persistent browser-model worker. Separate from com.owner.grok-bridge on purpose: the
+  bridge restarts often, and a browser-model session that dies with it would lose every open
+  provider conversation. KeepAlive brings it back after a crash; on boot it reads its own
+  session file and demotes anything left `running` to `ready`, because a session nothing is
+  holding is not running.
+  Install:  launchctl bootstrap gui/$UID bridge/launchd/com.owner.webmodel-worker.plist
+  Restart:  bridge/webmodel/restart.sh   (kills by port, never by command-line match)
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.owner.webmodel-worker</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/owner/miscsubjects-pages/bridge/webmodel/restart.sh</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/owner/.miscsubjects/webmodel/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/owner/.miscsubjects/webmodel/launchd.err.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+</dict>
+</plist>
