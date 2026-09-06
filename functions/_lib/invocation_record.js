@@ -11,15 +11,36 @@ export function outwardSideEffect(key) {
 }
 
 export const CREDENTIAL_ENV_BY_HOST = Object.freeze({
-  'api.x.ai': 'GROK_API_KEY',
+  'api.x.ai': 'XAI_API_KEY',
   'api.openai.com': 'OPENAI_API_KEY',
   'api.anthropic.com': 'ANTHROPIC_API_KEY',
   'api.moonshot.ai': 'MOONSHOT_API_KEY',
   'generativelanguage.googleapis.com': 'GEMINI_API_KEY',
   'api.cloudflare.com': 'CF_API_TOKEN',
-  'gateway.ai.cloudflare.com': 'CF_AIG_TOKEN',
+  'api.blooio.com': 'BLOOIO_API_KEY',
+  'gateway.ai.cloudflare.com': 'AIG_TOKEN',
   'miscsubjects.com': 'TERMINAL_KEY',
 });
+
+const GATEWAY_PROVIDERS = Object.freeze({
+  grok: { url: 'https://api.x.ai/v1/chat/completions', env: 'XAI_API_KEY' },
+  openai: { url: 'https://api.openai.com/v1/chat/completions', env: 'OPENAI_API_KEY' },
+  anthropic: { url: 'https://api.anthropic.com/v1/messages', env: 'ANTHROPIC_API_KEY' },
+  moonshot: { url: 'https://api.moonshot.ai/v1/chat/completions', env: 'MOONSHOT_API_KEY' },
+});
+
+function unwrapGateway(req) {
+  let host = '';
+  try { host = new URL(String(req.url)).hostname; } catch { return null; }
+  if (host !== 'gateway.ai.cloudflare.com') return null;
+  let body = req.body;
+  if (typeof body === 'string') { try { body = JSON.parse(body); } catch { return null; } }
+  const model = String(body?.model || '');
+  const m = model.match(/^([a-z0-9-]+)\/(.+)$/);
+  const prov = m ? GATEWAY_PROVIDERS[m[1]] : null;
+  if (!prov) return null;
+  return { url: prov.url, env: prov.env, body: { ...body, model: m[2] }, as_sent: String(req.url) };
+}
 
 export function credentialEnvFor(url, row) {
   let host = '';
@@ -80,7 +101,9 @@ export function realInvocation(row, requestJson, { origin = 'https://miscsubject
   let req = null;
   try { req = typeof requestJson === 'string' ? JSON.parse(requestJson) : requestJson; } catch { req = null; }
   if (!req || typeof req !== 'object' || !req.url) return buildInvocation(row, { origin, args });
-  const envVar = credentialEnvFor(req.url, row);
+  const direct = unwrapGateway(req);
+  if (direct) req = { ...req, url: direct.url, body: direct.body };
+  const envVar = direct ? direct.env : credentialEnvFor(req.url, row);
   const headers = {};
   for (const [k, v] of Object.entries(req.headers || {})) {
     const lk = k.toLowerCase();
@@ -95,7 +118,10 @@ export function realInvocation(row, requestJson, { origin = 'https://miscsubject
   const wrapper = buildInvocation(row, { origin, args });
   return {
     ...envelope,
-    via: 'the outbound request this row made when it was run — recorded from the wire, credential written as its vault variable',
+    via: direct
+      ? 'the request this row made when it was run, reached through the Cloudflare AI Gateway (as_sent); written here as the provider\'s own call with the vault key'
+      : 'the outbound request this row made when it was run — recorded from the wire, credential written as its vault variable',
+    ...(direct ? { as_sent: direct.as_sent } : {}),
     credential_env: envVar,
     ...(envVar ? {} : { credential_note: 'no vault variable is known for this host; $SECRET stands where the credential goes' }),
     args: wrapper.args, ops: wrapper.ops, tag: wrapper.tag, returns: wrapper.returns,

@@ -67,11 +67,11 @@ test('after a run the invocation is the REAL outbound request with the credentia
     body: { model: 'grok-4.3', messages: [{ role: 'system', content: 'You are the router.' }, { role: 'user', content: 'Reply OK' }] } });
   const inv = realInvocation(agentRow, recorded, { origin: 'https://example.test' });
   assert.equal(inv.url, 'https://api.x.ai/v1/chat/completions');
-  assert.equal(inv.headers.authorization, 'Bearer $GROK_API_KEY');
-  assert.equal(inv.credential_env, 'GROK_API_KEY');
+  assert.equal(inv.headers.authorization, 'Bearer $XAI_API_KEY');
+  assert.equal(inv.credential_env, 'XAI_API_KEY');
   assert.equal(inv.body.model, 'grok-4.3');
   assert.equal(inv.body.messages[0].content, 'You are the router.');
-  assert.match(inv.curl, /^curl -sS -X POST 'https:\/\/api\.x\.ai\/v1\/chat\/completions' -H 'content-type: application\/json' -H "authorization: Bearer \$GROK_API_KEY" --data '\{"model":"grok-4.3"/);
+  assert.match(inv.curl, /^curl -sS -X POST 'https:\/\/api\.x\.ai\/v1\/chat\/completions' -H 'content-type: application\/json' -H "authorization: Bearer \$XAI_API_KEY" --data '\{"model":"grok-4.3"/);
   assert.equal(inv.build_wrapper.url, 'https://example.test/api/dispatch');
   // an http row names its own secret in its auth column
   const httpRow = { key: 'STRIPE_BALANCE', type: 'http', target: 'GET https://api.stripe.com/v1/balance', auth: 'Bearer:$STRIPE_SECRET_KEY', content: '# WHAT: balance', enabled: 1 };
@@ -81,4 +81,14 @@ test('after a run the invocation is the REAL outbound request with the credentia
   assert.equal(credentialEnvFor('https://unknown.example/x', {}), null);
   // no request recorded → the wrapper, honestly labelled
   assert.match(realInvocation(noArgs, null).via, /build dispatch/);
+});
+
+test('a call that went through the Cloudflare AI Gateway is written as the provider\'s own request with the vault key', () => {
+  const recorded = JSON.stringify({ url: 'https://gateway.ai.cloudflare.com/v1/acct/cloud-kernel/compat/chat/completions', method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: '<REDACTED>' }, body: { model: 'grok/grok-4.3', messages: [{ role: 'user', content: 'hi' }] } });
+  const inv = realInvocation(agentRow, recorded);
+  assert.equal(inv.url, 'https://api.x.ai/v1/chat/completions');
+  assert.equal(inv.body.model, 'grok-4.3');
+  assert.equal(inv.headers.Authorization, 'Bearer $XAI_API_KEY');
+  assert.equal(inv.credential_env, 'XAI_API_KEY');
+  assert.match(inv.as_sent, /gateway\.ai\.cloudflare\.com/);
 });

@@ -220,7 +220,7 @@ for (const row of db.prepare('SELECT * FROM directory WHERE descriptor_json IS N
   check(inv.url === ORIGIN + '/api/dispatch' && inv.headers['x-terminal-key'] === '$TERMINAL_KEY' && inv.body.key === 'ADD', 'invocation: wrapper is not the dispatch call with the owner key as its vault variable');
   const { realInvocation } = await import(join(ROOT, 'functions/_lib/invocation_record.js'));
   const real = realInvocation({ key: 'ROUTER', type: 'agent', content: '' }, JSON.stringify({ url: 'https://api.x.ai/v1/chat/completions', method: 'POST', headers: { authorization: '<REDACTED>' }, body: { model: 'grok-4.3', messages: [] } }));
-  check(real.url === 'https://api.x.ai/v1/chat/completions' && real.headers.authorization === 'Bearer $GROK_API_KEY' && real.body.model === 'grok-4.3' && /"authorization: Bearer \$GROK_API_KEY"/.test(real.curl), 'invocation: the real outbound request is not reconstructed with its vault variable: ' + JSON.stringify(real).slice(0, 200));
+  check(real.url === 'https://api.x.ai/v1/chat/completions' && real.headers.authorization === 'Bearer $XAI_API_KEY' && real.body.model === 'grok-4.3' && /"authorization: Bearer \$XAI_API_KEY"/.test(real.curl), 'invocation: the real outbound request is not reconstructed with its vault variable: ' + JSON.stringify(real).slice(0, 200));
   check(testPlan({ key: 'EMAIL_SEND', type: 'fn', content: '' }).runnable === false && testPlan(row).runnable === true, 'invocation: outward rows must be skipped and arg-free rows runnable');
   const v = verdict('ERR:nope'); check(v.ok === false, 'invocation: ERR result must be broken');
   await recordTest(env, 'ADD', { invocation: inv, transport: { http: 200, ok: true, ms: 3 }, response: '5', state: STATE.works });
