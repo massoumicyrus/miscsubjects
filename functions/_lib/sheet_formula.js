@@ -195,7 +195,11 @@ function compileRe(pattern, flags, forceGlobal) {
 // step being asked for reads as empty, the way a missing cell does.
 function jsonPath(value, path) {
   let v = value;
-  if (typeof v === 'string') { try { v = JSON.parse(v); } catch { return '#JSON not json'; } }
+  // A PAYLOAD THAT IS NOT JSON READS BLANK, NOT AS AN ERROR.
+  // These columns run down a mixed slice: a model call, a webhook, a plain string, an HTML error
+  // page. Only some rows carry the shape being asked about. A spreadsheet leaves the others empty;
+  // shouting #JSON down two hundred rows hides the handful that answered.
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch { return ''; } }
   const p = String(path == null ? '' : path).replace(/^\$\.?/, '');
   if (p) {
     for (const step of p.split('.')) {

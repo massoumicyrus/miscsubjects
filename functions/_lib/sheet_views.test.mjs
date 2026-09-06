@@ -135,7 +135,11 @@ test('the traffic template carries both the phone line and the gateway, with the
   const sources = t.view.filters[0].value.split(',');
   assert.ok(sources.includes('blooio'), 'blooio missing');
   assert.ok(sources.includes('grok') && sources.includes('aigateway'), 'gateway missing');
+  assert.ok(!sources.includes('dispatch'), 'dispatch is 45k rows of plumbing and buries both lanes');
   const headers = t.view.columns.map((c) => c.header);
-  assert.deepEqual(headers.slice(0, 4), ['time', 'source', 'RAW IN', 'RAW OUT']);
+  assert.deepEqual(headers.slice(0, 3), ['time', 'source', 'dir']);
+  assert.ok(headers.includes('RAW IN') && headers.includes('RAW OUT'));
+  // one column answers "what was said" for either lane
+  assert.ok(t.view.columns.some((c) => c.header === 'the message' && /data\.text/.test(c.path) && /choices\[0\]/.test(c.path)));
   assert.ok(t.view.columns.some((c) => isExpressionColumn(c.path) && /REGEXALL/.test(c.path)));
 });
