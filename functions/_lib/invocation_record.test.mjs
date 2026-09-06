@@ -28,8 +28,8 @@ test('the test plan runs safe rows, skips outward side effects, and refuses to j
   assert.equal(testPlan(needsArgs).runnable, false);
   assert.match(testPlan(needsArgs).reason, /needs args/);
   assert.equal(testPlan({ ...noArgs, enabled: 0 }).runnable, false);
-  for (const k of ['EMAIL_SEND', 'X_POST', 'BLOOIO_SEND_MESSAGE', 'STRIPE_REFUND_CREATE', 'D1_EXEC', 'DELTASK', 'ADDTASK', 'LOCAL_SAY', 'AGENT_SPAWN']) assert.equal(outwardSideEffect(k), true, k);
-  for (const k of ['ADD', 'NOW', 'STRIPE_BALANCE', 'ARTICLES', 'KV_GET', 'GOOGLE_TASKS_LIST', 'META_INSIGHTS', 'BLOOIO_LIST_CHATS', 'WRITER', 'WRITER_AGENT', 'EDITOR_AGENT', 'CRITIC', 'KIMI_CODER', 'GLM_CODER', 'CODE_MODE', 'PEPTIDE_WRITER', 'RESEARCH_BOT', 'PLANNER']) assert.equal(outwardSideEffect(k), false, k);
+  for (const k of ['EMAIL_SEND', 'X_POST', 'BLOOIO_SEND_MESSAGE', 'STRIPE_REFUND_CREATE', 'D1_EXEC', 'DELTASK', 'LOCAL_SAY', 'AGENT_SPAWN']) assert.equal(outwardSideEffect(k), true, k);
+  for (const k of ['ADD', 'NOW', 'STRIPE_BALANCE', 'ARTICLES', 'KV_GET', 'GOOGLE_TASKS_LIST', 'META_INSIGHTS', 'BLOOIO_LIST_CHATS', 'WRITER', 'WRITER_AGENT', 'EDITOR_AGENT', 'CRITIC', 'KIMI_CODER', 'GLM_CODER', 'CODE_MODE', 'PEPTIDE_WRITER', 'RESEARCH_BOT', 'PLANNER', 'ADDTASK', 'GOOGLE_TASKS_ADD', 'TASK_ADD']) assert.equal(outwardSideEffect(k), false, k);
   for (const k of ['GROK_IMAGE', 'ARCADS_GENERATE', 'WRITE_ARTICLE', 'CODE_LEASE_COMMIT']) assert.equal(outwardSideEffect(k), true, k);
 });
 
