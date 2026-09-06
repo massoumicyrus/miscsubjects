@@ -12,7 +12,7 @@ function json(obj, status) {
   return new Response(JSON.stringify(obj), { status: status || 200, headers: { 'content-type': 'application/json' } });
 }
 
-const TEST_COLS = ['invocation', 'last_status', 'last_response', 'test_state', 'tested_at'];
+const TEST_COLS = ['invocation', 'invocation_curl', 'last_status', 'last_response', 'test_state', 'tested_at'];
 
 async function listRows(env, type) {
   const binds = [];

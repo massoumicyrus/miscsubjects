@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { STATE, buildInvocation, credentialEnvFor, describeInvocation, outwardSideEffect, placeholderArgs, realInvocation, recordTest, testPlan, verdict } from './invocation_record.js';
+import { STATE, buildInvocation, credentialEnvFor, curlFor, describeInvocation, outwardSideEffect, placeholderArgs, realInvocation, recordTest, testPlan, verdict } from './invocation_record.js';
 
 const addRow = { key: 'ADD', type: 'fn', target: '', content: '# WHAT: Add two numbers.\n# $1 a — first\n# $2 b — second\n# EXAMPLE: [ADD]2|3[/ADD]\n$1 + $2', enabled: 1 };
 const agentRow = { key: 'ROUTER', type: 'agent', target: '', content: '# WHAT: routes.\nYou are the router.', enabled: 1 };
@@ -93,4 +93,12 @@ test('placeholder args name each declared positional so a row can be shaped with
   assert.equal(placeholderArgs(agentRow), '<your message>');
   const opsRow = { key: 'KLAVIYO', type: 'http', target: 'target_map:' + JSON.stringify({ profiles: { method: 'GET', url: 'https://a.klaviyo.com/api/profiles' }, lists: { method: 'GET', url: 'https://a.klaviyo.com/api/lists/$1' } }), content: '# WHAT: klaviyo', enabled: 1 };
   assert.equal(placeholderArgs(opsRow), 'lists|<arg1>');
+});
+
+test('curlFor writes the same request as a command with the vault variable for its host', () => {
+  const grok = { method: 'POST', url: 'https://api.x.ai/v1/chat/completions', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer INJECTED_BY_WORKER' }, body: { model: 'grok-4.3', messages: [] } };
+  assert.equal(curlFor(grok, agentRow), `curl -sS -X POST 'https://api.x.ai/v1/chat/completions' -H 'Content-Type: application/json' -H "Authorization: Bearer $XAI_API_KEY" --data '{"model":"grok-4.3","messages":[]}'`);
+  const wrapper = buildInvocation(noArgs, { origin: 'https://miscsubjects.com' });
+  assert.match(curlFor(wrapper, noArgs), /-H "x-terminal-key: \$TERMINAL_KEY" --data '\{"key":"NOW","body":""\}'$/);
+  assert.equal(curlFor(null, noArgs), null);
 });

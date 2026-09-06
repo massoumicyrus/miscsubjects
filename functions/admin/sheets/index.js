@@ -386,10 +386,10 @@ var TSTATES={};    // id -> state
 // every row shows whether it WORKS, right after its name — test_state
 // (🟢 works / 🔴 broken / 🟡 untested), the raw REST invocation that calls it, the transport record
 // of the last test, the full payload it returned, and when. Set only by POST /api/directory/<key>/test.
-var DIR_FIELDS=['key','type','test_state','invocation','last_status','last_response','tested_at','used','size','category','target','content','includes','auth','allowed_categories','seq','enabled','planner_visible','planner_rank','input_schema','examples','sensitive','runner','created_at','updated_at','href'];
-var DIR_TEST_FIELDS=['test_state','invocation','last_status','last_response','tested_at'];
+var DIR_FIELDS=['key','type','test_state','invocation','invocation_curl','last_status','last_response','tested_at','used','size','category','target','content','includes','auth','allowed_categories','seq','enabled','planner_visible','planner_rank','input_schema','examples','sensitive','runner','created_at','updated_at','href'];
+var DIR_TEST_FIELDS=['test_state','invocation','invocation_curl','last_status','last_response','tested_at'];
 var DIR_EDITABLE={type:1,target:1,category:1,content:1,includes:1,auth:1,allowed_categories:1,seq:1,enabled:1,planner_visible:1,planner_rank:1,input_schema:1,examples:1,sensitive:1,runner:1};
-var DIR_W={key:190,type:60,test_state:104,invocation:320,last_status:260,last_response:320,tested_at:140,used:56,size:66,category:104,target:240,content:280,includes:110,auth:100,allowed_categories:110,seq:48,enabled:56,planner_visible:76,planner_rank:72,input_schema:150,examples:150,sensitive:62,runner:74,created_at:140,updated_at:140,href:170};
+var DIR_W={key:190,type:60,test_state:104,invocation:320,invocation_curl:260,last_status:260,last_response:320,tested_at:140,used:56,size:66,category:104,target:240,content:280,includes:110,auth:100,allowed_categories:110,seq:48,enabled:56,planner_visible:76,planner_rank:72,input_schema:150,examples:150,sensitive:62,runner:74,created_at:140,updated_at:140,href:170};
 // my message, the reply, and the session it belongs to are the first thing
 // a ledger row shows. you_said / agent_said are computed server-side from the row's payload
 // (a CLI turn_in carries {session, text}; a turn_out carries the reply); session is read from the
@@ -2068,6 +2068,20 @@ function openRowCtx(x,y){
     items.push({label:'New row (draft)',fn:addRowGhost});
     items.push({label:'Delete row'+(n>1?'s':'')+'…',fn:deleteDirectoryRows});
   }
+  // RUN THIS ROW. A directory row, on the Directory tab or on any view over
+  // the directory, runs through its own door; the transport record and the full payload land in the
+  // row's own columns and its state flips. Every run is one ledger receipt (DIRECTORY_TEST).
+  if(T.kind==='directory' || (T.kind==='view' && T.viewDef && T.viewDef.source==='directory')){
+    items.push('-');
+    items.push({label:'Run this row'+(n>1?' ('+n+' rows)':''),fn:function(){ runDirectoryRows(null); }});
+    items.push({label:'Run with args…',fn:function(){ var a=window.prompt('Arguments, pipe-separated ($1|$2…):',''); if(a!=null) runDirectoryRows(a); }});
+    items.push({label:'Run anyway (a row the batch skips: sends, posts, pays, deletes)…',fn:function(){ if(window.confirm('This fires a row that has an outward side effect. Run it?')) runDirectoryRows(null,true); }});
+    if(T.kind==='view'){
+      items.push('-');
+      items.push({label:'New directory row…',fn:newDirectoryRowFromView});
+      items.push({label:'Delete directory row'+(n>1?'s':'')+'…',fn:deleteDirectoryRows});
+    }
+  }
   var rh=T.meta[T.view[T.activeR]]&&T.meta[T.view[T.activeR]].href;
   if(rh){
     items.push({label:'Open this row&#39;s raw object ↗',fn:function(){ var h=rh; if(TOKQ&&h.charAt(0)==='/') h+=(h.indexOf('?')>=0?'&':'?')+TOKQ; window.open(h,'_blank'); }});
@@ -2135,9 +2149,49 @@ function addRowGhost(){
     rebuildView(T); renderAll();
   }
 }
+// Which directory key a selected row is: the Directory tab keeps it in meta.key, a view over the
+// directory keeps it in meta.id (the row's own address).
+function selectedDirectoryKeys(){
+  var keys=[];
+  for(var v=T.sel.r1;v<=T.sel.r2;v++){ var m=T.meta[T.view[v]]; if(!m) continue; var k=m.key||(T.kind==='view'?m.id:null); if(k) keys.push(k); }
+  return keys;
+}
+function runDirectoryRows(args, force){
+  var keys=selectedDirectoryKeys();
+  if(!keys.length){ toast('Select a directory row first'); return; }
+  saveStatus('Running '+keys.length+' row'+(keys.length>1?'s':'')+'…');
+  var chain=Promise.resolve(), ok=0, bad=0, skipped=0;
+  keys.forEach(function(k){ chain=chain.then(function(){
+    var body={run:true}; if(args!=null&&args!=='') body.args=args; if(force) body.force=true;
+    return jfetch('/api/directory/'+encodeURIComponent(k)+'/test',{method:'POST',body:body}).then(function(res){
+      var j=res.j||{};
+      if(!res.ok){ bad++; toast(k+': '+(j.error||('HTTP '+res.status))); return; }
+      if(j.skipped) skipped++; else if(String(j.test_state||'').indexOf('works')>=0) ok++; else bad++;
+      // land the result in the row's own cells, no reload
+      if(T.kind==='directory'){
+        for(var dr=0; dr<T.meta.length; dr++){ if(T.meta[dr]&&T.meta[dr].key===k){
+          DIR_TEST_FIELDS.forEach(function(f){ var dc=T.fields.indexOf(f); if(dc<0) return; var val=j[f]; if(val==null) return; setLocal(T,dr,dc,typeof val==='string'?val:JSON.stringify(val)); });
+        } }
+      }
+    });
+  }); });
+  chain.then(function(){
+    saveStatus('Ran '+keys.length+': '+ok+' work · '+bad+' broken · '+skipped+' skipped');
+    if(T.kind==='view') loadTab(T,true); else renderAll();
+  });
+}
+function newDirectoryRowFromView(){
+  var key=window.prompt('New directory row — KEY (UPPER_SNAKE):',''); if(!key) return;
+  var type=window.prompt('type: agent | fn | http | flow','agent'); if(!type) return;
+  var content=window.prompt(type==='agent'?'System prompt (you can edit it in the grid after):':'# WHAT: one line on what it does','# WHAT: ')||'';
+  jfetch('/api/directory',{method:'POST',body:{key:key.trim().toUpperCase(),type:type.trim(),content:content}}).then(function(res){
+    if(res.ok&&res.j.ok){ toast('Created '+res.j.key); loadTab(T,true); }
+    else toast('Refused: '+((res.j&&(res.j.error||res.j.how_to_fix))||('HTTP '+res.status)));
+  });
+}
 function deleteDirectoryRows(){
   var keys=[];
-  for(var v=T.sel.r1;v<=T.sel.r2;v++){ var m=T.meta[T.view[v]]; if(m&&m.key&&m.cap) keys.push(m.key); }
+  for(var v=T.sel.r1;v<=T.sel.r2;v++){ var m=T.meta[T.view[v]]; if(m&&((m.key&&m.cap)||(T.kind==='view'&&m.id))) keys.push(m.key||m.id); }
   if(!keys.length){ toast('Only capability rows (agent/fn/http/flow) can be deleted here — corpus rows live at their own addresses'); return; }
   if(!window.confirm('DELETE '+keys.length+' directory row'+(keys.length>1?'s':'')+':\\n'+keys.slice(0,8).join(', ')+(keys.length>8?'…':''))) return;
   var chain=Promise.resolve(), okN=0, failN=0;

@@ -213,6 +213,7 @@ for (const row of db.prepare('SELECT * FROM directory WHERE descriptor_json IS N
 //     the sheet engine projects it, and the manual teaches =INVOKE.
 {
   db.exec(readFileSync(join(ROOT, 'migrations/0375_directory_invocation.sql'), 'utf8'));
+  db.exec(readFileSync(join(ROOT, 'migrations/0376_directory_invocation_curl.sql'), 'utf8'));
   const { buildInvocation, recordTest, testPlan, verdict, STATE } = await import(join(ROOT, 'functions/_lib/invocation_record.js'));
   const row = db.prepare("SELECT * FROM directory WHERE key='ADD'").get();
   check(row.test_state === STATE.untested, 'invocation: a fresh row is not 🟡 untested: ' + row.test_state);
@@ -224,8 +225,9 @@ for (const row of db.prepare('SELECT * FROM directory WHERE descriptor_json IS N
   check(testPlan({ key: 'EMAIL_SEND', type: 'fn', content: '' }).runnable === false && testPlan(row).runnable === true, 'invocation: outward rows must be skipped and arg-free rows runnable');
   const v = verdict('ERR:nope'); check(v.ok === false, 'invocation: ERR result must be broken');
   await recordTest(env, 'ADD', { invocation: inv, transport: { http: 200, ok: true, ms: 3 }, response: '5', state: STATE.works });
-  const after = db.prepare("SELECT test_state, last_response, invocation FROM directory WHERE key='ADD'").get();
+  const after = db.prepare("SELECT test_state, last_response, invocation, invocation_curl FROM directory WHERE key='ADD'").get();
   check(after.test_state === STATE.works && after.last_response === '5' && JSON.parse(after.invocation).body.key === 'ADD', 'invocation: recordTest did not land the five columns on the row');
+  check(/^curl -sS -X POST 'https:\/\/miscsubjects\.com\/api\/dispatch' .*-H "x-terminal-key: \$TERMINAL_KEY" --data '\{"key":"ADD"/.test(after.invocation_curl || ''), 'invocation_curl: the row does not carry a pasteable command with the vault variable: ' + after.invocation_curl);
   const view = normalizeView({ source: 'directory', columns: ['test_state', 'key', 'invocation.body.key', 'last_status.ok', 'last_response'], filters: [{ field: 'test_state', op: 'contains', value: 'works' }] });
   const out = await runView(env, view);
   check(out.ok && out.rows.length === 1 && out.rows[0][0] === STATE.works && out.rows[0][2] === 'ADD' && out.rows[0][3] === '1', 'sheets: a directory view does not project the test columns by JSON path: ' + JSON.stringify(out.rows) + ' ' + (out.detail || ''));

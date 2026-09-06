@@ -77,6 +77,22 @@ export function describeInvocation(row) {
   };
 }
 
+function shellQuote(s) { return "'" + String(s).replace(/'/g, "'\\''") + "'"; }
+export function curlFor(invocation, row) {
+  const inv = invocation && typeof invocation === 'object' ? invocation : null;
+  if (!inv || !inv.url) return null;
+  const envVar = credentialEnvFor(inv.url, row) || 'SECRET';
+  const parts = ['curl -sS -X ' + String(inv.method || 'GET').toUpperCase(), shellQuote(inv.url)];
+  for (const [k, v] of Object.entries(inv.headers || {})) {
+    const val = String(v).replace(/Bearer INJECTED_BY_WORKER/, 'Bearer $' + envVar).replace(/INJECTED_BY_WORKER/, '$' + envVar);
+    parts.push(/\$[A-Z][A-Z0-9_]+/.test(val) ? '-H "' + k + ': ' + val.replace(/"/g, '\\"') + '"' : '-H ' + shellQuote(k + ': ' + val));
+  }
+  if (inv.body != null && !/^(GET|HEAD)$/i.test(inv.method || 'GET')) {
+    parts.push('--data ' + shellQuote(typeof inv.body === 'string' ? inv.body : JSON.stringify(inv.body)));
+  }
+  return parts.join(' ');
+}
+
 // The REAL invocation: the outbound request the row actually made when it ran (recorded by
 // dispatch with the credential redacted), with the credential written back as its vault variable.
 // For an agent that is the provider call — URL, model, messages. For an http row it is the target
@@ -181,10 +197,17 @@ export function transportRecord({ ok, ms, trace, why, http = 200, at, actor }) {
 // Persist one test outcome on the row. state is one of STATE.*; when the row was not run, the
 // transport record carries the reason and the invocation is still written, so every row shows
 // how to call it even before anyone has.
-export async function recordTest(env, key, { invocation, transport, response, state, at }) {
+export async function recordTest(env, key, { invocation, transport, response, state, at, row }) {
   const ts = at || new Date().toISOString();
   const payload = response == null ? null : (typeof response === 'string' ? response : JSON.stringify(response));
-  await env.DB.prepare('UPDATE directory SET invocation = ?, last_status = ?, last_response = ?, test_state = ?, tested_at = ? WHERE key = ?')
-    .bind(JSON.stringify(invocation), transport ? JSON.stringify(transport) : null, payload == null ? null : payload.slice(0, MAX_RESPONSE_CHARS), state, ts, key).run();
-  return { key, test_state: state, tested_at: ts };
+  const curl = curlFor(invocation, row || { key });
+  const base = [JSON.stringify(invocation), transport ? JSON.stringify(transport) : null, payload == null ? null : payload.slice(0, MAX_RESPONSE_CHARS), state, ts];
+  // invocation_curl arrives with migration 0376; write it when the column exists, never fail the record without it.
+  try {
+    await env.DB.prepare('UPDATE directory SET invocation = ?, last_status = ?, last_response = ?, test_state = ?, tested_at = ?, invocation_curl = ? WHERE key = ?')
+      .bind(...base, curl, key).run();
+  } catch {
+    await env.DB.prepare('UPDATE directory SET invocation = ?, last_status = ?, last_response = ?, test_state = ?, tested_at = ? WHERE key = ?').bind(...base, key).run();
+  }
+  return { key, test_state: state, tested_at: ts, invocation_curl: curl };
 }

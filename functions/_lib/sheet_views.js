@@ -36,7 +36,7 @@ export const DIRECTORY_FIELDS = [
   'object_kind', 'descriptor_json', 'descriptor_rev', 'descriptor_hash',
   // Invocation record (migration 0375): the raw REST call, the last transport record, the last
   // full payload and the 🟢/🟡/🔴 state — so a directory view is a live tool-status board.
-  'invocation', 'last_status', 'last_response', 'test_state', 'tested_at',
+  'invocation', 'invocation_curl', 'last_status', 'last_response', 'test_state', 'tested_at',
 ];
 
 // Every table a view may read. `db` names the binding; `ts` the column that orders it.

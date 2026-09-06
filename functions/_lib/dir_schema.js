@@ -20,6 +20,7 @@ export const DIR_SCHEMA = {
     descriptor_rev: 'monotonic descriptor revision; incremented whenever descriptor_json changes',
     descriptor_hash: 'sha256 of canonical descriptor JSON',
     invocation: 'the raw REST JSON that invokes this row: {method,url,headers,body} with the credential left as INJECTED_BY_WORKER; written by POST /api/directory/<key>/test',
+    invocation_curl: 'the same request as a curl that runs when pasted into the owner\'s terminal: credential written as the vault variable for its host ($XAI_API_KEY, $TERMINAL_KEY)',
     last_status: 'transport record of the last test: {http, ok, ms, trace_id, ledger, error, at} — or {skipped, reason}',
     last_response: 'the full payload the last test returned (up to 60k chars)',
     test_state: '🟢 works | 🔴 broken | 🟡 untested — decided only by POST /api/directory/<key>/test, never by hand',

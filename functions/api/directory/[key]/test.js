@@ -57,7 +57,7 @@ export async function onRequestPost({ request, env, params }) {
       } catch {}
     }
     const transport = { skipped: true, reason: plan.reason, at };
-    await recordTest(env, key, { invocation: shaped, transport, response: null, state: STATE.untested, at });
+    await recordTest(env, key, { invocation: shaped, transport, response: null, state: STATE.untested, at, row });
     await invalidateDirSnapshot(env);
     return json({ key, test_state: STATE.untested, skipped: plan.reason, invocation: shaped, how_to_run_anyway: 'POST …/test {"force":true}  or  {"args":"…"}' });
   }
@@ -73,11 +73,11 @@ export async function onRequestPost({ request, env, params }) {
   const transport = transportRecord({ ok: v.ok, ms, trace: out && out.trace, why: v.why, at, actor: 'directory-test' });
   const state = v.ok ? STATE.works : STATE.broken;
   const recorded = out && out.request_json ? realInvocation(row, out.request_json, { origin, args: args != null ? args : undefined }) : invocation;
-  await recordTest(env, key, { invocation: recorded, transport, response: result == null ? (threw || '') : result, state, at });
+  const rec = await recordTest(env, key, { invocation: recorded, transport, response: result == null ? (threw || '') : result, state, at, row });
   await invalidateDirSnapshot(env);
   try {
     await logEvent(env, { source: 'directory', key: 'DIRECTORY_TEST', action: 'POST', direction: 'IN', route: '/api/directory/' + key + '/test', trace_id: out && out.trace || null, actor: 'owner',
       request: JSON.stringify({ key, args }), response: JSON.stringify({ test_state: state, ms, error: v.why || null }), status: v.ok ? 200 : 500 });
   } catch {}
-  return json({ key, test_state: state, last_status: transport, last_response: typeof result === 'string' ? result : JSON.stringify(result), invocation: recorded });
+  return json({ key, test_state: state, tested_at: at, last_status: transport, last_response: typeof result === 'string' ? result : JSON.stringify(result), invocation: recorded, invocation_curl: rec.invocation_curl });
 }
