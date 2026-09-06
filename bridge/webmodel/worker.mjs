@@ -86,6 +86,21 @@ async function getConversationUrl(page, a) {
   return { conversation_url: m ? url : null, provider_conversation_id: m ? m[1] : null };
 }
 
+// ---------------------------------------------------------------- input
+
+async function typePrompt(page, a, prompt) {
+  const composer = page.locator(a.composer).first();
+  await composer.click({ timeout: 15000 });
+  const tag = await composer.evaluate((el) => el.tagName).catch(() => '');
+  const text = String(prompt).replace(/\r\n?/g, '\n');
+  if (tag === 'TEXTAREA' || tag === 'INPUT') { await composer.fill(text); return; }
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i]) await page.keyboard.type(lines[i], { delay: 2 });
+    if (i < lines.length - 1) await page.keyboard.press('Shift+Enter');
+  }
+}
+
 // ---------------------------------------------------------------- capture
 
 // Every assistant node with its visible text, minus the provider's reasoning and tool chrome.
@@ -221,7 +236,16 @@ async function vSend({ session_id, prompt, request_id, timeout_ms, async: asyncM
 
   const run = (async () => {
     let out;
-    try { out = await runPrompt({ session, a, prompt: String(prompt), turn_id, started_at, timeout_ms }); }
+    // The completion detector has its own budget; this outer deadline exists for everything around
+    // it — a navigation that never settles, a click that never resolves — so a hung page can never
+    // hold a session lock forever. A turn ends, by name, or it did not happen.
+    const outer = Math.min(Math.max(parseInt(timeout_ms || DEFAULT_TIMEOUT_MS, 10), 15000), 900000) + 60000;
+    try {
+      out = await Promise.race([
+        runPrompt({ session, a, prompt: String(prompt), turn_id, started_at, timeout_ms }),
+        new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error(`turn did not finish within ${outer}ms`), { code: 'RESPONSE_TIMEOUT' })), outer)),
+      ]);
+    }
     catch (e) { out = failure(e.code || 'RESPONSE_CAPTURE_FAILED', e.message || String(e), { session_id, turn_id }); }
     finally { locks.delete(session_id); }
 
@@ -274,8 +298,7 @@ async function runPrompt({ session, a, prompt, turn_id, started_at, timeout_ms }
   const priorCount = (await readAssistantNodes(page, a)).length;
 
   try {
-    await page.locator(a.composer).first().click({ timeout: 15000 });
-    await page.keyboard.type(prompt, { delay: 4 });
+    await typePrompt(page, a, prompt);
     await page.waitForTimeout(400);
     await page.keyboard.press('Enter');
   } catch (e) {

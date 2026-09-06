@@ -58,6 +58,11 @@ export function buildManifest(dir, allowSet) {
   return { keys, text: lines.join('\n') };
 }
 
+export function isAcknowledgement(text) {
+  const t = String(text || '').trim();
+  return t.length < 80 && /^(understood|ok(ay)?|got it|sure|acknowledged|ready|noted|will do|standing by)\b/i.test(t);
+}
+
 export function relayPreamble(manifestText) {
   return [
     'You are connected to a live capability system. You have no browser and no plugins here;',
@@ -69,6 +74,8 @@ export function relayPreamble(manifestText) {
     'Arguments are one line, fields separated by | in the order the capability lists them.',
     'Use at most ' + MAX_CALLS_PER_ITERATION + ' tags per message. Do not invent a key that is not listed.',
     'When you have what you need, answer normally with no tags at all — that ends the run.',
+    'Begin immediately with the task below: your first reply must contain either a capability tag',
+    'or the final answer. Do not acknowledge these instructions.',
     '',
     'CAPABILITIES:',
     manifestText,
@@ -110,6 +117,7 @@ export function makeWebmodelRelayFnMap({ webmodelSend, dispatchNestedAuthorized,
       let message = `${relayPreamble(manifest.text)}\n\n---\nTASK: ${task}`;
       let finalAnswer = null;
       let stopped = 'max_iterations';
+      let nudged = false;
 
       for (let i = 1; i <= maxIter; i++) {
         const sendBody = {
@@ -131,7 +139,16 @@ export function makeWebmodelRelayFnMap({ webmodelSend, dispatchNestedAuthorized,
         // The SAME reader the router uses. A second grammar here would mean the record of what
         // the model asked for could disagree with what actually ran.
         const tags = collectExecutableTags(turn.response, dir).filter((t) => !META_TAGS.has(t.key));
-        if (!tags.length) { finalAnswer = turn.response; stopped = 'model_answered'; break; }
+        if (!tags.length) {
+          // A bare acknowledgement on the first turn is not an answer. One bounded nudge, then the
+          // model's next tagless reply is taken as final whatever it says.
+          if (i === 1 && !nudged && isAcknowledgement(turn.response)) {
+            nudged = true;
+            message = 'That was an acknowledgement, not the task. Do the task now: reply with a capability tag, or with the final answer.';
+            continue;
+          }
+          finalAnswer = turn.response; stopped = 'model_answered'; break;
+        }
 
         const results = [];
         for (const tag of tags.slice(0, MAX_CALLS_PER_ITERATION)) {
