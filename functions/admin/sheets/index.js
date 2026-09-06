@@ -2323,7 +2323,7 @@ function renderToolbar(){
     var p=T.ledParams;
     h+='<span class="gs-tbsep"></span><span class="tenant">server query:</span>'
      +'<input id="lq-key" placeholder="key" value="'+esc(p.key||'')+'" style="width:130px">'
-     +'<input id="lq-q" placeholder="search every row (text contains)" value="'+esc(p.q||'')+'" style="width:220px" onkeydown="if(event.key===\'Enter\'){document.getElementById(\'lq-go\').click()}">'
+     +'<input id="lq-q" placeholder="search every row (text contains)" value="'+esc(p.q||'')+'" style="width:220px">'
      +'<input id="lq-trace" placeholder="trace_id" value="'+esc(p.trace_id||'')+'" style="width:110px">'
      +'<select id="lq-limit">'+['100','250','500','1000'].map(function(n){ return '<option'+(p.limit===n?' selected':'')+'>'+n+'</option>'; }).join('')+'</select>'
      +'<label class="tenant" style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="lq-noise"'+(p.hide_noise==='1'?' checked':'')+'> hide traffic classifier rows (off = every row)</label>'
@@ -2352,6 +2352,7 @@ function renderToolbar(){
       T.loaded=false; loadTab(T,true).then(function(){ renderAll(); });
     };
     $('lq-noise').onchange=function(){ $('lq-go').onclick(); };
+    $('lq-q').onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); $('lq-go').onclick(); } };
     $('lq-timer').onchange=function(){ LED_REFRESH_SEC=parseInt($('lq-timer').value,10)||0; ledAutoRefresh(LED_REFRESH_SEC); };
     ledAutoRefresh(LED_REFRESH_SEC);
   }
