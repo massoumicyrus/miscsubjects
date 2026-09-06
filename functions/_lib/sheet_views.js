@@ -50,6 +50,14 @@ export const SOURCES = {
   // published, body and meta write through to PATCH /api/articles/<slug> (a body edit by hash).
   articles:           { db: 'DB',     table: 'articles',           ts: 'updated_at', fields: ['slug', 'title', 'subject', 'published', 'created_at', 'updated_at', 'body', 'meta'], json: ['meta'] },
   pending_deliveries: { db: 'DB',     table: 'pending_deliveries', ts: 'created_at', fields: ['id', 'asset_id', 'kind', 'model', 'chat', 'channel', 'trace_id', 'status', 'created_at', 'updated_at'], json: [] },
+  // Identity + authority: the one profile object, its devices, and the mutable half of a capability.
+  profiles:           { db: 'DB',     table: 'traffic_profiles',   ts: 'last_seen',  fields: ['id', 'tenant_id', 'kind', 'known', 'customer', 'tags_json', 'attrs_json', 'visit_count', 'first_seen', 'last_seen', 'merged_into', 'version', 'updated_at'], json: ['tags_json', 'attrs_json'] },
+  devices:            { db: 'DB',     table: 'traffic_devices',    ts: 'last_seen',  fields: ['id', 'profile_id', 'trusted', 'trusted_at', 'trust_reason', 'trust_expires_at', 'revoked_at', 'last_verification', 'verification_method', 'label', 'class', 'browser', 'os', 'first_seen', 'last_seen', 'visit_count'], json: [] },
+  profile_events:     { db: 'DB',     table: 'traffic_events',     ts: 'ts',         fields: ['id', 'ts', 'event_type', 'profile_id', 'device_id', 'session_id', 'url', 'source', 'payload_json', 'evidence_hash'], json: ['payload_json'] },
+  capability_contexts:{ db: 'LEDGER', table: 'capability_contexts', ts: 'updated_at', fields: ['fingerprint', 'tenant_id', 'profile_id', 'actor_kind', 'device_ids_json', 'session_ids_json', 'state_handles_json', 'origins_json', 'require_verification_s', 'require_pop', 'policy_json', 'policy_rev', 'updated_at', 'updated_by'], json: ['device_ids_json', 'session_ids_json', 'state_handles_json', 'origins_json', 'policy_json'] },
+  // Browser-model substrate: the durable sessions and turns the gateway writes.
+  webmodel_sessions:  { db: 'DB',     table: 'webmodel_sessions',  ts: 'updated_at', fields: ['session_id', 'provider', 'state', 'conversation_url', 'provider_conversation_id', 'last_turn_id', 'state_handle', 'created_at', 'updated_at', 'metadata_json'], json: ['metadata_json'] },
+  webmodel_turns:     { db: 'DB',     table: 'webmodel_turns',     ts: 'started_at', fields: ['turn_id', 'session_id', 'ordinal', 'provider', 'status', 'capture_method', 'user_content', 'assistant_content', 'started_at', 'completed_at', 'failure_code', 'response_digest', 'ledger_event_id', 'state_handle'], json: [] },
 };
 
 export const FORMATS = ['text', 'json', 'time', 'number', 'link', 'image'];

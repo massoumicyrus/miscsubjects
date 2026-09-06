@@ -13,8 +13,13 @@
 // It is merged into FN_MAP from functions/api/dispatch.js. fn_runners.js is a protected path, so
 // this is a new lib plus a merge — the standing pattern for extending the fn plane.
 
+import { ensureModelActor } from './identity_fns.js';
+
 const WORKER_BASE = 'https://agent.miscsubjects.com';
-const WORKER_TIMEOUT_MS = 300000;
+const WORKER_TIMEOUT_MS = 90000;      // one hop; every hop is short now (see pollTurn)
+const POLL_MS = 2500;
+const DEFAULT_TURN_BUDGET_MS = 240000;
+const TURN_BUDGET_CEILING_MS = 900000;
 
 const FAILURES = new Set([
   'AUTH_REQUIRED', 'PROVIDER_UNAVAILABLE', 'SESSION_NOT_FOUND', 'SESSION_BUSY', 'SUBMIT_FAILED',
@@ -69,6 +74,20 @@ async function callWorker(env, path, body) {
   if (r.status === 401) return { _fail: err('BROWSER_WORKER_OFFLINE', 'the Mac worker rejected the terminal key') };
   try { return JSON.parse(text); }
   catch { return { _fail: err('BROWSER_WORKER_OFFLINE', `worker returned non-JSON (${r.status})`, { body_head: text.slice(0, 200) }) }; }
+}
+
+async function pollTurn(env, session_id, prompt, request_id, timeout_ms) {
+  const budget = Math.min(Math.max(parseInt(timeout_ms || DEFAULT_TURN_BUDGET_MS, 10) || DEFAULT_TURN_BUDGET_MS, 15000), TURN_BUDGET_CEILING_MS);
+  const accepted = await callWorker(env, 'send', { session_id, prompt, request_id, timeout_ms: budget, async: true });
+  if (accepted._fail || !accepted.ok || !accepted.accepted) return accepted;      // refused, offline, busy, auth — as before
+  const deadline = Date.now() + budget + 15000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, POLL_MS));
+    const t = await callWorker(env, 'turn', { turn_id: accepted.turn_id });
+    if (t._fail) return t;
+    if (t.state !== 'running') return t;
+  }
+  return { ok: false, error: 'RESPONSE_TIMEOUT', message: `no completed response within ${budget}ms; the worker may still finish turn ${accepted.turn_id}`, turn_id: accepted.turn_id, budget_ms: budget };
 }
 
 // ── durable writes ────────────────────────────────────────────────────────────────────────────
@@ -174,6 +193,10 @@ export function makeWebmodelFnMap({ logEvent, buildNowIso }) {
       }
 
       const session = { ...w, state_handle: b.state_handle || null, metadata: w.metadata || {} };
+      try {
+        const actor = await ensureModelActor(env, { provider, surface: 'browser_web', profile_id: session.profile_id || 'default' });
+        if (actor?.id) session.metadata.actor_profile_id = actor.id;
+      } catch { /* the actor row is attribution, not authority; a missing table must not block a turn */ }
       try { await writeSession(env, session, now()); }
       catch (e) { return err('DURABLE_WRITE_FAILED', `session ${w.session_id} exists in the browser but could not be written to D1: ${e.message}`, { session_id: w.session_id }); }
 
@@ -190,6 +213,7 @@ export function makeWebmodelFnMap({ logEvent, buildNowIso }) {
         session_id: session.session_id, provider, conversation_url: session.conversation_url,
         provider_conversation_id: session.provider_conversation_id, created_at: session.created_at,
         state: session.state, state_handle: session.state_handle, substrate: 'browser_web', ledger_event_id: ev,
+        actor_profile_id: session.metadata.actor_profile_id || null,
       });
     },
 
@@ -229,7 +253,7 @@ export function makeWebmodelFnMap({ logEvent, buildNowIso }) {
       const request_id = b.request_id || null;
       await ledger(env, { key: 'WEBMODEL_SEND', action: 'prompt_submitted', direction: 'out', status: 202, request: { session_id, provider: row.provider, prompt_chars: sent.length, request_id, state_handle }, response: null });
 
-      const w = await callWorker(env, 'send', { session_id, prompt: sent, request_id, timeout_ms: b.timeout_ms });
+      const w = await pollTurn(env, session_id, sent, request_id, b.timeout_ms);
       if (w._fail) { await ledger(env, { key: 'WEBMODEL_SEND', action: 'turn_failed', direction: 'in', status: 502, request: { session_id }, response: w._fail }); return w._fail; }
 
       const created_at = now();

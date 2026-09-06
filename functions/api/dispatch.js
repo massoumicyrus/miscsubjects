@@ -5,6 +5,11 @@ import { makeConscienceFnMap } from "../_lib/conscience_law.js";
 import { makeConstitutionFnMap } from "../_lib/decision_constitution.js";
 import { makeWebmodelFnMap, parseBody as webmodelParseBody } from "../_lib/webmodel_gateway.js";
 import { makeWebmodelRelayFnMap } from "../_lib/webmodel_relay.js";
+import { contextGateCheck, presenterFromRequest } from "../_lib/capability_context.js";
+import { makeIdentityFnMap } from "../_lib/identity_fns.js";
+import { makeFlowLearnFnMap } from "../_lib/flow_learn.js";
+import { readEventFull as readEventFullForLearn } from "../_lib/event_log.js";
+import { invalidateDirSnapshot as invalidateDirSnapshotForLearn } from "../_lib/dir_snapshot.js";
 import { publicSecretFindingAndRevoke, publicSecret404 } from '../_lib/public_secret_guard.js';
 import { logEvent, readEventFull } from '../_lib/event_log.js';
 import { getPath } from '../_lib/json_path.js';
@@ -2492,6 +2497,8 @@ async function dispatchNestedAuthorized(env, key, body, authContext) {
   if (!gate.ok) return { denied: true, reason: gate.reason, status: gate.status };
   const tenant = await tenantGateCheck(env, cap, key);
   if (!tenant.ok) return { denied: true, reason: tenant.reason, status: tenant.status };
+  const cx = await contextGateCheck(env, cap, auth.presenter || null, { key, body, row });
+  if (!cx.ok) return { denied: true, reason: cx.reason, status: cx.status, note: cx.note };
   const used = await consumeCapabilityUse(env, cap);
   if (!used.ok) return { denied: true, reason: used.reason, status: used.reason === 'token_exhausted' ? 429 : 401 };
   const nestedAuth = { ...auth, capFingerprint: cap.fingerprint };
@@ -3474,6 +3481,10 @@ async function onRequestGetInner(context) {
       if (!pb.ok) return deny(403, pb.reason, 'This pool credential is bounded to workspace "' + (tokenInfo.pool?.workspace || '?') + '": ' + pb.slug + ' is outside its object set. GET /api/workspace/' + (tokenInfo.pool?.workspace || '') + ' for the declared boundary.');
       const tg = await tenantGateCheck(env, cap, invokeKey);
       if (!tg.ok) return deny(tg.status, tg.reason, 'denied by tenant isolation. This token belongs to tenant ' + (cap?.tenant_id || '?') + '; ' + invokeKey + ' is outside its allow-list. GET ?tenant=' + (cap?.tenant_id || '') + ' for the boundary.');
+      // CONTEXT_VALID: authority alone is not enough when a context is bound. Who presents the
+      // token, from which device/session/origin, verified how recently — decided and receipted.
+      const cx = await contextGateCheck(env, cap, presenterFromRequest(request, { body: {} }), { key: invokeKey, body: bodyArg, row: dirForGate[invokeKey] || dirForGate[key] });
+      if (!cx.ok) return deny(cx.status, cx.reason, cx.note);
       // Always count uses (unlimited included) so ?explain=1.used is honest.
       const use = cap ? await consumeCapabilityUse(env, cap) : { ok: await consumeShareUse(env, tokenInfo.nonce, tokenInfo.maxUses), reason: 'token_exhausted' };
       if (!use.ok) return deny(use.reason === 'token_exhausted' ? 429 : 401, use.reason, 'this capability or one of its recorded ancestors cannot authorize another invocation.');
@@ -3487,7 +3498,7 @@ async function onRequestGetInner(context) {
       bodyArg = 'cat ' + path;
     }
     const actor = full ? 'owner:get-invoke' : (cap ? 'cap:' + cap.fingerprint : 'share:' + (tokenInfo.rowKey || tokenInfo.scope));
-    const authContext = { ownerAuthed: full, tokenInfo, capFingerprint: cap?.fingerprint || null, actor, tenant_id: cap?.tenant_id || null };
+    const authContext = { ownerAuthed: full, tokenInfo, capFingerprint: cap?.fingerprint || null, actor, tenant_id: cap?.tenant_id || null, presenter: presenterFromRequest(request, { body: {} }) };
     const token = p.get('share') || p.get('terminal_key') || p.get('tk') || '';
     // Self-correcting: a guessed/nonexistent key never dead-ends — return did-you-mean.
     { const dirChk = await loadDirectory(env); if (!dirChk[invokeKey] && !dirChk[key]) return didYouMean(dirChk, key); }
@@ -3796,6 +3807,11 @@ export async function onRequestPost(context) {
       });
       return dispatchJson({ error: tg.reason, fingerprint: fp, tenant: cap?.tenant_id || null, note: 'denied by tenant isolation. GET ?tenant=' + (cap?.tenant_id || '') + ' for the boundary.' }, tg.status);
     }
+    // CONTEXT_VALID (POST lane): same rule as the GET lane; the decision itself is the receipt.
+    {
+      const cx = await contextGateCheck(env, cap, presenterFromRequest(request, { body }), { key: body.key, body: body.body == null ? '' : body.body, row });
+      if (!cx.ok) return dispatchJson({ error: cx.reason, fingerprint: fp, note: cx.note, checks: cx.checks, ledger_event_id: cx.ledger_event_id }, cx.status);
+    }
     if (!opts.shapeOnly) {
       // Always count uses (unlimited included) so ?explain=1.used is honest.
       const use = cap ? await consumeCapabilityUse(env, cap) : { ok: await consumeShareUse(env, tokenInfo.nonce, tokenInfo.maxUses), reason: 'token_exhausted' };
@@ -3811,7 +3827,7 @@ export async function onRequestPost(context) {
     if (!opts.actor) opts.actor = fp ? 'cap:' + fp : 'share:act';
   }
   if (ownerAuthed && !opts.actor) opts.actor = 'owner:terminal-key';
-  opts.authContext = { ...requestAuthContext, actor: opts.actor || requestAuthContext.actor, tenant_id: cap?.tenant_id || null };
+  opts.authContext = { ...requestAuthContext, actor: opts.actor || requestAuthContext.actor, tenant_id: cap?.tenant_id || null, presenter: presenterFromRequest(request, { body }) };
   const postToken = tokenInfo ? (new URL(request.url).searchParams.get('share') || '') : '';
   opts.capabilityToken = postToken;
   // Idempotency (real invokes only — not shape/replay/repair): claim BEFORE fire.
@@ -3893,6 +3909,11 @@ Object.assign(FN_MAP, WEBMODEL_FNS);
 // dispatchNestedAuthorized under the CALLER's authority, and pastes the results back into the
 // same browser conversation. No MCP, no function calling, no connector, no credentials handed
 // to a vendor: a model that can produce text can operate the directory.
+Object.assign(FN_MAP, makeIdentityFnMap());
+Object.assign(FN_MAP, makeFlowLearnFnMap({
+  loadDirectory, logEvent, getInvocation, dispatchNestedAuthorized,
+  readEventFull: readEventFullForLearn, invalidateDirSnapshot: invalidateDirSnapshotForLearn,
+}));
 Object.assign(FN_MAP, makeWebmodelRelayFnMap({
   webmodelSend: WEBMODEL_FNS.webmodelSend, dispatchNestedAuthorized, loadDirectory,
   logEvent, buildNowIso, parseBody: webmodelParseBody,

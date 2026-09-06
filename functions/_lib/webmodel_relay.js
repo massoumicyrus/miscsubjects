@@ -142,7 +142,9 @@ export function makeWebmodelRelayFnMap({ webmodelSend, dispatchNestedAuthorized,
             toolCalls.push({ iteration: i, key: tag.key, ok: false, refused: gate.why });
             continue;
           }
-          const r = await dispatchNestedAuthorized(env, tag.key, String(tag.body || '').trim(), env?.TRACE_CTX?.authContext || null);
+          const callerAuth = env?.TRACE_CTX?.authContext || null;
+          const presentingAuth = callerAuth ? { ...callerAuth, presenter: { ...(callerAuth.presenter || {}), webmodel_session_id: session_id, state_handle: state_handle || callerAuth.presenter?.state_handle || null } } : null;
+          const r = await dispatchNestedAuthorized(env, tag.key, String(tag.body || '').trim(), presentingAuth);
           if (r?.denied) {
             results.push({ key: tag.key, ok: false, refused: `authority refused: ${r.reason}`, result: null });
             toolCalls.push({ iteration: i, key: tag.key, ok: false, refused: r.reason });

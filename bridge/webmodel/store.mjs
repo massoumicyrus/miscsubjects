@@ -50,5 +50,26 @@ export function idemClaim(requestId) {
   catch { return false; }
 }
 
+// Asynchronous turns. The Cloudflare edge in front of the tunnel cuts any origin response held
+// longer than 100 seconds, and a real Claude turn takes longer than that. So a send is ACCEPTED
+// (the running claim is written here before the browser is touched), runs in the background, and
+// the edge polls this record with a bounded deadline. Nothing here is ever overwritten with less
+// information than it had.
+export function turnPath(turnId) { return path.join(ROOT, 'turns', `${String(turnId).replace(/[^\w.-]/g, '_')}.json`); }
+export function turnGet(turnId) { if (!turnId) return null; try { return JSON.parse(fs.readFileSync(turnPath(turnId), 'utf8')); } catch { return null; } }
+export function turnPut(turnId, rec) { fs.mkdirSync(path.join(ROOT, 'turns'), { recursive: true }); const tmp = turnPath(turnId) + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(rec)); fs.renameSync(tmp, turnPath(turnId)); }
+// A turn left running by a crash did not complete; say so, by name, instead of hanging a poller.
+export function recoverTurns() {
+  const dir = path.join(ROOT, 'turns'); const out = [];
+  try {
+    for (const f of fs.readdirSync(dir)) {
+      if (!f.endsWith('.json')) continue;
+      let r; try { r = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); } catch { continue; }
+      if (r && r.state === 'running') { turnPut(r.turn_id, { ...r, state: 'failed', ok: false, error: 'RESPONSE_CAPTURE_FAILED', message: 'the worker restarted while this turn was running', recovered_at: new Date().toISOString() }); out.push(r.turn_id); }
+    }
+  } catch {}
+  return out;
+}
+
 export function rawPath(turnId) { return path.join(ROOT, 'raw', `${turnId}.json`); }
 export function writeRaw(turnId, payload) { ensureDirs(); try { fs.writeFileSync(rawPath(turnId), JSON.stringify(payload)); return rawPath(turnId); } catch { return null; } }

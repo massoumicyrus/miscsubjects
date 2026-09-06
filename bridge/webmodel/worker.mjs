@@ -194,7 +194,7 @@ function publicSession(s) {
   };
 }
 
-async function vSend({ session_id, prompt, request_id, timeout_ms }) {
+async function vSend({ session_id, prompt, request_id, timeout_ms, async: asyncMode }) {
   if (!session_id) return failure('BAD_REQUEST', 'session_id required');
   if (!prompt || !String(prompt).trim()) return failure('BAD_REQUEST', 'prompt required');
 
@@ -216,22 +216,43 @@ async function vSend({ session_id, prompt, request_id, timeout_ms }) {
   const a = adapterFor(session.provider);
   const started_at = now();
   const turn_id = newId('wmt');
-  let out;
-  try { out = await runPrompt({ session, a, prompt: String(prompt), turn_id, started_at, timeout_ms }); }
-  catch (e) { out = failure(e.code || 'RESPONSE_CAPTURE_FAILED', e.message || String(e), { session_id, turn_id }); }
-  finally { locks.delete(session_id); }
+  // The running claim is durable BEFORE the browser is touched (see turnPut in store.mjs).
+  store.turnPut(turn_id, { turn_id, session_id, provider: session.provider, state: 'running', started_at, request_id: request_id || null });
 
-  session.state = out.ok ? 'complete' : (out.error === 'AUTH_REQUIRED' ? 'auth_required' : 'failed');
-  if (out.ok) session.last_turn_id = turn_id;
-  session.updated_at = now();
-  store.putSession(session);
+  const run = (async () => {
+    let out;
+    try { out = await runPrompt({ session, a, prompt: String(prompt), turn_id, started_at, timeout_ms }); }
+    catch (e) { out = failure(e.code || 'RESPONSE_CAPTURE_FAILED', e.message || String(e), { session_id, turn_id }); }
+    finally { locks.delete(session_id); }
 
-  health[session.provider] = out.ok
-    ? { ...(health[session.provider] || {}), last_ok: { at: out.completed_at, turn_id, capture_method: out.capture_method }, capture_method: out.capture_method }
-    : { ...(health[session.provider] || {}), last_failure: { at: now(), code: out.error, message: out.message } };
+    session.state = out.ok ? 'complete' : (out.error === 'AUTH_REQUIRED' ? 'auth_required' : 'failed');
+    if (out.ok) session.last_turn_id = turn_id;
+    session.updated_at = now();
+    store.putSession(session);
 
-  if (request_id) store.idemPut(request_id, out);
-  return out;
+    health[session.provider] = out.ok
+      ? { ...(health[session.provider] || {}), last_ok: { at: out.completed_at, turn_id, capture_method: out.capture_method }, capture_method: out.capture_method }
+      : { ...(health[session.provider] || {}), last_failure: { at: now(), code: out.error, message: out.message } };
+
+    if (request_id) store.idemPut(request_id, out);
+    store.turnPut(turn_id, { ...out, turn_id, session_id, state: out.ok ? 'complete' : 'failed' });
+    return out;
+  })();
+
+  if (asyncMode) {
+    run.catch(() => {});
+    return { ok: true, accepted: true, state: 'running', turn_id, session_id, provider: session.provider, started_at };
+  }
+  return run;
+}
+
+// /webmodel/turn — the state of an accepted turn: running, or the final result exactly as a
+// synchronous send would have returned it.
+async function vTurn({ turn_id }) {
+  if (!turn_id) return failure('BAD_REQUEST', 'turn_id required');
+  const rec = store.turnGet(turn_id);
+  if (!rec) return failure('SESSION_NOT_FOUND', `no turn ${turn_id}`);
+  return rec.state === 'running' ? { ok: true, state: 'running', turn_id, session_id: rec.session_id, started_at: rec.started_at } : rec;
 }
 
 async function runPrompt({ session, a, prompt, turn_id, started_at, timeout_ms }) {
@@ -323,7 +344,7 @@ async function vStatus() {
     providers,
     sessions: sessions.filter((s) => s.state !== 'closed').map(publicSession),
     running_jobs: [...locks.entries()].map(([sid, l]) => ({ session_id: sid, since: l.since, request_id: l.request_id })),
-    recovered_on_boot: RECOVERED,
+    recovered_on_boot: RECOVERED, recovered_turns_on_boot: RECOVERED_TURNS,
   };
 }
 
@@ -362,6 +383,7 @@ const ROUTES = {
   '/webmodel/session/new': vSessionNew,
   '/webmodel/session/resume': vResume,
   '/webmodel/send': vSend,
+  '/webmodel/turn': vTurn,
   '/webmodel/read': vRead,
   '/webmodel/status': vStatus,
   '/webmodel/close': vClose,
@@ -370,6 +392,7 @@ const ROUTES = {
 const STARTED_AT = now();
 ensureDirs();
 const RECOVERED = store.recoverRunning();
+const RECOVERED_TURNS = store.recoverTurns();
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${HOST}`);
@@ -392,5 +415,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`[webmodel] listening ${HOST}:${PORT} key_set=${!!KEY} providers=${PROVIDERS.join(',')} recovered=${RECOVERED.length}`);
+  console.log(`[webmodel] listening ${HOST}:${PORT} key_set=${!!KEY} providers=${PROVIDERS.join(',')} recovered=${RECOVERED.length} recovered_turns=${RECOVERED_TURNS.length}`);
 });
