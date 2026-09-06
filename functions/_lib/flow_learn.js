@@ -18,7 +18,7 @@ import { buildNowIso } from './build_time.js';
 const MIN_STEPS = 2;
 const MAX_STEPS = 20;
 const PREV_MATCH_MIN = 24;       // shortest prior output that may be recognised inside a later input
-const SIDE_EFFECT_KEY = /(^|_)(SEND|POST|REPLY|DELETE|CREATE|PUT|WRITE|UPDATE|REFUND|PAY|CANCEL|EMAIL|SMS|PUBLISH|EXEC|RUN|FIRE|MINT|REVOKE|TRUST)(_|$)/;
+const SIDE_EFFECT_KEY = /(^|_)(SEND|POST|REPLY|DELETE|CREATE|PUT|WRITE|UPDATE|REFUND|PAY|CANCEL|EMAIL|SMS|PUBLISH|EXEC|RUN|FIRE|MINT|REVOKE|TRUST|TRIGGER|DELIVER|NOTIFY|DISPATCH)(_|$)/;
 const META_KEYS = /^(TRAIL_|FLOW_LEARN|FLOW_PROMOTE|FLOW_CANDIDATES|D1_QUERY$|LEDGER_QUERY$|DIRECTORY_|DIR_)/;
 
 function err(code, message, extra = {}) { return 'ERR:' + code + ' ' + JSON.stringify({ ok: false, error: code, message: String(message || code), ...extra }); }
