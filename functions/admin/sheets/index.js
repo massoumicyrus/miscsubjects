@@ -509,7 +509,7 @@ function loadTab(st, force){
   }
   if(st.kind==='ledger'){
     var p=st.ledParams, qs=['data=1'];
-    ['limit','key','trace_id','q','status','source','hide_noise'].forEach(function(k){ if(p[k]) qs.push(k+'='+encodeURIComponent(p[k])); });
+    ['limit','key','trace_id','q','status','source','service','hide_noise'].forEach(function(k){ if(p[k]) qs.push(k+'='+encodeURIComponent(p[k])); });
     return cacheFirstAll(st, ['/admin/ledger?'+qs.join('&')], function(rr){
       var rows=(rr[0]&&rr[0].rows)||[];
       st.fields=LED_FIELDS.slice(); st.ro=true;
@@ -1069,6 +1069,7 @@ function stateUrl(){
   if(TOKQ){ var tq=TOKQ.split('='); p.set(tq[0], decodeURIComponent(tq.slice(1).join('='))); }
   if(base==='/admin/sheets') p.set('tab', T.id);
   if(T.kind==='directory'&&T.kindFilter) p.set('kind', T.kindFilter);
+  if(T.kind==='ledger'&&T.ledParams&&T.ledParams.kind) p.set('kind', T.ledParams.kind);
   if(T.sortBy) p.set('sort', fieldName(T,T.sortBy.c)+':'+(T.sortBy.dir===1?'asc':'desc'));
   Object.keys(T.filters||{}).forEach(function(k){ var r=T.filters[k]; if(!r) return; var f=fieldName(T,Number(k));
     if(r.cond) p.set('f.'+f, r.cond+':'+(r.needle==null?'':r.needle));
@@ -1097,6 +1098,7 @@ function applyUrlState(){
   var p=new URLSearchParams(location.search);
   var changed=false;
   if(T.kind==='directory'){ var k=p.get('kind'); if(k!=null&&k!==(T.kindFilter||'')){ T.kindFilter=k; changed=true; } }
+  if(T.kind==='ledger'){ var lk=p.get('kind'); if(lk!=null&&lk!==((T.ledParams&&T.ledParams.kind)||'')){ ledKindApply(lk); } }
   var srt=p.get('sort');
   if(srt){ var si=srt.lastIndexOf(':'); var sc=fieldIndex(T,si<0?srt:srt.slice(0,si));
     if(sc>=0){ T.sortBy={c:sc,dir:srt.slice(si+1)==='asc'?1:-1}; changed=true; } }
@@ -2227,8 +2229,44 @@ var KINDTABS=[
   {id:'',label:'Everything'},{id:'agent',label:'Agents'},{id:'tool',label:'Tools'},
   {id:'flow',label:'Flows'},{id:'content',label:'Content'},{id:'page',label:'Pages'},
   {id:'file',label:'Files'},{id:'other',label:'Other'}];
+// Ledger kind tabs: the same tap-a-tab the Directory has. Each tab is a
+// server-side filter on the events feed — service labels the ledger already knows, or a source.
+var LEDKINDS=[
+  {id:'',label:'Everything'},
+  {id:'service:blooio',label:'Messages (Blooio)'},
+  {id:'service:grok API',label:'Model calls (Grok)'},
+  {id:'service:claude-cli',label:'Claude Code'},
+  {id:'service:codex-cli',label:'Codex'},
+  {id:'service:grok-cli',label:'Grok CLI'},
+  {id:'service:kimi-cli',label:'Kimi CLI'},
+  {id:'source:dispatch',label:'Dispatch (tools)'},
+  {id:'source:sheets',label:'Sheets'},
+  {id:'source:email',label:'Email'},
+  {id:'service:github',label:'GitHub'},
+  {id:'service:cron',label:'Cron'},
+  {id:'service:jci',label:'Traffic'},
+  {id:'service:other',label:'Other'}
+];
+function ledKindApply(id){
+  var p=T.ledParams||{}; delete p.service; delete p.source; p.kind=id||'';
+  if(id.indexOf('service:')===0) p.service=id.slice(8); else if(id.indexOf('source:')===0) p.source=id.slice(7);
+  T.ledParams=p; T.loaded=false; loadTab(T,true).then(function(){ renderAll(); }); syncUrl(true); renderKindTabs();
+}
+var LED_TIMER=null;
+var LED_REFRESH_SEC=0; try{ LED_REFRESH_SEC=parseInt(localStorage.getItem('gs_led_refresh')||'0',10)||0; }catch(e){}
+function ledAutoRefresh(sec){
+  if(LED_TIMER){ clearInterval(LED_TIMER); LED_TIMER=null; }
+  if(sec>0) LED_TIMER=setInterval(function(){ if(T&&T.kind==='ledger'&&!T.loading){ T.loaded=false; loadTab(T,true).then(function(){ renderAll(); }); } }, sec*1000);
+  try{ localStorage.setItem('gs_led_refresh', String(sec)); }catch(e){}
+}
 function renderKindTabs(){
   var host=$('gs-kindtabs'); if(!host) return;
+  if(T.kind==='ledger'){
+    var cur=(T.ledParams&&T.ledParams.kind)||'';
+    host.innerHTML=LEDKINDS.map(function(k){ return '<span class="gs-kind'+(cur===k.id?' on':'')+'" data-k="'+esc(k.id)+'">'+esc(k.label)+'</span>'; }).join('');
+    host.querySelectorAll('.gs-kind').forEach(function(el){ el.onclick=function(){ ledKindApply(el.getAttribute('data-k')); }; });
+    return;
+  }
   if(T.kind!=='directory'){ host.innerHTML=''; return; }
   var counts={}; T.meta.forEach(function(m){ KINDTABS.forEach(function(k){ if(k.id&&matchKindTab(m.kind,k.id)) counts[k.id]=(counts[k.id]||0)+1; }); });
   counts['']=T.meta.length;
@@ -2285,11 +2323,12 @@ function renderToolbar(){
     var p=T.ledParams;
     h+='<span class="gs-tbsep"></span><span class="tenant">server query:</span>'
      +'<input id="lq-key" placeholder="key" value="'+esc(p.key||'')+'" style="width:130px">'
-     +'<input id="lq-q" placeholder="text contains" value="'+esc(p.q||'')+'" style="width:130px">'
+     +'<input id="lq-q" placeholder="search every row (text contains)" value="'+esc(p.q||'')+'" style="width:220px" onkeydown="if(event.key===\'Enter\'){document.getElementById(\'lq-go\').click()}">'
      +'<input id="lq-trace" placeholder="trace_id" value="'+esc(p.trace_id||'')+'" style="width:110px">'
      +'<select id="lq-limit">'+['100','250','500','1000'].map(function(n){ return '<option'+(p.limit===n?' selected':'')+'>'+n+'</option>'; }).join('')+'</select>'
      +'<label class="tenant" style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="lq-noise"'+(p.hide_noise==='1'?' checked':'')+'> hide traffic classifier rows (off = every row)</label>'
-     +'<button class="gs-tb" id="lq-go">Query</button>';
+     +'<button class="gs-tb" id="lq-go">Search</button>'
+     +'<span class="tenant">auto-refresh</span><select id="lq-timer">'+[['0','off'],['10','10s'],['30','30s'],['60','1m'],['300','5m']].map(function(o){ return '<option value="'+o[0]+'"'+(String(LED_REFRESH_SEC)===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select>';
   }
   if(T.kind==='view'){
     h+='<span class="gs-tbsep"></span><span class="tenant">projection of '+esc((T.viewDef&&T.viewDef.source)||'…')+' · '+T.vals.length+' rows'+(T._noMore?'':' (more below)')+'</span>'
@@ -2308,10 +2347,13 @@ function renderToolbar(){
   $('tb-help').onclick=showHelp;
   if(T.kind==='ledger'){
     $('lq-go').onclick=function(){
-      T.ledParams={key:$('lq-key').value.trim(), q:$('lq-q').value.trim(), trace_id:$('lq-trace').value.trim(), limit:$('lq-limit').value, hide_noise:$('lq-noise').checked?'1':''};
-      loadTab(T,true);
+      var keep=T.ledParams||{};
+      T.ledParams={key:$('lq-key').value.trim(), q:$('lq-q').value.trim(), trace_id:$('lq-trace').value.trim(), limit:$('lq-limit').value, hide_noise:$('lq-noise').checked?'1':'', kind:keep.kind||'', service:keep.service||'', source:keep.source||''};
+      T.loaded=false; loadTab(T,true).then(function(){ renderAll(); });
     };
     $('lq-noise').onchange=function(){ $('lq-go').onclick(); };
+    $('lq-timer').onchange=function(){ LED_REFRESH_SEC=parseInt($('lq-timer').value,10)||0; ledAutoRefresh(LED_REFRESH_SEC); };
+    ledAutoRefresh(LED_REFRESH_SEC);
   }
   if(T.kind==='view'){
     $('vw-rows').onclick=filtersDialog;
