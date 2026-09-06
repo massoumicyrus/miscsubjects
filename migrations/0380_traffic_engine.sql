@@ -432,3 +432,12 @@ CREATE TABLE IF NOT EXISTS traffic_features (
   updated_at      TEXT
 );
 CREATE INDEX IF NOT EXISTS traffic_features_profile ON traffic_features(tenant_id, profile_id, feature);
+
+-- Conflict targets the engine's write paths rely on. linkIdentifiers upserts identifiers keyed by
+-- (tenant, kind, value_hash) — one identifier value resolves to one profile per tenant — and
+-- appendEvent dedupes adapter ingestion by (tenant, source, source_event_id). 0378 shipped the
+-- identifier unique on (profile_id, kind, value_hash) only, so the ON CONFLICT had no matching index
+-- and every identity link threw. These add the indexes the code requires (NULL source_event_id rows
+-- stay distinct, so engine events are unaffected).
+CREATE UNIQUE INDEX IF NOT EXISTS traffic_identifiers_tenant_val ON traffic_identifiers(tenant_id, kind, value_hash);
+CREATE UNIQUE INDEX IF NOT EXISTS traffic_events_source_unique ON traffic_events(tenant_id, source, source_event_id);

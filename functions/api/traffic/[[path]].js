@@ -30,6 +30,16 @@ function tenantFrom(env, body, url) { return tenantOf((body && body.tenant) || u
 async function bodyOf(request) { try { return await request.json(); } catch { return {}; } }
 
 export async function onRequest(context) {
+  try {
+    return await route(context);
+  } catch (e) {
+    // A traffic API or webhook must fail with a named error, never an opaque 500.
+    try { await ledger(context.env, { key: 'TRAFFIC_API_ERROR', action: 'error', status: 500, route: new URL(context.request.url).pathname, request: { method: context.request.method }, response: { error: String(e && e.message || e) } }); } catch { /* ledger optional */ }
+    return json({ ok: false, error: 'TRAFFIC_ERROR', message: String(e && e.message || e).slice(0, 500) }, 500);
+  }
+}
+
+async function route(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const parts = url.pathname.replace(/^\/api\/traffic\/?/, '').split('/').filter(Boolean);
