@@ -29,6 +29,22 @@ async function listRows(env, type) {
   }
 }
 
+// The default list caps each payload cell (invocation, last response, descriptor) at LIST_CELL_CAP
+// characters and names where the full value lives; the row's own GET and ?full=1 are never capped.
+// A 6 MB list was resetting the D1 isolate under load.
+export const LIST_CELL_CAP = 8000;
+const CAPPED_CELLS = ['invocation', 'invocation_curl', 'last_response', 'descriptor_json', 'content'];
+export function capCells(row, cap) {
+  const out = { ...row };
+  for (const c of CAPPED_CELLS) {
+    const v = out[c];
+    if (v == null) continue;
+    const text = typeof v === 'string' ? v : JSON.stringify(v);
+    if (text.length > cap) out[c] = text.slice(0, cap) + `… [${text.length} chars; full value: GET /api/directory/${encodeURIComponent(row.key)}` + (c === 'invocation' || c === 'invocation_curl' || c === 'last_response' ? '/test' : '') + ' or ?full=1]';
+  }
+  return out;
+}
+
 export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -42,6 +58,8 @@ export async function onRequestGet(context) {
     rows = rows.map((r) => ({ key: r.key, type: r.type, category: r.category, test_state: r.test_state, tested_at: r.tested_at, enabled: r.enabled, planner_visible: r.planner_visible,
       docs: String(r.content || '').split('\n').filter((l) => /^\s*#/.test(l)).map((l) => l.replace(/^\s*#\s?/, '')).join(' ').slice(0, 300), row_num: r.row_num }));
   }
+
+  if (!url.searchParams.get('full') && !rowNumParam && fmt !== 'widgets') rows = rows.map((r) => capCells(r, LIST_CELL_CAP));
 
   if (rowNumParam) {
     const n = parseInt(rowNumParam, 10);

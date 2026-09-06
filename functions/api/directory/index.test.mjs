@@ -62,3 +62,13 @@ test('POST /api/directory without a descriptor binds object_kind by type, never 
   assert.equal(binds[16], 'capability');
   assert.equal(binds[18], 1, 'descriptor_rev must be 1, never null');
 });
+
+import { capCells, LIST_CELL_CAP } from './index.js';
+test('the default list caps payload cells and names the full value', () => {
+  const row = { key: 'X', last_response: 'a'.repeat(LIST_CELL_CAP + 500), invocation: { method: 'GET' }, name: 'n' };
+  const c = capCells(row, LIST_CELL_CAP);
+  assert.ok(c.last_response.length < LIST_CELL_CAP + 200);
+  assert.match(c.last_response, /8500 chars; full value: GET \/api\/directory\/X\/test/);
+  assert.deepEqual(c.invocation, { method: 'GET' });
+  assert.equal(c.name, 'n');
+});
