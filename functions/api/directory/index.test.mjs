@@ -49,3 +49,15 @@ test('GET /api/directory?brief=1 lists the catalog without payload columns', asy
   assert.deepEqual(Object.keys(body.rows[0]).sort(), ['category', 'docs', 'enabled', 'key', 'planner_visible', 'row_num', 'test_state', 'tested_at', 'type']);
   assert.equal(body.rows[0].docs, 'WHAT: the time.');
 });
+
+test('POST /api/directory without a descriptor binds object_kind by type, never null', async () => {
+  const { onRequestPost } = await import('./index.js');
+  let binds = null;
+  const env = { TERMINAL_KEY: 'owner-test-token', DB: { prepare(sql) { return { bind(...b) { binds = b; return this; }, async run() { return { success: true }; } }; } } };
+  const mk = (type) => new Request('https://example.test/api/directory', { method: 'POST', headers: { 'content-type': 'application/json', 'x-terminal-key': 'owner-test-token' }, body: JSON.stringify({ key: 'NEW_' + type.toUpperCase(), type, content: '# WHAT: x' }) });
+  assert.equal((await onRequestPost({ env, request: mk('agent') })).status, 201);
+  assert.equal(binds.includes('agent'), true);
+  assert.equal((await onRequestPost({ env, request: mk('fn') })).status, 201);
+  assert.equal(binds.includes('capability'), true);
+  assert.equal(binds.includes(null) && binds.indexOf(null) === binds.length - 5, false, 'object_kind bind must not be null');
+});

@@ -109,7 +109,8 @@ export async function onRequestPost(context) {
       b.examples != null ? String(b.examples) : null,
       b.sensitive != null ? Number(b.sensitive) : 0,
       b.runner != null ? String(b.runner) : null,
-      descriptor ? descriptor.kind : (b.object_kind != null ? String(b.object_kind) : null),
+      // object_kind is NOT NULL since 0373: a row created without a descriptor is an agent or a capability.
+      descriptor ? descriptor.kind : (b.object_kind != null ? String(b.object_kind) : (String(b.type) === 'agent' ? 'agent' : 'capability')),
       descriptorJson,
       descriptor ? 1 : null,
       descriptorHash,
