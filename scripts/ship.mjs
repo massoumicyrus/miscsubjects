@@ -497,6 +497,10 @@ try {
       if (r.status !== 0) throw new Error('LEDGER_TS_LAW FAILED — a file writes ledger rows with a UTC timestamp. Stamp with buildNowIso() (functions) or pacificIso() (scripts); do not edit the test.');
     }
     {
+      const r = spawnSync(process.execPath, ['--test', 'functions/admin/sheets/workbook_client_parses.test.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
+      if (r.status !== 0) throw new Error('WORKBOOK_CLIENT_LAW FAILED — the served workbook script does not parse. Fix the client code (no backslashes, backticks or ${ inside the template literal); do not edit the test.');
+    }
+    {
       const r = spawnSync(process.execPath, ['scripts/check-one-object.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
       if (r.status !== 0) throw new Error('ONE_OBJECT_LAW FAILED — a single-object article carries another object\'s frame. Rewrite the page about its own subject; cross-object writing belongs in the combination article whose slug names both.');
     }

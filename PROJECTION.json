@@ -2,12 +2,12 @@
  "_what": "This repository is a generated projection of a private operating repository. Every file here was produced by scripts/publish-mirror.mjs from the source commit below, with identity substituted and gates run against the output. See docs/PUBLISHING.md.",
  "source": {
   "repository": "the private operating repository",
-  "commit": "d11beb9b210cd4f40c768407cd37ebaa8ab92fbb"
+  "commit": "dc792f8d471cd041803ef3e1d8c7f85d3ed6a098"
  },
- "generated_at": "2026-09-06T06:29:48.647Z",
- "files": 1181,
- "bytes": 9636049,
- "tracked_in_source": 6101,
+ "generated_at": "2026-09-06T06:31:00.135Z",
+ "files": 1182,
+ "bytes": 9637187,
+ "tracked_in_source": 6102,
  "dropped": {
   "not in allow-list": 4441,
   "editor backups of prompts and modules; the live version is the file beside them": 15,
@@ -17,7 +17,7 @@
   "URW DIN is a commercially licensed font; the site serves it but the repository cannot redistribute it": 1,
   "this file lists the identity strings it removes": 1
  },
- "substituted_files": 535,
+ "substituted_files": 536,
  "substitutions": [
   {
    "path": ".claude/hooks/cc-turn-log.js",
@@ -1214,6 +1214,12 @@
     "literal": 10,
     "diary_comments": 2,
     "diary_phrases": 10
+   }
+  },
+  {
+   "path": "functions/admin/sheets/workbook_client_parses.test.mjs",
+   "substitutions": {
+    "diary_comments": 1
    }
   },
   {
@@ -3464,7 +3470,7 @@
    "path": "scripts/ship.mjs",
    "substitutions": {
     "literal": 9,
-    "diary_comments": 19
+    "diary_comments": 20
    }
   },
   {
@@ -4107,7 +4113,7 @@
    "functions/_lib/send_proof.js",
    "functions/_lib/x_oauth1.js"
   ],
-  "comments_removed": 773,
+  "comments_removed": 775,
   "markdown_blocks_removed": 75,
   "narrative_phrases_removed": 151,
   "dated_strings_remaining": 235,
@@ -4127,13 +4133,13 @@
  "gates": [
   {
    "name": "forbidden_strings",
-   "examined": 1180,
+   "examined": 1181,
    "hits": 0,
    "ok": true
   },
   {
    "name": "paths",
-   "examined": 1180,
+   "examined": 1181,
    "hits": 0,
    "ok": true
   },
@@ -4146,31 +4152,31 @@
   },
   {
    "name": "size",
-   "examined": 1180,
+   "examined": 1181,
    "hits": 0,
    "ok": true
   },
   {
    "name": "syntax",
-   "examined": 639,
+   "examined": 640,
    "hits": 0,
    "ok": true,
    "note": "20 stubs included"
   },
   {
    "name": "diary",
-   "examined": 1178,
+   "examined": 1179,
    "hits": 0,
    "ok": true
   },
   {
    "name": "gitleaks",
-   "examined": 1181,
+   "examined": 1182,
    "hits": 0,
    "ok": true,
    "note": "8.30.1"
   }
  ],
  "all_gates_ok": true,
- "content_hash": "299392645c6609e4f5d27596187d8921fb7ee3df5d637c5e5f15fc66b23f9182"
+ "content_hash": "19004908cc344474172ec082e67bc5557896444575e17e8c68b73a61a8f79ab5"
 }
