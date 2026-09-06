@@ -374,7 +374,7 @@ export async function onRequestGet(context) {
     const key = params.get('key') || '';
     const traceId = params.get('trace_id') || '';
     const q = params.get('q') || '';
-    const hideNoise = params.get('hide_noise') !== '0';
+    const hideNoise = params.get('hide_noise') === '1';
     const limit = Math.min(parseInt(params.get('limit') || '500', 10) || 500, 2000);
     const stamp = new Date().toISOString().slice(0, 10);
     const svcSlug = (service || 'all').replace(/[^a-zA-Z0-9_-]+/g, '_');
@@ -715,7 +715,7 @@ export async function onRequestGet(context) {
     const statusS  = params.get('status')   || '';
     const q        = params.get('q')        || '';
     const before   = params.get('before')   || '';
-    const hideNoise = params.get('hide_noise') !== '0';
+    const hideNoise = params.get('hide_noise') === '1';
     const limit    = Math.min(parseInt(params.get('limit') || '100', 10), 1000);
 
     if (!env.LEDGER) {
@@ -761,7 +761,7 @@ export async function onRequestGet(context) {
   const initialSource = params.get('source') || '';
   const initialKey    = params.get('key')    || '';
   const initialTrace  = params.get('trace_id') || '';
-  const initialHideNoise = params.get('hide_noise') !== '0';
+  const initialHideNoise = params.get('hide_noise') === '1';
   const origin = url.origin;
 
   function curlGet(path) {

@@ -2288,7 +2288,7 @@ function renderToolbar(){
      +'<input id="lq-q" placeholder="text contains" value="'+esc(p.q||'')+'" style="width:130px">'
      +'<input id="lq-trace" placeholder="trace_id" value="'+esc(p.trace_id||'')+'" style="width:110px">'
      +'<select id="lq-limit">'+['100','250','500','1000'].map(function(n){ return '<option'+(p.limit===n?' selected':'')+'>'+n+'</option>'; }).join('')+'</select>'
-     +'<label class="tenant" style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="lq-noise"'+(p.hide_noise==='0'?' checked':'')+'> show traffic classifier rows</label>'
+     +'<label class="tenant" style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="lq-noise"'+(p.hide_noise==='1'?' checked':'')+'> hide traffic classifier rows (off = every row)</label>'
      +'<button class="gs-tb" id="lq-go">Query</button>';
   }
   if(T.kind==='view'){
@@ -2308,7 +2308,7 @@ function renderToolbar(){
   $('tb-help').onclick=showHelp;
   if(T.kind==='ledger'){
     $('lq-go').onclick=function(){
-      T.ledParams={key:$('lq-key').value.trim(), q:$('lq-q').value.trim(), trace_id:$('lq-trace').value.trim(), limit:$('lq-limit').value, hide_noise:$('lq-noise').checked?'0':''};
+      T.ledParams={key:$('lq-key').value.trim(), q:$('lq-q').value.trim(), trace_id:$('lq-trace').value.trim(), limit:$('lq-limit').value, hide_noise:$('lq-noise').checked?'1':''};
       loadTab(T,true);
     };
     $('lq-noise').onchange=function(){ $('lq-go').onclick(); };
