@@ -1,6 +1,10 @@
 import { dispatch } from './dispatch.js';
 import { logEvent } from '../_lib/event_log.js';
 import { projectionRows } from '../_lib/projection_manifest.js';
+import { environmentCatalogMap, loadEnvironmentCatalog } from '../_lib/environment_descriptor.js';
+import { resolveEffectiveGovernance } from '../_lib/governance_resolver.js';
+import { resolveComparables } from '../_lib/environment_comparables.js';
+import { environmentManualMarkdown } from '../_lib/environment_manual.js';
 
 // MCP Streamable-HTTP server fronting the directory. Every enabled + planner-visible
 // directory row is exposed as an MCP tool; tools/call routes through /api/dispatch, so
@@ -142,6 +146,48 @@ async function listTools(env) {
   return mcpToolsFromRows(r.results || []);
 }
 
+// RESOURCES are the same directory descriptors the environment API serves, published through
+// MCP's resource lane so a coding agent discovers an object's contract, resolved rules and
+// comparables through the protocol it already speaks. Tools execute; resources describe. The
+// server stores no description of its own: every field below is compiled from the catalog.
+export const MANUAL_RESOURCE_URI = 'environment://miscsubjects/manual';
+const ORIGIN = 'https://miscsubjects.com';
+
+export function mcpResourcesFromCatalog(catalog) {
+  const resources = [{
+    uri: MANUAL_RESOURCE_URI,
+    name: 'environment manual',
+    description: 'One-link model-readable manual for the live environment, generated from directory descriptors.',
+    mimeType: 'text/markdown',
+  }];
+  for (const object of catalog || []) {
+    if (!object?.ref) continue;
+    resources.push({
+      uri: object.ref,
+      name: object.title || object.ref,
+      description: [object.summary, `[${object.kind}]`, object.hash ? `rev ${object.revision} ${object.hash}` : null].filter(Boolean).join(' '),
+      mimeType: 'application/json',
+    });
+  }
+  return resources;
+}
+
+export function readMcpResource(catalog, uri, origin = ORIGIN) {
+  const ref = String(uri || '').trim();
+  if (ref === MANUAL_RESOURCE_URI) {
+    return { contents: [{ uri: ref, mimeType: 'text/markdown', text: environmentManualMarkdown(catalog, { origin }) }] };
+  }
+  const object = environmentCatalogMap(catalog).get(ref);
+  if (!object) return null;
+  const body = {
+    ...object,
+    governance: resolveEffectiveGovernance(catalog, ref),
+    comparables: resolveComparables(catalog, ref),
+    representations: { ...(object.representations || {}), json: `${origin}/api/environment/objects?ref=${encodeURIComponent(ref)}`, manual: `${origin}/api/environment?format=markdown` },
+  };
+  return { contents: [{ uri: ref, mimeType: 'application/json', text: JSON.stringify(body, null, 2) }] };
+}
+
 function rpcResult(id, result) { return { jsonrpc: '2.0', id, result }; }
 function rpcError(id, code, message) { return { jsonrpc: '2.0', id, error: { code, message } }; }
 const J = (obj, status) => new Response(JSON.stringify(obj), { status: status || 200, headers: { 'content-type': 'application/json' } });
@@ -162,10 +208,19 @@ export async function onRequestPost(context) {
   if (method && method.startsWith('notifications/')) return new Response(null, { status: 202 });
 
   if (method === 'initialize') {
-    return J(rpcResult(id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: SERVER_INFO }));
+    return J(rpcResult(id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false }, resources: { subscribe: false, listChanged: false } }, serverInfo: SERVER_INFO }));
   }
   if (method === 'ping') return J(rpcResult(id, {}));
   if (method === 'tools/list') return J(rpcResult(id, { tools: await listTools(env) }));
+  if (method === 'resources/list') return J(rpcResult(id, { resources: mcpResourcesFromCatalog(await loadEnvironmentCatalog(env)) }));
+  if (method === 'resources/templates/list') return J(rpcResult(id, { resourceTemplates: [] }));
+  if (method === 'resources/read') {
+    const uri = msg.params && msg.params.uri;
+    if (!uri) return J(rpcError(id, -32602, 'resources/read requires params.uri'));
+    const found = readMcpResource(await loadEnvironmentCatalog(env), uri);
+    if (!found) return J(rpcError(id, -32002, 'resource not registered: ' + uri + ' — list resources or read ' + MANUAL_RESOURCE_URI));
+    return J(rpcResult(id, found));
+  }
   if (method === 'tools/call') {
     const name = msg.params && msg.params.name;
     const args = (msg.params && msg.params.arguments) || {};
@@ -191,5 +246,6 @@ export async function onRequestGet(context) {
   const { request, env } = context;
   if (!tokenOk(request, env)) return J({ error: 'unauthorized' }, 401);
   const tools = await listTools(env);
-  return J({ server: SERVER_INFO, protocolVersion: PROTOCOL_VERSION, transport: 'streamable-http (POST JSON-RPC 2.0)', endpoint: 'https://miscsubjects.com/api/mcp', tool_count: tools.length });
+  const resources = mcpResourcesFromCatalog(await loadEnvironmentCatalog(env));
+  return J({ server: SERVER_INFO, protocolVersion: PROTOCOL_VERSION, transport: 'streamable-http (POST JSON-RPC 2.0)', endpoint: 'https://miscsubjects.com/api/mcp', tool_count: tools.length, resource_count: resources.length, manual: MANUAL_RESOURCE_URI });
 }

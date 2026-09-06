@@ -4,7 +4,7 @@
 // functions/api/directory/index.js and [key].js — keep in sync if those change.
 
 export const DIR_SCHEMA = {
-  store: 'D1 table `directory` (one row = one invocable build capability)',
+  store: 'D1 table `directory` (one row = one environment object; invocable objects retain the existing dispatch fields)',
   fields: {
     key: 'string · primary key · the invocation name',
     type: 'fn | http | agent | flow',
@@ -15,6 +15,10 @@ export const DIR_SCHEMA = {
     category: 'string tag', allowed_categories: 'csv of categories, or "*"',
     seq: 'int (sort)', enabled: '1|0', planner_visible: '1|0', planner_rank: 'int',
     input_schema: 'optional JSON string', examples: 'optional JSON string',
+    object_kind: 'optional canonical object kind (page, route, prompt, model, sheet, source, law, skill, store, external, capability)',
+    descriptor_json: 'canonical miscsubjects/environment-object/1 JSON: identity, exact operations, relationships, governance, comparables, representations',
+    descriptor_rev: 'monotonic descriptor revision; incremented whenever descriptor_json changes',
+    descriptor_hash: 'sha256 of canonical descriptor JSON',
     row_num: 'int · computed · 1-based position in the canonical directory list (stable for a given ordering)',
   },
   rest: {

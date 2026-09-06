@@ -6,13 +6,14 @@ import { DIR_SCHEMA, restFor } from '../../_lib/dir_schema.js';
 import { renderDirWidgetResponse } from '../../_lib/dir_widgets.js';
 import { directoryRowSkillMarkdown } from '../../_lib/article_skill.js';
 import { registryHygieneViolation } from '../../_lib/registry_hygiene.js';
+import { descriptorFromDirectoryRow, hashEnvironmentDescriptor, normalizeEnvironmentDescriptor, stableDescriptorJson, validateEnvironmentDescriptor } from '../../_lib/environment_descriptor.js';
 
 function json(obj, status) {
   return new Response(JSON.stringify(obj), { status: status || 200, headers: { 'content-type': 'application/json' } });
 }
 async function authed(request, env) { return isBuildAuthed(request, env); }
 
-const ORDER = 'ORDER BY (seq IS NULL), seq ASC, (key = "ROUTER") DESC, key ASC';
+const ORDER = "ORDER BY (seq IS NULL), seq ASC, (key = 'ROUTER') DESC, key ASC";
 
 async function readRow(env, key) {
   return env.DB.prepare('SELECT * FROM directory WHERE key = ?').bind(key).first();
@@ -32,16 +33,66 @@ async function rowNumFor(env, key) {
 // table degrades gracefully until 0357 is applied.
 async function recordContractVersion(env, key, actor) {
   try {
-    const row = await env.DB.prepare('SELECT content FROM directory WHERE key=?').bind(key).first();
+    // Descriptor columns arrive with migration 0373. Read them when present; fall back to the
+    // content-only shape before the migration so versioning never stops working.
+    let row = null;
+    let withDescriptor = true;
+    try { row = await env.DB.prepare('SELECT content, descriptor_json, descriptor_hash FROM directory WHERE key=?').bind(key).first(); }
+    catch { withDescriptor = false; row = await env.DB.prepare('SELECT content FROM directory WHERE key=?').bind(key).first(); }
     if (!row) return;
     const content = String(row.content || '');
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content));
     const hash = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
-    const last = await env.DB.prepare('SELECT version, content_hash FROM directory_versions WHERE key=? ORDER BY version DESC LIMIT 1').bind(key).first();
-    if (last && String(last.content_hash) === hash) return; // content unchanged — no version
+    const descriptorHash = withDescriptor && row.descriptor_hash ? String(row.descriptor_hash) : null;
+    let last = null;
+    try { last = await env.DB.prepare('SELECT version, content_hash, descriptor_hash FROM directory_versions WHERE key=? ORDER BY version DESC LIMIT 1').bind(key).first(); }
+    catch { last = await env.DB.prepare('SELECT version, content_hash FROM directory_versions WHERE key=? ORDER BY version DESC LIMIT 1').bind(key).first(); }
+    const contentSame = last && String(last.content_hash) === hash;
+    const descriptorSame = !descriptorHash || (last && String(last.descriptor_hash || '') === descriptorHash);
+    if (contentSame && descriptorSame) return; // nothing changed — no version
+    const version = Number(last?.version || 0) + 1;
+    if (withDescriptor) {
+      try {
+        await env.DB.prepare('INSERT INTO directory_versions (key,version,content,content_hash,actor,ts,descriptor_json,descriptor_hash) VALUES (?,?,?,?,?,?,?,?)')
+          .bind(key, version, content, hash, actor || null, buildNowIso(), row.descriptor_json != null ? String(row.descriptor_json) : null, descriptorHash).run();
+        return;
+      } catch {}
+    }
     await env.DB.prepare('INSERT INTO directory_versions (key,version,content,content_hash,actor,ts) VALUES (?,?,?,?,?,?)')
-      .bind(key, Number(last?.version || 0) + 1, content, hash, actor || null, buildNowIso()).run();
+      .bind(key, version, content, hash, actor || null, buildNowIso()).run();
   } catch {}
+}
+
+// DESCRIPTOR WRITES ARE COMPARE-AND-SET. A model that read descriptor_rev N and edits from it says
+// so with expected_descriptor_rev; if the row has moved on, the write is refused with the current
+// revision and hash instead of silently erasing the concurrent edit. The revision increments only
+// when the content hash actually changes, so re-sending the same descriptor is idempotent.
+// Returns { error, status, body } to refuse, { descriptor: null } when no descriptor was sent, or
+// { descriptor, json, hash, rev } to write.
+async function prepareDescriptorWrite(b, existing, key) {
+  if (!b || !Object.prototype.hasOwnProperty.call(b, 'descriptor_json')) {
+    if (b && Object.prototype.hasOwnProperty.call(b, 'expected_descriptor_rev')) {
+      const current = Number(existing?.descriptor_rev || 0);
+      if (Number(b.expected_descriptor_rev) !== current) {
+        return { error: true, status: 409, body: { error: 'descriptor_revision_stale', key, current_descriptor_rev: current, current_descriptor_hash: existing?.descriptor_hash || null, state_changed: false } };
+      }
+    }
+    return { descriptor: null };
+  }
+  let supplied;
+  try { supplied = typeof b.descriptor_json === 'string' ? JSON.parse(b.descriptor_json) : b.descriptor_json; }
+  catch { return { error: true, status: 422, body: { error: 'descriptor_json must be valid JSON', key, state_changed: false } }; }
+  const checked = validateEnvironmentDescriptor(supplied);
+  if (!checked.ok) return { error: true, status: 422, body: { error: 'environment_descriptor_refused', key, details: checked.errors, state_changed: false } };
+  const currentRev = Number(existing?.descriptor_rev || 0);
+  const currentHash = existing?.descriptor_hash ? String(existing.descriptor_hash) : null;
+  if (Object.prototype.hasOwnProperty.call(b, 'expected_descriptor_rev') && Number(b.expected_descriptor_rev) !== currentRev) {
+    return { error: true, status: 409, body: { error: 'descriptor_revision_stale', key, expected_descriptor_rev: Number(b.expected_descriptor_rev), current_descriptor_rev: currentRev, current_descriptor_hash: currentHash, how_to_fix: 'GET /api/directory/' + encodeURIComponent(key) + ', redo the edit on the current descriptor_json, resend with expected_descriptor_rev set to current_descriptor_rev.', state_changed: false } };
+  }
+  const hash = await hashEnvironmentDescriptor(checked.descriptor);
+  const rev = hash === currentHash ? Math.max(currentRev, 1) : currentRev + 1;
+  const descriptor = normalizeEnvironmentDescriptor({ ...checked.descriptor, revision: rev, hash, directory_key: key });
+  return { descriptor, json: stableDescriptorJson({ ...descriptor, hash: null }), hash, rev, unchanged: hash === currentHash };
 }
 
 // Every directory mutation flows through ONE control point (this file). On each write
@@ -276,7 +327,25 @@ export async function onRequestGet(context) {
       },
       law: 'This directory definition is also a human article, model Skill, and invocable OIP object under one identity.',
     },
+    _environment: environmentLinks(row),
   });
+}
+
+// The same row as an environment object: its canonical ref and the three resolvers a model
+// reads before acting on it. Generated from the row, never stored beside it.
+function environmentLinks(row) {
+  const descriptor = descriptorFromDirectoryRow(row);
+  const q = encodeURIComponent(descriptor.ref);
+  return {
+    ref: descriptor.ref,
+    descriptor_rev: row.descriptor_rev != null ? Number(row.descriptor_rev) : null,
+    descriptor_hash: row.descriptor_hash || null,
+    describe: '/api/environment/objects?ref=' + q,
+    governance: '/api/environment/governance?ref=' + q,
+    comparables: '/api/environment/comparables?ref=' + q,
+    manual: '/api/environment?format=markdown',
+    edit_descriptor: 'PATCH /api/directory/' + encodeURIComponent(String(row.key)) + ' {"descriptor_json":{...},"expected_descriptor_rev":' + (row.descriptor_rev != null ? Number(row.descriptor_rev) : 0) + '}',
+  };
 }
 
 export async function onRequestPut(context) {
@@ -295,15 +364,11 @@ export async function onRequestPut(context) {
     content: b.content,
   });
   if (violation) return json({ error: 'registry_hygiene_refused: ' + violation.code, key, how_to_fix: violation.fix, state_changed: false }, 422);
+  const dw = await prepareDescriptorWrite(b, existing, key);
+  if (dw.error) return json(dw.body, dw.status);
   const ts = new Date().toISOString();
-  await env.DB.prepare(
-    'INSERT INTO directory (key, type, target, auth, content, includes, category, allowed_categories, seq, enabled, planner_visible, planner_rank, input_schema, examples, sensitive, runner, updated_at, created_at) ' +
-    'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ' +
-    'ON CONFLICT(key) DO UPDATE SET type=excluded.type, target=excluded.target, auth=excluded.auth, content=excluded.content, includes=excluded.includes, ' +
-    'category=excluded.category, allowed_categories=excluded.allowed_categories, seq=excluded.seq, enabled=excluded.enabled, ' +
-    'planner_visible=excluded.planner_visible, planner_rank=excluded.planner_rank, input_schema=excluded.input_schema, ' +
-    'examples=excluded.examples, sensitive=excluded.sensitive, runner=excluded.runner, updated_at=excluded.updated_at'
-  ).bind(
+  const baseCols = 'key, type, target, auth, content, includes, category, allowed_categories, seq, enabled, planner_visible, planner_rank, input_schema, examples, sensitive, runner';
+  const baseVals = [
     key, String(b.type), String(b.target || ''), String(b.auth || ''), String(b.content || ''),
     b.includes != null ? String(b.includes) : null,
     b.category != null ? String(b.category) : null,
@@ -316,13 +381,31 @@ export async function onRequestPut(context) {
     b.examples != null ? String(b.examples) : null,
     b.sensitive != null ? Number(b.sensitive) : Number(existing?.sensitive ?? 0),
     b.runner != null ? String(b.runner) : (existing?.runner || null),
-    ts,
-    ts
-  ).run();
+  ];
+  const baseUpdate = 'type=excluded.type, target=excluded.target, auth=excluded.auth, content=excluded.content, includes=excluded.includes, ' +
+    'category=excluded.category, allowed_categories=excluded.allowed_categories, seq=excluded.seq, enabled=excluded.enabled, ' +
+    'planner_visible=excluded.planner_visible, planner_rank=excluded.planner_rank, input_schema=excluded.input_schema, ' +
+    'examples=excluded.examples, sensitive=excluded.sensitive, runner=excluded.runner, updated_at=excluded.updated_at';
+  if (dw.descriptor) {
+    // Descriptor columns exist only once migration 0373 has run; a PUT that carries a descriptor
+    // needs them, and a PUT that does not keeps the pre-migration statement so it never breaks.
+    await env.DB.prepare(
+      'INSERT INTO directory (' + baseCols + ', object_kind, descriptor_json, descriptor_rev, descriptor_hash, updated_at, created_at) ' +
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ' +
+      'ON CONFLICT(key) DO UPDATE SET ' + baseUpdate + ', object_kind=excluded.object_kind, descriptor_json=excluded.descriptor_json, ' +
+      'descriptor_rev=excluded.descriptor_rev, descriptor_hash=excluded.descriptor_hash'
+    ).bind(...baseVals, dw.descriptor.kind, dw.json, dw.rev, dw.hash, ts, ts).run();
+  } else {
+    await env.DB.prepare(
+      'INSERT INTO directory (' + baseCols + ', updated_at, created_at) ' +
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ' +
+      'ON CONFLICT(key) DO UPDATE SET ' + baseUpdate
+    ).bind(...baseVals, ts, ts).run();
+  }
   await invalidateDirSnapshot(env);
   await recordContractVersion(env, key, 'put');
-  await afterMutation(env, 'put', key, { type: String(b.type), target: String(b.target || '') });
-  return json({ ok: true, key, updated_at: ts });
+  await afterMutation(env, 'put', key, { type: String(b.type), target: String(b.target || ''), ...(dw.descriptor ? { ref: dw.descriptor.ref, descriptor_rev: dw.rev, descriptor_hash: dw.hash } : {}) });
+  return json({ ok: true, key, updated_at: ts, ...(dw.descriptor ? { ref: dw.descriptor.ref, descriptor_rev: dw.rev, descriptor_hash: dw.hash, descriptor_unchanged: !!dw.unchanged } : {}) });
 }
 
 export async function onRequestPatch(context) {
@@ -350,10 +433,17 @@ export async function onRequestPatch(context) {
   } else {
     return json({ error: 'invalid json' }, 400);
   }
-  const FIELDS = ['type', 'target', 'auth', 'content', 'includes', 'category', 'allowed_categories', 'seq', 'enabled', 'planner_visible', 'planner_rank', 'input_schema', 'examples', 'sensitive', 'runner'];
+  const dw = await prepareDescriptorWrite(b, row, key);
+  if (dw.error) return json(dw.body, dw.status);
+  const FIELDS = ['type', 'target', 'auth', 'content', 'includes', 'category', 'allowed_categories', 'seq', 'enabled', 'planner_visible', 'planner_rank', 'input_schema', 'examples', 'sensitive', 'runner', 'object_kind'];
   const sets = [], vals = [];
   for (const f of FIELDS) {
+    if (f === 'object_kind' && dw.descriptor) continue; // the descriptor's kind is the object kind
     if (b && Object.prototype.hasOwnProperty.call(b, f)) { sets.push(f + ' = ?'); vals.push(b[f]); }
+  }
+  if (dw.descriptor) {
+    sets.push('object_kind = ?', 'descriptor_json = ?', 'descriptor_rev = ?', 'descriptor_hash = ?');
+    vals.push(dw.descriptor.kind, dw.json, dw.rev, dw.hash);
   }
   // agent_<name> writes the per-agent override dispatch reads before every call. Kept separate
   // from the directory columns above: these live in `settings`, not in the directory row, and an
@@ -379,8 +469,9 @@ export async function onRequestPatch(context) {
   await invalidateDirSnapshot(env);
   await recordContractVersion(env, key, 'patch');
   const after = await readRow(env, key);
-  await afterMutation(env, 'patch', key, after ? { type: after.type, target: after.target } : null);
-  return json({ ok: true, key, updated_at: ts, fields: sets.length - 1, agent_settings_written: agentWrites });
+  await afterMutation(env, 'patch', key, after ? { type: after.type, target: after.target, ...(dw.descriptor ? { ref: dw.descriptor.ref, descriptor_rev: dw.rev, descriptor_hash: dw.hash } : {}) } : null);
+  return json({ ok: true, key, updated_at: ts, fields: sets.length - 1, agent_settings_written: agentWrites,
+    ...(dw.descriptor ? { ref: dw.descriptor.ref, descriptor_rev: dw.rev, descriptor_hash: dw.hash, descriptor_unchanged: !!dw.unchanged } : {}) });
 }
 
 export async function onRequestDelete(context) {

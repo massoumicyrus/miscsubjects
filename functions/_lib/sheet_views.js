@@ -30,13 +30,17 @@ export const DIRECTORY_FIELDS = [
   'key', 'type', 'target', 'auth', 'content', 'updated_at', 'category', 'allowed_categories', 'seq',
   'enabled', 'planner_visible', 'planner_rank', 'input_schema', 'examples', 'sensitive', 'runner',
   'includes', 'created_at', 'price_usd', 'meter_unit',
+  // Environment descriptor (migration 0373). descriptor_json is the canonical object contract, so a
+  // column path like descriptor_json.governance.direct or descriptor_json.comparables[0].dimensions
+  // projects any part of it with the generic JSON-path grammar — no descriptor-specific feature.
+  'object_kind', 'descriptor_json', 'descriptor_rev', 'descriptor_hash',
 ];
 
 // Every table a view may read. `db` names the binding; `ts` the column that orders it.
 export const SOURCES = {
   ledger:             { db: 'LEDGER', table: 'events',             ts: 'ts',         fields: EVENT_FIELDS, json: ['request_json', 'response_json'] },
-  directory:          { db: 'DB',     table: 'directory',          ts: 'updated_at', fields: DIRECTORY_FIELDS, json: [] },
-  directory_versions: { db: 'DB',     table: 'directory_versions', ts: 'ts',         fields: ['key', 'version', 'content', 'content_hash', 'actor', 'ts'], json: [] },
+  directory:          { db: 'DB',     table: 'directory',          ts: 'updated_at', fields: DIRECTORY_FIELDS, json: ['descriptor_json'] },
+  directory_versions: { db: 'DB',     table: 'directory_versions', ts: 'ts',         fields: ['key', 'version', 'content', 'content_hash', 'actor', 'ts', 'descriptor_json', 'descriptor_hash'], json: ['descriptor_json'] },
   agent_turns:        { db: 'DB',     table: 'agent_turns',        ts: 'ts',         fields: ['id', 'ts', 'agent', 'source', 'session', 'trace_id', 'input_kind', 'user_input', 'assistant_text', 'n_tools', 'tools_json', 'commands_json', 'files_json', 'model_id', 'tokens_in', 'tokens_out', 'cost_usd', 'turn_key'], json: ['tools_json', 'commands_json', 'files_json'] },
   turn_jobs:          { db: 'DB',     table: 'turn_jobs',          ts: 'created_at', fields: ['id', 'job_json', 'status', 'attempts', 'created_at', 'updated_at'], json: ['job_json'] },
   pending_deliveries: { db: 'DB',     table: 'pending_deliveries', ts: 'created_at', fields: ['id', 'asset_id', 'kind', 'model', 'chat', 'channel', 'trace_id', 'status', 'created_at', 'updated_at'], json: [] },

@@ -203,6 +203,11 @@
       "phase": "post",
       "law": "SERVED_SCRIPT_PARSES_LAW",
       "note": "needs TERMINAL_KEY and the live site: parses the inline JavaScript the browser is actually served, because a template literal eats single backslashes on the way out and node --check on the source cannot see it"
+    },
+    "check-environment-contract.mjs": {
+      "phase": "pre",
+      "law": "ENVIRONMENT_CONTRACT_LAW",
+      "note": "WT-0109: runs migration 0373 on a fresh in-memory database and CALLS the shipped handlers — environment root/manual/governance/comparables, directory PATCH compare-and-set, sheet JSON-path projection, MCP resources, admin shell — judging effects in the rows, never response shape; every stored descriptor hash is recomputed"
     }
   }
 }

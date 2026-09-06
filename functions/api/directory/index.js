@@ -3,9 +3,10 @@ import { invalidateDirSnapshot } from '../../_lib/dir_snapshot.js';
 import { DIR_SCHEMA, restFor } from '../../_lib/dir_schema.js';
 import { renderDirWidgetResponse } from '../../_lib/dir_widgets.js';
 import { registryHygieneViolation } from '../../_lib/registry_hygiene.js';
+import { hashEnvironmentDescriptor, normalizeEnvironmentDescriptor, stableDescriptorJson, validateEnvironmentDescriptor } from '../../_lib/environment_descriptor.js';
 
-const COLS = ['key', 'type', 'target', 'auth', 'content', 'includes', 'category', 'allowed_categories', 'seq', 'enabled', 'planner_visible', 'planner_rank', 'input_schema', 'examples', 'sensitive', 'runner'];
-const ORDER = 'ORDER BY (seq IS NULL), seq ASC, (key = "ROUTER") DESC, key ASC';
+const COLS = ['key', 'type', 'target', 'auth', 'content', 'includes', 'category', 'allowed_categories', 'seq', 'enabled', 'planner_visible', 'planner_rank', 'input_schema', 'examples', 'sensitive', 'runner', 'object_kind', 'descriptor_json', 'descriptor_rev', 'descriptor_hash'];
+const ORDER = "ORDER BY (seq IS NULL), seq ASC, (key = 'ROUTER') DESC, key ASC";
 
 function json(obj, status) {
   return new Response(JSON.stringify(obj), { status: status || 200, headers: { 'content-type': 'application/json' } });
@@ -50,6 +51,15 @@ export async function onRequestPost(context) {
   let b;
   try { b = await request.json(); } catch { return json({ error: 'invalid json' }, 400); }
   if (!b || !b.key || !b.type) return json({ error: 'key and type required' }, 400);
+  let descriptor = null;
+  if (Object.prototype.hasOwnProperty.call(b, 'descriptor_json')) {
+    let supplied;
+    try { supplied = typeof b.descriptor_json === 'string' ? JSON.parse(b.descriptor_json) : b.descriptor_json; }
+    catch { return json({ error: 'descriptor_json must be valid JSON', state_changed: false }, 422); }
+    const checked = validateEnvironmentDescriptor(supplied);
+    if (!checked.ok) return json({ error: 'environment_descriptor_refused', details: checked.errors, state_changed: false }, 422);
+    descriptor = normalizeEnvironmentDescriptor({ ...checked.descriptor, revision: 1, directory_key: String(b.key) });
+  }
   const violation = registryHygieneViolation({
     sensitive: b.sensitive,
     auth: b.auth,
@@ -66,10 +76,12 @@ export async function onRequestPost(context) {
     }, 422);
   }
   const ts = new Date().toISOString();
+  const descriptorJson = descriptor ? stableDescriptorJson(descriptor) : null;
+  const descriptorHash = descriptor ? await hashEnvironmentDescriptor(descriptor) : null;
   try {
     await env.DB.prepare(
-      'INSERT INTO directory (key, type, target, auth, content, includes, category, allowed_categories, seq, enabled, planner_visible, planner_rank, input_schema, examples, sensitive, runner, updated_at) ' +
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO directory (key, type, target, auth, content, includes, category, allowed_categories, seq, enabled, planner_visible, planner_rank, input_schema, examples, sensitive, runner, object_kind, descriptor_json, descriptor_rev, descriptor_hash, updated_at) ' +
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(
       String(b.key), String(b.type), String(b.target || ''), String(b.auth || ''), String(b.content || ''),
       b.includes != null ? String(b.includes) : null,
@@ -83,11 +95,16 @@ export async function onRequestPost(context) {
       b.examples != null ? String(b.examples) : null,
       b.sensitive != null ? Number(b.sensitive) : 0,
       b.runner != null ? String(b.runner) : null,
+      descriptor ? descriptor.kind : (b.object_kind != null ? String(b.object_kind) : null),
+      descriptorJson,
+      descriptor ? 1 : null,
+      descriptorHash,
       ts
     ).run();
   } catch (e) {
     return json({ error: 'insert failed: ' + (e && e.message || String(e)) }, 409);
   }
   await invalidateDirSnapshot(env);
-  return json({ ok: true, key: String(b.key), updated_at: ts }, 201);
+  return json({ ok: true, key: String(b.key), updated_at: ts,
+    ...(descriptor ? { ref: descriptor.ref, descriptor_rev: 1, descriptor_hash: descriptorHash } : {}) }, 201);
 }

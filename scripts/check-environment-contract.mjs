@@ -1,0 +1,182 @@
+#!/usr/bin/env node
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
+const failures = [];
+let examined = 0;
+const check = (ok, what) => { examined += 1; if (!ok) failures.push(what); };
+
+let DatabaseSync;
+try { ({ DatabaseSync } = await import('node:sqlite')); }
+catch (e) { console.error(JSON.stringify({ ok: false, law: 'ENVIRONMENT_CONTRACT_LAW', unread: 'node:sqlite unavailable: ' + e.message })); process.exit(2); }
+
+// D1-shaped adapter over SQLite: the handlers see prepare().bind().first()/all()/run().
+function d1(db) {
+  return {
+    prepare(sql) {
+      let stmt;
+      try { stmt = db.prepare(sql); } catch (e) { return { bind() { return this; }, async first() { throw e; }, async all() { throw e; }, async run() { throw e; } }; }
+      let binds = [];
+      return {
+        bind(...b) { binds = b.map((v) => (v === undefined ? null : v)); return this; },
+        async first() { return stmt.get(...binds) || null; },
+        async all() { return { results: stmt.all(...binds) }; },
+        async run() { const r = stmt.run(...binds); return { success: true, meta: { changes: r.changes } }; },
+      };
+    },
+  };
+}
+
+const db = new DatabaseSync(':memory:');
+db.exec(`
+  CREATE TABLE directory (
+    key TEXT PRIMARY KEY, type TEXT NOT NULL, target TEXT, auth TEXT, content TEXT, updated_at TEXT NOT NULL,
+    category TEXT, allowed_categories TEXT, seq INTEGER, enabled INTEGER DEFAULT 1, planner_visible INTEGER DEFAULT 1,
+    planner_rank INTEGER DEFAULT 100, input_schema TEXT, examples TEXT, includes TEXT, sensitive INTEGER DEFAULT 0,
+    runner TEXT, created_at TEXT, price_usd REAL, meter_unit TEXT
+  );
+  CREATE TABLE directory_versions (key TEXT NOT NULL, version INTEGER NOT NULL, content TEXT NOT NULL, content_hash TEXT NOT NULL, actor TEXT, ts TEXT NOT NULL, PRIMARY KEY (key, version));
+  CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
+  INSERT INTO directory (key,type,target,auth,content,updated_at) VALUES ('ADD','fn','','','# WHAT: Add two numbers.','2026-09-01T00:00:00Z');
+`);
+try { db.exec(readFileSync(join(ROOT, 'migrations/0373_environment_descriptors.sql'), 'utf8')); }
+catch (e) { console.error(JSON.stringify({ ok: false, law: 'ENVIRONMENT_CONTRACT_LAW', unread: 'migration 0373 did not apply to a fresh database: ' + e.message })); process.exit(2); }
+
+const env = { DB: d1(db), TERMINAL_KEY: 'gate-terminal-key' };
+const ORIGIN = 'https://miscsubjects.com';
+const { onRequestGet: environment } = await import(join(ROOT, 'functions/api/environment/[[path]].js'));
+const { onRequestPatch: directoryPatch, onRequestGet: directoryGet } = await import(join(ROOT, 'functions/api/directory/[key].js'));
+const { descriptorFromDirectoryRow, hashEnvironmentDescriptor } = await import(join(ROOT, 'functions/_lib/environment_descriptor.js'));
+const { normalizeView, runView } = await import(join(ROOT, 'functions/_lib/sheet_views.js'));
+const { mcpResourcesFromCatalog, readMcpResource, MANUAL_RESOURCE_URI } = await import(join(ROOT, 'functions/api/mcp.js'));
+const { shellHtml } = await import(join(ROOT, 'functions/admin/_layout.js'));
+const { injectObjectContext } = await import(join(ROOT, 'functions/_lib/object_context.js'));
+
+const get = (path, query = '') => environment({ env, params: { path: path ? path.split('/') : [] }, request: new Request(`${ORIGIN}/api/environment${path ? '/' + path : ''}${query}`) });
+const SHEETS = 'page://admin/sheets';
+const Q = encodeURIComponent(SHEETS);
+
+// 1. The root and the manual.
+{
+  const root = await get('');
+  const body = await root.json();
+  check(root.status === 200 && body.schema === 'miscsubjects/environment/1', 'root: expected 200 with schema miscsubjects/environment/1, got ' + root.status + ' ' + body.schema);
+  check(body.object_count >= 7, 'root: seeded catalog should hold at least 7 objects, got ' + body.object_count);
+  const manual = await get('', '?format=markdown');
+  const text = await manual.text();
+  check(manual.status === 200 && manual.headers.get('content-type').startsWith('text/markdown'), 'manual: expected 200 text/markdown, got ' + manual.status);
+  check(/Ledger/.test(text), 'manual: does not name the Ledger as history and evidence');
+  check(text.includes('/api/environment/governance') && text.includes('/api/environment/comparables'), 'manual: does not teach the governance and comparables resolvers');
+  check(/`page`: \d+/.test(text) && /`law`: \d+/.test(text), 'manual: object family counts are not generated from the catalog');
+  check(text.includes('Directory = nouns. Ledger = verbs. Everything else = views.'), 'manual: does not state the three primitives');
+  check(text.includes('### `directory://catalog`') && text.includes('### `ledger://events`') && text.includes('### `page://admin/sheets`'), 'manual: declared operations of the directory, the ledger and the sheets page are not generated into the manual');
+  check(text.includes('POST https://miscsubjects.com/api/sheets/{id}/values:append') && text.includes('expected_descriptor_rev'), 'manual: the sheet webhook address or the compare-and-set edit field is missing');
+  check(!/sh\.[A-Za-z0-9_-]{8,}\.|TERMINAL_KEY=|Bearer [A-Za-z0-9]{20,}/.test(text), 'manual: a credential-shaped string appears in the public manual');
+  for (const ref of ['directory://catalog', 'ledger://events']) {
+    const obj = await (await get('objects', '?ref=' + encodeURIComponent(ref))).json();
+    check(obj.ref === ref && obj.operations.length >= 5 && obj.governance.effective.length >= 1, 'environment: primitive ' + ref + ' does not resolve with operations and effective rules');
+  }
+}
+
+// 2. Governance resolves with paths, revisions and hashes; nothing unresolved or in conflict.
+{
+  const r = await get('governance', `?ref=${Q}`);
+  const g = await r.json();
+  check(r.status === 200, 'governance: HTTP ' + r.status);
+  const eff = (g.effective || []).map((x) => x.rule_ref);
+  check(eff.includes('law://sheets/S01'), 'governance: direct rule law://sheets/S01 missing from effective');
+  check(eff.includes('law://design/D08'), 'governance: inherited rule law://design/D08 (from page://admin) missing from effective');
+  check(eff.includes('law://work/W01'), 'governance: environment-wide rule law://work/W01 (from environment://miscsubjects) missing from effective');
+  const d08 = (g.inherited || []).find((x) => x.rule_ref === 'law://design/D08');
+  check(!!d08 && JSON.stringify(d08.applies_because) === JSON.stringify(['page://admin/sheets part_of page://admin', 'page://admin governed_by law://design/D08']), 'governance: D08 applies_because path is not the part_of chain: ' + JSON.stringify(d08?.applies_because));
+  check((g.effective || []).every((x) => x.rule_revision >= 1 && /^sha256:[a-f0-9]{64}$/.test(String(x.rule_hash))), 'governance: an effective rule lacks its revision or content hash');
+  check((g.unresolved || []).length === 0 && (g.conflicts || []).length === 0, 'governance: unresolved=' + JSON.stringify(g.unresolved) + ' conflicts=' + JSON.stringify(g.conflicts));
+  const missing = await get('governance', '?ref=' + encodeURIComponent('page://admin/nowhere'));
+  check(missing.status === 404, 'governance: an unregistered ref must answer 404, got ' + missing.status);
+}
+
+// 3. Comparables state dimensions, basis, differences, sources and status.
+{
+  const r = await get('comparables', `?ref=${Q}`);
+  const c = await r.json();
+  const edge = (c.comparables || [])[0];
+  check(r.status === 200 && !!edge, 'comparables: no comparable resolved for page://admin/sheets');
+  check(!!edge && edge.dimensions.includes('programmability') && edge.differences.length > 0 && edge.similarities.length > 0 && edge.sources.length > 0 && edge.status === 'verified', 'comparables: edge lacks dimensions/differences/similarities/sources/status: ' + JSON.stringify(edge));
+  check(!!edge && edge.target.kind === 'external_system', 'comparables: the target external://google/sheets is not itself a registered object');
+  const filtered = await (await get('comparables', `?ref=${Q}&dimension=nonexistent`)).json();
+  check((filtered.comparables || []).length === 0, 'comparables: a dimension filter that matches nothing must return no comparables');
+}
+
+// 4. Every stored descriptor hash equals the hash of its stored content.
+for (const row of db.prepare('SELECT * FROM directory WHERE descriptor_json IS NOT NULL').all()) {
+  const recomputed = await hashEnvironmentDescriptor(descriptorFromDirectoryRow(row));
+  check(recomputed === row.descriptor_hash, `hash drift: ${row.key} stores ${row.descriptor_hash} but its descriptor_json hashes to ${recomputed}`);
+}
+
+// 5. A descriptor edit through the canonical directory path lands in the row, bumps the revision,
+//    appends a version, and a stale revision is refused with nothing written.
+{
+  const before = db.prepare("SELECT descriptor_rev, descriptor_hash FROM directory WHERE key='PAGE_ADMIN_SHEETS'").get();
+  const current = JSON.parse(db.prepare("SELECT descriptor_json FROM directory WHERE key='PAGE_ADMIN_SHEETS'").get().descriptor_json);
+  current.governance = { direct: ['law://sheets/S01', 'law://design/D08'] };
+  const patch = (body) => directoryPatch({ env, params: { key: 'PAGE_ADMIN_SHEETS' }, request: new Request(`${ORIGIN}/api/directory/PAGE_ADMIN_SHEETS`, { method: 'PATCH', headers: { 'content-type': 'application/json', 'x-terminal-key': env.TERMINAL_KEY }, body: JSON.stringify(body) }) });
+  const ok = await patch({ descriptor_json: current, expected_descriptor_rev: before.descriptor_rev });
+  const okBody = await ok.json();
+  const after = db.prepare("SELECT descriptor_rev, descriptor_hash, descriptor_json, object_kind FROM directory WHERE key='PAGE_ADMIN_SHEETS'").get();
+  check(ok.status === 200, 'directory PATCH with the current revision: HTTP ' + ok.status + ' ' + JSON.stringify(okBody));
+  check(after.descriptor_rev === before.descriptor_rev + 1, `directory PATCH: row revision is ${after.descriptor_rev}, expected ${before.descriptor_rev + 1}`);
+  check(after.descriptor_hash !== before.descriptor_hash && after.descriptor_hash === okBody.descriptor_hash, 'directory PATCH: the row hash is not the hash the response reported');
+  check(after.descriptor_hash === await hashEnvironmentDescriptor(JSON.parse(after.descriptor_json)), 'directory PATCH: stored hash does not equal the hash of the stored descriptor');
+  check(JSON.parse(after.descriptor_json).governance.direct.includes('law://design/D08'), 'directory PATCH: the edited governance did not land in the row');
+  const version = db.prepare("SELECT version, descriptor_hash FROM directory_versions WHERE key='PAGE_ADMIN_SHEETS' ORDER BY version DESC LIMIT 1").get();
+  check(!!version && version.descriptor_hash === after.descriptor_hash, 'directory PATCH: directory_versions did not receive the new descriptor hash: ' + JSON.stringify(version));
+  const stale = await patch({ descriptor_json: { ...current, title: 'Overwrite attempt' }, expected_descriptor_rev: before.descriptor_rev });
+  const staleBody = await stale.json();
+  const unchanged = db.prepare("SELECT descriptor_rev, descriptor_hash FROM directory WHERE key='PAGE_ADMIN_SHEETS'").get();
+  check(stale.status === 409 && staleBody.error === 'descriptor_revision_stale' && staleBody.current_descriptor_rev === after.descriptor_rev, 'directory PATCH stale: expected 409 descriptor_revision_stale naming the current revision, got ' + stale.status + ' ' + JSON.stringify(staleBody));
+  check(unchanged.descriptor_rev === after.descriptor_rev && unchanged.descriptor_hash === after.descriptor_hash, 'directory PATCH stale: the row changed although the write was refused');
+  const bad = await patch({ descriptor_json: { ref: 'page://admin/sheets', relationships: [{ type: 'related_to', target_ref: 'external://google/sheets' }] } });
+  check(bad.status === 422 && (await bad.json()).error === 'environment_descriptor_refused', 'directory PATCH: related_to must be refused with environment_descriptor_refused');
+  // The environment now reports the edit without any documentation being touched.
+  const g = await (await get('governance', `?ref=${Q}`)).json();
+  check((g.direct || []).some((x) => x.rule_ref === 'law://design/D08'), 'environment: the governance edit did not become a direct rule on the next read');
+  const obj = await (await get('objects', `?ref=${Q}`)).json();
+  check(obj.revision === after.descriptor_rev && obj.hash === after.descriptor_hash, 'environment: object revision/hash do not match the row after the edit');
+  const dir = await (await directoryGet({ env, params: { key: 'PAGE_ADMIN_SHEETS' }, request: new Request(`${ORIGIN}/api/directory/PAGE_ADMIN_SHEETS`) })).json();
+  check(dir._environment?.ref === SHEETS && dir._environment?.governance === `/api/environment/governance?ref=${Q}`, 'directory GET: the row does not point at its environment resolvers');
+}
+
+// 6. Sheets project the descriptor by JSON path with the generic engine.
+{
+  const view = normalizeView({ source: 'directory', columns: ['key', 'descriptor_json.ref', 'descriptor_json.governance.direct', 'descriptor_rev'], filters: [{ field: 'descriptor_json.ref', op: '=', value: SHEETS }] });
+  const out = await runView(env, view);
+  check(out.ok === true && out.rows.length === 1, 'sheets: a directory view filtered by descriptor ref returned ' + JSON.stringify(out.error || out.rows.length) + ' ' + (out.detail || ''));
+  check(out.ok && out.rows[0][1] === SHEETS && out.rows[0][2].includes('law://design/D08'), 'sheets: projected cells do not carry the descriptor content: ' + JSON.stringify(out.rows[0]));
+}
+
+// 7. MCP resources are the same objects.
+{
+  const { loadEnvironmentCatalog } = await import(join(ROOT, 'functions/_lib/environment_descriptor.js'));
+  const catalog = await loadEnvironmentCatalog(env);
+  const resources = mcpResourcesFromCatalog(catalog);
+  check(resources.some((r) => r.uri === MANUAL_RESOURCE_URI) && resources.some((r) => r.uri === SHEETS), 'mcp: resources lack the manual or page://admin/sheets');
+  const read = readMcpResource(catalog, SHEETS);
+  const body = read ? JSON.parse(read.contents[0].text) : null;
+  check(!!body && body.governance.effective.some((x) => x.rule_ref === 'law://design/D08') && body.comparables.comparables.length === 1, 'mcp: resources/read for page://admin/sheets does not carry resolved governance and comparables');
+}
+
+// 8. The human page, as the middleware serves it, names the page's ref and links its resolvers.
+{
+  const served = injectObjectContext(shellHtml({ activeHref: '/admin/sheets', title: 'Sheets', body: '' }), '/admin/sheets');
+  check(/<code[^>]*>page:\/\/admin\/sheets<\/code>/.test(served) && served.includes(`/api/environment/governance?ref=${Q}`) && served.includes(`/api/environment/comparables?ref=${Q}`), 'admin page: /admin/sheets as served does not resolve to page://admin/sheets with governance and comparables links');
+  check(served.split('data-ms-object-context="1"').length === 2 && injectObjectContext(served, '/admin/sheets') === served, 'admin page: the object context is not injected exactly once');
+  const mw = readFileSync(join(ROOT, 'functions/_middleware.js'), 'utf8');
+  check(mw.includes('injectObjectContext(html, url.pathname)'), 'middleware: injectShareIfAdmin no longer calls injectObjectContext on admin HTML — the human path is gone');
+}
+
+if (failures.length) {
+  console.error(JSON.stringify({ ok: false, law: 'ENVIRONMENT_CONTRACT_LAW', examined, failed: failures.length, failures }, null, 2));
+  process.exit(1);
+}
+console.log(JSON.stringify({ ok: true, law: 'ENVIRONMENT_CONTRACT_LAW', examined, checked: 'migration 0373 on a fresh database; environment root/manual/governance/comparables; descriptor hash recomputation; PATCH effect + stale refusal + version row; sheet JSON-path projection; MCP resources; admin shell object context' }));

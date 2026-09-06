@@ -23,6 +23,7 @@ import {
   renderClaimSurfaceHtml,
 } from "./_lib/claim_surface.js";
 import { leanResponse, wantsLean } from "./_lib/fetcher_lean.js";
+import { injectObjectContext } from "./_lib/object_context.js";
 
 // Injected into every admin HTML page reached WITH a share/terminal token in the URL.
 // It carries that token onto every same-origin link, fetch, and XHR — so ONE share URL lets
@@ -566,6 +567,9 @@ async function injectShareIfAdmin(context, res) {
     );
     let html = await res.text();
     let inject = "";
+    const before = html;
+    html = injectObjectContext(html, url.pathname);
+    const contextAdded = html !== before;
     if (hasToken && html.indexOf("__sharePropInstalled") === -1)
       inject += SHARE_PROP_SCRIPT;
     if (hasToken && html.indexOf('id="ms-page-self"') === -1) {
@@ -588,7 +592,7 @@ async function injectShareIfAdmin(context, res) {
     )
       inject += FLOATING_COPY_WIDGET;
     const changed =
-      inject || (hasToken && html.indexOf('id="ms-page-self"') !== -1);
+      inject || contextAdded || (hasToken && html.indexOf('id="ms-page-self"') !== -1);
     if (!inject && !changed)
       return new Response(html, {
         status: res.status,
