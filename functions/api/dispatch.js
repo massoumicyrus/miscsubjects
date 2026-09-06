@@ -138,11 +138,11 @@ function subVars(template, args, prev, bindings, env, mode) {
   return String(template).replace(
     /(\$\$?)(\d+\+|\d+|PREV(?:[.\[][A-Za-z0-9_.\[\]]*)?|[A-Za-z_][A-Za-z0-9_]*)/g,
     (whole, sigil, key) => {
+      const raw = sigil.length === 2; // '$$' => raw, '$' => escaped per mode
       if (key.startsWith('PREV') && key.length > 4) {
         const v = getPath(prev, key.slice(4));
         return raw ? v : escFor(mode, v);
       }
-      const raw = sigil.length === 2; // '$$' => raw, '$' => escaped per mode
       // $N+ = args N..end rejoined with | — lets the LAST arg of a tag carry
       // pipes (agent prompts, JSON bodies) without the positional split
       // truncating it.
