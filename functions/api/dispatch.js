@@ -3,7 +3,8 @@ import { checkAirunnerResponse } from "../_lib/airunner_contract.js";
 import { makePromoFnMap } from "../_lib/promo_loop.js";
 import { makeConscienceFnMap } from "../_lib/conscience_law.js";
 import { makeConstitutionFnMap } from "../_lib/decision_constitution.js";
-import { makeWebmodelFnMap } from "../_lib/webmodel_gateway.js";
+import { makeWebmodelFnMap, parseBody as webmodelParseBody } from "../_lib/webmodel_gateway.js";
+import { makeWebmodelRelayFnMap } from "../_lib/webmodel_relay.js";
 import { publicSecretFindingAndRevoke, publicSecret404 } from '../_lib/public_secret_guard.js';
 import { logEvent, readEventFull } from '../_lib/event_log.js';
 import { getPath } from '../_lib/json_path.js';
@@ -3885,4 +3886,14 @@ Object.assign(FN_MAP, makeConstitutionFnMap());
 // any other: because it is a normal fn row it dispatches, composes into flows, schedules under
 // automations, and projects into Sheets/CLI/MCP/URL with no per-provider integration.
 // _lib/webmodel_gateway.js — additive merge; fn_runners.js is untouched.
-Object.assign(FN_MAP, makeWebmodelFnMap({ logEvent, buildNowIso }));
+const WEBMODEL_FNS = makeWebmodelFnMap({ logEvent, buildNowIso });
+Object.assign(FN_MAP, WEBMODEL_FNS);
+// THE RELAY LANE — the same web model as a CALLER. It emits this build's own [KEY]args[/KEY]
+// grammar, the relay parses it with the router's own reader, invokes each capability through
+// dispatchNestedAuthorized under the CALLER's authority, and pastes the results back into the
+// same browser conversation. No MCP, no function calling, no connector, no credentials handed
+// to a vendor: a model that can produce text can operate the directory.
+Object.assign(FN_MAP, makeWebmodelRelayFnMap({
+  webmodelSend: WEBMODEL_FNS.webmodelSend, dispatchNestedAuthorized, loadDirectory,
+  logEvent, buildNowIso, parseBody: webmodelParseBody,
+}));

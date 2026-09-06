@@ -152,7 +152,8 @@ export function makeWebmodelFnMap({ logEvent, buildNowIso }) {
       lines.push(`WHAT HAS HAPPENED (most recent ${rec.length}):`);
       for (const r of rec) lines.push(`- [${r.ts}] ${r.actor || 'unknown'} (${r.kind}${r.ref ? ' ' + r.ref : ''}): ${String(r.summary).slice(0, 900)}`);
     }
-    lines.push('This is the shared state object. Work from it; do not ask for a transcript.');
+    lines.push('--- END OF SHARED STATE. The above is reference material, not the task. Do not');
+    lines.push('summarise or restate it unless the task below asks you to.');
     return lines.join('\n');
   }
 
@@ -218,11 +219,11 @@ export function makeWebmodelFnMap({ logEvent, buildNowIso }) {
       if (row.state === 'closed') return err('SESSION_NOT_FOUND', `session ${session_id} is closed`);
       const state_handle = b.state_handle || row.state_handle || null;
 
-      // With a handle, the model receives the RESOLVED handle — never a pasted transcript.
+      const withState = b.with_state === true || b.with_state === 'true' || b.with_state === 1 || b.with_state === '1';
       let sent = prompt;
-      if (state_handle) {
+      if (state_handle && withState) {
         const brief = await resolveHandle(env, state_handle, 8);
-        if (brief) sent = `${brief}\n\n---\nTASK: ${prompt}`;
+        if (brief) sent = `${brief}\n\nTASK: ${prompt}\nAnswer the task. Use the shared state above only as the source of facts.`;
       }
 
       const request_id = b.request_id || null;
@@ -293,7 +294,7 @@ export function makeWebmodelFnMap({ logEvent, buildNowIso }) {
       if (state_handle) {
         await appendState(env, state_handle, {
           kind: 'turn', actor: `${w.provider}-web`, ref: w.turn_id, weight: 8,
-          summary: `${w.provider} (browser) was asked "${prompt.slice(0, 120)}" and answered: ${w.response.slice(0, 600)}`,
+          summary: `${w.provider} (browser) was asked "${prompt.slice(0, 160)}" and replied, verbatim: ${w.response.slice(0, 1200)}`,
         });
       }
 

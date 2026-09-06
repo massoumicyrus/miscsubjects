@@ -53,6 +53,38 @@ export async function cloudAvailable(env, { force = false } = {}) {
   return { available, reason, cached: false };
 }
 
+// Is the Mac bridge answering? Same cache discipline as the cloud probe, and the
+// same reason it exists: a routing decision must be made on a fact, not on a
+// guess about whether a laptop is awake.
+const MAC_HEALTH_KEY = 'exec_route:mac_ok';
+
+export async function macAvailable(env, { force = false } = {}) {
+  if (!force && env?.KV) {
+    try {
+      const hit = await env.KV.get(MAC_HEALTH_KEY);
+      if (hit === 'up') return { available: true, cached: true };
+      if (hit === 'down') return { available: false, reason: 'cached_probe_down', cached: true };
+    } catch {}
+  }
+  let available = false, reason = null;
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 6000);
+    const r = await fetch('https://' + MAC_BRIDGE_HOST + '/health', {
+      headers: env?.TERMINAL_KEY ? { 'x-terminal-key': env.TERMINAL_KEY } : {},
+      signal: ctl.signal,
+    });
+    clearTimeout(timer);
+    const j = await r.json().catch(() => null);
+    available = r.ok && !!j?.ok;
+    if (!available) reason = 'status_' + r.status;
+  } catch (e) { reason = String(e?.message || e).slice(0, 80); }
+  if (env?.KV) {
+    try { await env.KV.put(MAC_HEALTH_KEY, available ? 'up' : 'down', { expirationTtl: available ? 60 : 30 }); } catch {}
+  }
+  return { available, reason, cached: false };
+}
+
 // The decision. Returns the target to actually call, the substrate that target
 // represents, and — when the answer is "nowhere" — an explicit refusal string
 // that names which substrate was unavailable rather than pretending otherwise.
@@ -61,13 +93,33 @@ export async function routeExecution(row, ctx) {
   const target = String(row?.target || '');
   const policy = executionPolicy(row);
 
+  // cloud_pending:<reason> — the row is cloud-capable in principle but is NOT
+  // routed yet, and the reason is on the record rather than in someone's head:
+  //   cloud_pending:image — the container image does not carry that tool
+  //   cloud_pending:body  — the row body hard-codes a path on the Mac
+  // It behaves exactly as it did before. The value is bookkeeping that does not lie.
+  if (policy.startsWith('cloud_pending')) {
+    return { target, substrate: SUBSTRATE_MAC, policy, routed: false, pending: policy.split(':')[1] || 'unspecified' };
+  }
+
   if (policy === 'n/a' || policy === 'unclassified') {
     return { target, substrate: isMacBridgeTarget(target) ? SUBSTRATE_MAC : null, policy, routed: false };
   }
 
   if (policy === 'edge_required') {
     // Never rerouted. If the Mac is off, the honest answer is "this one needs
-    // the Mac and the Mac is not there" — not a container pretending to be it.
+    // the Mac and the Mac is not there" — not a container pretending to be it,
+    // and not a bare connection error the caller has to interpret. The two
+    // failures must never read alike: one is "the cloud plane is down", the
+    // other is "this capability is the laptop, and the laptop is asleep".
+    const mac = await macAvailable(env);
+    if (!mac.available) {
+      return { refusal: 'ERR:execution_routing:edge_unavailable:' + (row?.key || '?') +
+        ' — this capability requires the owner Mac (' + MAC_BRIDGE_HOST + ') and the Mac bridge did not answer' +
+        (mac.reason ? ' (' + mac.reason + ')' : '') +
+        '. It is edge_required, so it was NOT rerouted to the cloud execution plane. Cloud-capable work is unaffected.',
+        substrate: null, policy, routed: false, edge_required: true };
+    }
     return { target, substrate: SUBSTRATE_MAC, policy, routed: false, edge_required: true };
   }
 
@@ -93,11 +145,15 @@ export async function routeExecution(row, ctx) {
       ' — cloud unavailable and this row has no edge fallback target.', substrate: null, policy, routed: false };
   }
 
-  // 'either' — leave it where it is pointed; only move it if that substrate is
-  // the Mac and the Mac cannot be the answer right now.
   if (policy === 'either' && isMacBridgeTarget(target)) {
-    if (cloud.available) return { target: cloudTarget, substrate: SUBSTRATE_CLOUD, policy, routed: true };
-    return { target, substrate: SUBSTRATE_MAC, policy, routed: false, fell_back: true };
+    const mac = await macAvailable(env);
+    if (mac.available) return { target, substrate: SUBSTRATE_MAC, policy, routed: false };
+    if (cloud.available) {
+      return { target: cloudTarget, substrate: SUBSTRATE_CLOUD, policy, routed: true, fell_back: true,
+        fallback_reason: 'mac_bridge_unavailable' + (mac.reason ? ':' + mac.reason : '') };
+    }
+    return { refusal: 'ERR:execution_routing:no_substrate:' + (row?.key || '?') +
+      ' — neither the Mac bridge nor the cloud execution plane answered.', substrate: null, policy, routed: false };
   }
   return { target, substrate: isMacBridgeTarget(target) ? SUBSTRATE_MAC : null, policy, routed: false, method };
 }
