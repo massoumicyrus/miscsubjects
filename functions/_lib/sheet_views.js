@@ -74,13 +74,8 @@ const LEDGER_DEFAULT_COLUMNS = [
   { path: 'id', header: 'id', w: 260 },
 ];
 
-// THE ONE SOURCE THAT DROWNS THE LEDGER.
-// jci is the per-request traffic classifier: 742,132 of the last 810,000 events. Every ledger
-// view opened without a source filter was 92% classifier noise, which is why the ledger read as
-// unusable rather than as a record. It is excluded by DEFAULT, not by force: normalizeView writes
-// the exclusion into the view's own filter list, so it shows up in Rows… as an ordinary line the
-// owner can edit or delete. A view that names `source` itself is left exactly as written.
 export const LEDGER_NOISE_SOURCE = 'jci';
+export const LEDGER_NOISE_SOURCES = ['jci', 'dispatch'];
 
 // Ready-made descriptions. `param` names what the person supplies when they pick one.
 export const TEMPLATES = [
@@ -186,10 +181,16 @@ function filterSql(src, f) {
   if (!col) return null;
   if (op === 'contains' || op === 'like') return { clause: col + ' LIKE ?', binds: ['%' + value.replace(/^%|%$/g, '') + '%'] };
   if (op === 'starts') return { clause: col + ' LIKE ?', binds: [value + '%'] };
-  if (op === 'in') {
+  if (op === 'in' || op === 'not-in') {
     const vals = value.split(',').map((s) => s.trim()).filter(Boolean);
     if (!vals.length) return null;
-    return { clause: col + ' IN (' + vals.map(() => '?').join(',') + ')', binds: vals };
+    const set = '(' + vals.map(() => '?').join(',') + ')';
+    // NULL is not "not in" anything in SQL, so a bare NOT IN silently drops every row whose source
+    // was never set. The default noise filter would then hide real traffic, which is the opposite
+    // of what it is for.
+    return op === 'in'
+      ? { clause: col + ' IN ' + set, binds: vals }
+      : { clause: '(' + col + ' IS NULL OR ' + col + ' NOT IN ' + set + ')', binds: vals };
   }
   if (op === 'empty') return { clause: '(' + col + " IS NULL OR " + col + " = '')", binds: [] };
   if (op === 'not_empty') return { clause: '(' + col + " IS NOT NULL AND " + col + " != '')", binds: [] };
@@ -240,7 +241,7 @@ export function normalizeView(view) {
     }));
   const filters = (Array.isArray(v.filters) ? v.filters : []).filter((f) => f && f.field).slice(0, 12);
   if (source === 'ledger' && !filters.some((f) => String(f.field) === 'source')) {
-    filters.unshift({ field: 'source', op: '!=', value: LEDGER_NOISE_SOURCE });
+    filters.unshift({ field: 'source', op: 'not-in', value: LEDGER_NOISE_SOURCES.join(',') });
   }
   return {
     source,
@@ -291,9 +292,33 @@ export async function runView(env, viewIn, { limit, before, after } = {}) {
     + (where.length ? ' WHERE ' + where.join(' AND ') : '')
     + ' ORDER BY ' + src.ts + ' ' + (view.order === 'asc' ? 'ASC' : 'DESC') + ' LIMIT ?';
   binds.push(lim);
+  // A FAILED READ IS NOT AN EMPTY RESULT.
+  // D1 answers "overloaded" under load, and the first version of this returned rows:[] with no
+  // error alongside ok:true — indistinguishable from "nothing matched". I hit it during
+  // verification: the same query gave 0 rows, then 25 rows ten seconds later. A person who cannot
+  // tell a failure from an empty table stops trusting a sheet that is correct. Silence is not a
+  // pass anywhere else in this build and it is not one here: `ok` is false and `error` is set, and
+  // a transient failure says so in the word the reader needs.
   let res;
   try { res = await db.prepare(sql).bind(...binds).all(); }
-  catch (e) { return { error: 'query_failed', detail: String(e && e.message || e), sql, columns: view.columns, rows: [], meta: [] }; }
+  catch (e) {
+    const detail = String(e && e.message || e);
+    const transient = /overload|too many|timeout|429|503|storage/i.test(detail);
+    return {
+      ok: false, error: 'query_failed', transient, detail, sql,
+      say: transient
+        ? 'The database was busy, so this view could not be read. This is NOT an empty result — reopen the tab.'
+        : 'This view could not be read. It is NOT an empty result.',
+      columns: view.columns, rows: [], meta: [],
+    };
+  }
+  if (!res || !Array.isArray(res.results)) {
+    return {
+      ok: false, error: 'read_returned_nothing', transient: true, sql,
+      say: 'The read came back with no result set at all, which is a failure and not an empty table. Reopen the tab.',
+      columns: view.columns, rows: [], meta: [],
+    };
+  }
   let evaluate = null;
   if (exprCols.length) {
     ({ evaluate } = await import('./sheet_formula.js'));
@@ -447,7 +472,7 @@ export function describeSources() {
   for (const [name, s] of Object.entries(SOURCES)) out[name] = { table: s.table, order_by: s.ts, fields: s.fields, json_fields: s.json };
   return { sources: out, formats: FORMATS, templates: TEMPLATES.map((t) => ({ id: t.id, title: t.title, what: t.what, param: t.param || null })),
     virtual_filter_fields: { any: 'every text column of the row, payloads included', any_key: 'key, source, action, route' },
-    filter_ops: ['=', '!=', 'contains', 'starts', 'in', '>', '<', '>=', '<=', 'empty', 'not_empty'],
+    filter_ops: ['=', '!=', 'contains', 'starts', 'in', 'not-in', '>', '<', '>=', '<=', 'empty', 'not_empty'],
     path_syntax: 'column, or column.json.path — request_json.body.messages[0].content' };
 }
 

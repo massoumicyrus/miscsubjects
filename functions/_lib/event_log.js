@@ -84,10 +84,89 @@ export async function logEvent(env, opts) {
       return id;
     }
     maybeFlush(env);
+    maybeFireEventAutomations(env, o);
     return id;
   } catch {
     return null;
   }
+}
+
+
+// ── EVERY LEDGER ROW IS A POTENTIAL TRIGGER ───────────────────────────────────────────────────
+//
+// trigger=event has existed for a long time: AUTOMATE_ADD 'name|event:NAME|KEY|body' registers it
+// and AUTOMATE_FIRE 'NAME|payload' runs it with a receipt. What was missing is that nothing
+// announced events. Exactly one caller did — article_automation.js, for one hardcoded
+// ARTICLE_CREATED — so an event could invoke a capability only where somebody had remembered to
+// say so in code. That is the difference between a build where things can be CALLED and a build
+// where things can HAPPEN.
+//
+// An automation registered as `event:on source=blooio action=webhook_in` now fires whenever a
+// ledger row matches, so a device report, a payment, an inbound message, a failed deploy and an
+// agent's own output are the same kind of trigger — because they are already the same kind of row.
+// No new table, no new concept, and nothing here is device-specific.
+//
+// Three rules keep this from becoming a hazard:
+//   1. Only automations whose trigger begins `event:on ` are matched here. A plain `event:NAME`
+//      still fires only from an explicit AUTOMATE_FIRE, so nothing existing changes behaviour.
+//   2. Automation invocations write ledger rows themselves. Matching those would loop, so any
+//      event whose actor is an automation is skipped outright.
+//   3. The fire is not awaited and its failure is swallowed. A trigger must never be able to stop
+//      the write of the evidence that triggered it.
+const EVENT_RULE_PREFIX = 'event:on ';
+
+function eventRuleMatches(rule, o) {
+  // `source=blooio action=webhook_in status=200 match=<regex over the payload>`
+  const spec = {};
+  for (const part of String(rule).slice(EVENT_RULE_PREFIX.length).trim().split(/\s+(?=[a-z_]+=)/)) {
+    const eq = part.indexOf('=');
+    if (eq > 0) spec[part.slice(0, eq).trim()] = part.slice(eq + 1).trim();
+  }
+  if (!Object.keys(spec).length) return false;
+  for (const field of ['source', 'key', 'action', 'direction']) {
+    if (spec[field] && String(o[field] == null ? '' : o[field]) !== spec[field]) return false;
+  }
+  if (spec.status && String(o.status == null ? '' : o.status) !== spec.status) return false;
+  if (spec.match) {
+    let re;
+    try { re = new RegExp(spec.match, 'i'); } catch { return false; }
+    const hay = asString(o.request) + ' ' + asString(o.response);
+    if (!re.test(hay)) return false;
+  }
+  return true;
+}
+
+function maybeFireEventAutomations(env, o) {
+  try {
+    if (!env?.DB) return;
+    if (/^automation:/.test(String(o.actor || ''))) return;   // rule 2: never re-enter
+    const run = (async () => {
+      const res = await env.DB.prepare(
+        "SELECT trigger FROM automations WHERE enabled=1 AND COALESCE(force_off,0)=0 AND trigger LIKE 'event:on %'",
+      ).all();
+      const rules = (res?.results || []).filter((r) => eventRuleMatches(r.trigger, o));
+      if (!rules.length) return;
+      const { dispatch } = await import('../api/dispatch.js');
+      // PIPE-SAFE BY CONSTRUCTION.
+      // Dispatch splits a body on |, and AUTOMATE_FIRE takes the event name and the payload as two
+      // positional arguments — so a payload carrying a pipe is silently truncated at the first
+      // one. Raw request and response previews contain pipes constantly, so they are deliberately
+      // NOT included: the payload carries identity only, and trace_id is the handle an automation
+      // uses to read the full row out of the ledger if it needs it. Any pipe that still reaches
+      // here from an identifier is replaced rather than trusted.
+      const safe = (v) => String(v == null ? '' : v).split('|').join('/');
+      const payload = JSON.stringify({
+        source: safe(o.source), key: safe(o.key), action: safe(o.action),
+        status: o.status ?? null, trace_id: safe(o.trace_id), event_id: safe(id),
+        read_the_row: 'LEDGER_QUERY: SELECT * FROM events WHERE id=' + JSON.stringify(String(id)),
+      }).split('|').join('/');
+      for (const r of new Set(rules.map((x) => x.trigger))) {
+        await dispatch(env, 'AUTOMATE_FIRE', String(r).slice('event:'.length) + '|' + payload, { actor: 'automation:ledger-bridge' });
+      }
+    })();
+    if (env.waitUntil) env.waitUntil(run.catch(() => {}));
+    else run.catch(() => {});   // rule 3: a trigger never breaks the write that caused it
+  } catch { /* the same */ }
 }
 
 // ── never-drop machinery ──────────────────────────────────────────────────────────────────

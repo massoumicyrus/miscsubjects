@@ -120,6 +120,22 @@ export function normalizeInputSchema(schema) {
   };
 }
 
+
+// The argument order a row declares for itself. x-arg-order is written by the schema generator;
+// `required` is the fallback for a hand-written schema that lists its arguments in order. An empty
+// answer means "no declared order", and the caller keeps the payload's own key order.
+async function argOrderFor(env, key) {
+  try {
+    const row = await env.DB.prepare('SELECT input_schema FROM directory WHERE key = ?').bind(String(key)).first();
+    if (!row?.input_schema) return [];
+    const schema = JSON.parse(row.input_schema);
+    if (Array.isArray(schema['x-arg-order'])) return schema['x-arg-order'].map(String);
+    if (Array.isArray(schema.required)) return schema.required.map(String);
+    if (schema.properties && typeof schema.properties === 'object') return Object.keys(schema.properties);
+  } catch { /* an unreadable schema is not a reason to refuse the call */ }
+  return [];
+}
+
 export function mcpToolsFromRows(rows) {
   const tools = [];
   for (const row of projectionRows(rows, 'mcp')) {
@@ -225,9 +241,19 @@ export async function onRequestPost(context) {
     const name = msg.params && msg.params.name;
     const args = (msg.params && msg.params.arguments) || {};
     if (!name) return J(rpcError(id, -32602, 'tools/call requires params.name'));
-    const body = typeof args.body === 'string' ? args.body
-      : (args.body != null ? String(args.body)
-      : (Object.keys(args).length ? Object.values(args).map(v => (v == null ? '' : String(v))).join('|') : ''));
+    // ORDER BY THE CONTRACT, NOT BY THE PAYLOAD.
+    // Named arguments are joined with | and position is meaning, so taking them in whatever order
+    // the client happened to serialise them silently sends the right values to the wrong slots.
+    // The row's own schema declares the order in x-arg-order; a client that omits an argument
+    // still holds its place, because dropping it would shift every argument after it.
+    let body;
+    if (typeof args.body === 'string') body = args.body;
+    else if (args.body != null) body = String(args.body);
+    else if (Object.keys(args).length) {
+      const order = await argOrderFor(env, name);
+      const keys = order.length ? order.filter((k) => k in args).length === 0 ? Object.keys(args) : order : Object.keys(args);
+      body = keys.map((k) => (args[k] == null ? '' : String(args[k]))).join('|');
+    } else body = '';
     let out;
     try { out = await dispatch(env, name, body); }
     catch (e) { out = { result: 'ERR:mcp:dispatch:' + (e && e.message || String(e)) }; }

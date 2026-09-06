@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { parsePath, normalizeView, instantiateTemplate, parseRef, runView, TEMPLATES, isExpressionColumn, LEDGER_NOISE_SOURCE } from './sheet_views.js';
+import { parsePath, normalizeView, instantiateTemplate, parseRef, runView, TEMPLATES, isExpressionColumn, LEDGER_NOISE_SOURCE, LEDGER_NOISE_SOURCES } from './sheet_views.js';
 
 test('a column path is a source column with an optional JSON path', () => {
   assert.deepEqual(parsePath('ts'), { col: 'ts', json: null });
@@ -78,7 +78,8 @@ test('a ledger view leads with the time and the raw payloads', () => {
 
 test('the classifier flood is excluded by default, as a filter the owner can see and delete', () => {
   const v = normalizeView({ source: 'ledger' });
-  assert.deepEqual(v.filters[0], { field: 'source', op: '!=', value: LEDGER_NOISE_SOURCE });
+  assert.deepEqual(v.filters[0], { field: 'source', op: 'not-in', value: LEDGER_NOISE_SOURCES.join(',') });
+  assert.ok(LEDGER_NOISE_SOURCES.includes('jci') && LEDGER_NOISE_SOURCES.includes('dispatch'));
   // a view that names source itself is left exactly as written
   const own = normalizeView({ source: 'ledger', filters: [{ field: 'source', op: '=', value: 'jci' }] });
   assert.equal(own.filters.length, 1);
@@ -164,4 +165,25 @@ test('articles are a view source: the article list as a grid, rows addressed by 
   assert.equal(out.ok, true, out.detail);
   assert.deepEqual(out.rows, [['bpc-157', 'BPC-157', '1', 'https://x/y.png']]);
   assert.equal(out.meta[0].href, '/admin/articles/bpc-157');
+});
+
+test('a read that failed says so instead of looking like an empty table', async () => {
+  const boom = { LEDGER: { prepare: () => ({ bind: () => ({ all: async () => { throw new Error('D1 DB is overloaded. Requests queued for too long.'); } }) }) } };
+  const out = await runView(boom, { source: 'ledger' }, {});
+  assert.equal(out.ok, false);
+  assert.equal(out.error, 'query_failed');
+  assert.equal(out.transient, true);
+  assert.match(out.say, /NOT an empty result/);
+  // a read that returns no result set at all is also a failure, not an empty table
+  const empty = { LEDGER: { prepare: () => ({ bind: () => ({ all: async () => null }) }) } };
+  const out2 = await runView(empty, { source: 'ledger' }, {});
+  assert.equal(out2.ok, false);
+  assert.equal(out2.error, 'read_returned_nothing');
+});
+
+test('not-in keeps rows whose column is NULL, or the noise filter would hide real traffic', async () => {
+  let captured = '';
+  const env = { LEDGER: { prepare: (sql) => { captured = sql; return { bind: () => ({ all: async () => ({ results: [] }) }) }; } } };
+  await runView(env, { source: 'ledger' }, {});
+  assert.match(captured, /source IS NULL OR source NOT IN/);
 });

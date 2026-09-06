@@ -1886,6 +1886,48 @@ async function execFlowSeq(text, ctx) {
   return prev;
 }
 
+// A FLOW COULD CHAIN BUT NOT REACH INSIDE WHAT CAME BACK.
+// $PREV was one opaque string: no path into it, no way to walk a list. So "call X, take field Y,
+// call Z with it" — the most ordinary composition there is — needed a JavaScript function, which
+// is a large part of why 566 of 1,066 rows are type fn. Three steps close that, and none of them
+// is a capability:
+//
+//   JSON: $.a.b[0].c        pull one value out of $PREV
+//   EACH: KEY: body         run a step once per element of $PREV, join the results
+//   MERGE: a=$x, b=$y       build one JSON object out of earlier bindings
+//
+// They are step verbs, not directory rows, because they move data between steps rather than
+// acting on the world. Nothing about them reaches the ledger as an invocation, and nothing about
+// them can spend money.
+function flowJsonPath(value, path) {
+  let v = value;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch { return ''; } }
+  const p = String(path || '').replace(/^\$\.?/, '');
+  if (p) {
+    for (const step of p.split('.')) {
+      const m = String(step).match(/^([^[\]]*)((?:\[\d+\])*)$/);
+      if (!m) return '';
+      if (m[1]) { if (v == null || typeof v !== 'object') return ''; v = v[m[1]]; }
+      for (const idx of (m[2] || '').matchAll(/\[(\d+)\]/g)) {
+        if (!Array.isArray(v)) return '';
+        v = v[Number(idx[1])];
+      }
+    }
+  }
+  if (v == null) return '';
+  return typeof v === 'object' ? JSON.stringify(v) : String(v);
+}
+
+function flowList(prev) {
+  let v = prev;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch { return String(prev || '').split('\n').filter(Boolean); } }
+  if (Array.isArray(v)) return v;
+  if (v && typeof v === 'object') return Object.values(v).find(Array.isArray) || [v];
+  return [v];
+}
+
+const EACH_CAP = 25;   // a flow step must not become an unbounded fan-out
+
 async function execStep(step, ctx) {
   let bind = null;
   const bindMatch = step.match(/\s*=>\s*(\w+)\s*$/);
@@ -1894,6 +1936,43 @@ async function execStep(step, ctx) {
   if (colonIdx < 0) return 'ERR:flow:bad_step:' + step;
   const key = step.slice(0, colonIdx).trim();
   let body = step.slice(colonIdx + 1).trim();
+
+  if (key === 'JSON') {
+    const out = flowJsonPath(ctx.prev, subVars(body, ctx.args || [], ctx.prev, ctx.bindings, ctx.env, 'raw'));
+    if (bind) ctx.bindings[bind] = out;
+    return out;
+  }
+  if (key === 'MERGE') {
+    const filled = subVars(body, ctx.args || [], ctx.prev, ctx.bindings, ctx.env, 'raw');
+    const obj = {};
+    for (const pair of splitTop(filled, ',')) {
+      const eq = pair.indexOf('=');
+      if (eq < 0) continue;
+      const k = pair.slice(0, eq).trim();
+      const raw = pair.slice(eq + 1).trim();
+      if (!k) continue;
+      try { obj[k] = JSON.parse(raw); } catch { obj[k] = raw; }
+    }
+    const out = JSON.stringify(obj);
+    if (bind) ctx.bindings[bind] = out;
+    return out;
+  }
+  if (key === 'EACH') {
+    const items = flowList(ctx.prev).slice(0, EACH_CAP);
+    const outs = [];
+    for (const item of items) {
+      const asText = typeof item === 'object' ? JSON.stringify(item) : String(item == null ? '' : item);
+      // Inside EACH, $PREV is the ELEMENT. That is the only reading that makes the body worth
+      // writing: a step that could not see the item it is running for would be a loop with no
+      // subject.
+      outs.push(await execStep(body, { ...ctx, prev: asText, bindings: ctx.bindings }));
+    }
+    const out = JSON.stringify(outs);
+    if (bind) ctx.bindings[bind] = out;
+    ctx.prev = out;
+    return out;
+  }
+
   body = subVars(body, ctx.args || [], ctx.prev, ctx.bindings, ctx.env, 'raw');
   const r = await dispatchTag(key, body, ctx);
   await logStep(ctx.env, ctx, key, ctx.dir[key]?.type || '?', body, r);
