@@ -8,6 +8,7 @@ import { makeWebmodelRelayFnMap } from "../_lib/webmodel_relay.js";
 import { contextGateCheck, presenterFromRequest } from "../_lib/capability_context.js";
 import { makeIdentityFnMap } from "../_lib/identity_fns.js";
 import { makeFlowLearnFnMap } from "../_lib/flow_learn.js";
+import { makeProfileForwardFnMap } from "../_lib/profile_forward.js";
 import { readEventFull as readEventFullForLearn } from "../_lib/event_log.js";
 import { invalidateDirSnapshot as invalidateDirSnapshotForLearn } from "../_lib/dir_snapshot.js";
 import { publicSecretFindingAndRevoke, publicSecret404 } from '../_lib/public_secret_guard.js';
@@ -3914,6 +3915,7 @@ Object.assign(FN_MAP, WEBMODEL_FNS);
 // same browser conversation. No MCP, no function calling, no connector, no credentials handed
 // to a vendor: a model that can produce text can operate the directory.
 Object.assign(FN_MAP, makeIdentityFnMap());
+Object.assign(FN_MAP, makeProfileForwardFnMap());
 Object.assign(FN_MAP, makeFlowLearnFnMap({
   loadDirectory, logEvent, getInvocation, dispatchNestedAuthorized,
   readEventFull: readEventFullForLearn, invalidateDirSnapshot: invalidateDirSnapshotForLearn,
