@@ -217,10 +217,10 @@ for (const row of db.prepare('SELECT * FROM directory WHERE descriptor_json IS N
   const row = db.prepare("SELECT * FROM directory WHERE key='ADD'").get();
   check(row.test_state === STATE.untested, 'invocation: a fresh row is not 🟡 untested: ' + row.test_state);
   const inv = buildInvocation(row, { origin: ORIGIN });
-  check(inv.url === ORIGIN + '/api/dispatch' && inv.headers['x-terminal-key'] === '$TERMINAL_KEY' && inv.body.key === 'ADD', 'invocation: wrapper is not the dispatch call with the owner key as its vault variable');
+  check(inv.url === ORIGIN + '/api/dispatch' && inv.headers['x-terminal-key'] === 'INJECTED_BY_WORKER' && inv.body.key === 'ADD' && Object.keys(inv).sort().join() === 'body,headers,method,url', 'invocation: wrapper is not exactly {method,url,headers,body} with INJECTED_BY_WORKER');
   const { realInvocation } = await import(join(ROOT, 'functions/_lib/invocation_record.js'));
   const real = realInvocation({ key: 'ROUTER', type: 'agent', content: '' }, JSON.stringify({ url: 'https://api.x.ai/v1/chat/completions', method: 'POST', headers: { authorization: '<REDACTED>' }, body: { model: 'grok-4.3', messages: [] } }));
-  check(real.url === 'https://api.x.ai/v1/chat/completions' && real.headers.authorization === 'Bearer $XAI_API_KEY' && real.body.model === 'grok-4.3' && /"authorization: Bearer \$XAI_API_KEY"/.test(real.curl), 'invocation: the real outbound request is not reconstructed with its vault variable: ' + JSON.stringify(real).slice(0, 200));
+  check(real.url === 'https://api.x.ai/v1/chat/completions' && real.headers.authorization === 'Bearer INJECTED_BY_WORKER' && real.body.model === 'grok-4.3' && Object.keys(real).sort().join() === 'body,headers,method,url', 'invocation: the real outbound request is not exactly {method,url,headers,body}: ' + JSON.stringify(real).slice(0, 200));
   check(testPlan({ key: 'EMAIL_SEND', type: 'fn', content: '' }).runnable === false && testPlan(row).runnable === true, 'invocation: outward rows must be skipped and arg-free rows runnable');
   const v = verdict('ERR:nope'); check(v.ok === false, 'invocation: ERR result must be broken');
   await recordTest(env, 'ADD', { invocation: inv, transport: { http: 200, ok: true, ms: 3 }, response: '5', state: STATE.works });

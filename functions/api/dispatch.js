@@ -1179,7 +1179,11 @@ async function dispatchTag(key, body, ctx) {
     }
     const args = oneJsonDoc ? [raw] : raw.split('|');
     try {
-      if (row.type === 'fn') result = await runFn(row, args, ctx);
+      if (row.type === 'fn') {
+        const cap = captureOutbound();
+        try { result = await runFn(row, args, ctx); } finally { cap.stop(); }
+        if (ctx.depth === 0 || ctx.depth == null) ctx.lastRequestJson = cap.last() || null;
+      }
       else if (row.type === 'http') {
         const ret = await runHttp(row, args, ctx);
         // Shape mode: surface the fully-shaped outbound payload as the result (T12).
@@ -1448,6 +1452,37 @@ function redactDeep(value, depth) {
   }
   return value;
 }
+// Record outbound fetch calls for the duration of one function run. The last request to a host
+// other than the build itself (and other than an OAuth token exchange) is the API call the row
+// exists to make. Headers are redacted with redactReq before they leave this function.
+function captureOutbound() {
+  const orig = globalThis.fetch;
+  const seen = [];
+  globalThis.fetch = function (input, init) {
+    try {
+      const url = typeof input === 'string' ? input : (input && input.url) || '';
+      const method = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+      const headers = {};
+      const h = (init && init.headers) || (input && input.headers) || null;
+      if (h) { if (typeof h.forEach === 'function') h.forEach((v, k) => { headers[k] = v; }); else for (const [k, v] of Object.entries(h)) headers[k] = v; }
+      let body = init && init.body != null && typeof init.body === 'string' ? init.body : undefined;
+      if (typeof body === 'string') { try { body = JSON.parse(body); } catch {} }
+      seen.push({ url: String(url), method, headers, ...(body !== undefined ? { body } : {}) });
+    } catch {}
+    return orig.apply(this, arguments);
+  };
+  return {
+    stop() { globalThis.fetch = orig; },
+    last() {
+      const external = seen.filter((r) => {
+        try { const host = new URL(r.url).hostname; return !/miscsubjects\.com$/.test(host) && !/oauth2\.googleapis\.com|accounts\.google\.com|login\.microsoftonline\.com/.test(host); } catch { return false; }
+      });
+      const pick = external[external.length - 1] || seen[seen.length - 1];
+      return pick ? JSON.stringify(redactReq(pick)) : null;
+    },
+  };
+}
+
 function redactReq(reqObj) {
   if (!reqObj || typeof reqObj !== 'object') return reqObj;
   return redactDeep(reqObj, 0);

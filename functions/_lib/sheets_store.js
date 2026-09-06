@@ -309,7 +309,9 @@ function evalContext(env, sheet, actor) {
           const { CREDENTIAL_ENV_BY_HOST } = await import('./invocation_record.js');
           // The credential named for THIS host, and only that one, is swapped in for INJECTED_BY_WORKER
           // or for its $VARIABLE form — an envelope cannot name some other secret and mail it elsewhere.
-          const hostVar = /miscsubjects\.com$/.test(url.hostname) ? 'TERMINAL_KEY' : (CREDENTIAL_ENV_BY_HOST[url.hostname] || KEY_BY_HOST[url.hostname] || null);
+          // Worker secret names first (KEY_BY_HOST), then the vault names, for the same host.
+          const candidates = /miscsubjects\.com$/.test(url.hostname) ? ['TERMINAL_KEY'] : [KEY_BY_HOST[url.hostname], CREDENTIAL_ENV_BY_HOST[url.hostname]].filter(Boolean);
+          const hostVar = candidates.find((name) => env[name]) || candidates[0] || null;
           const secret = hostVar ? env[hostVar] : null;
           const swap = (str) => String(str).replace('INJECTED_BY_WORKER', secret || '').replace(/\$([A-Z][A-Z0-9_]+)/g, (m, name) => (name === hostVar && secret ? secret : m));
           const headers = {};

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { STATE, buildInvocation, credentialEnvFor, outwardSideEffect, realInvocation, recordTest, testPlan, verdict } from './invocation_record.js';
+import { STATE, buildInvocation, credentialEnvFor, describeInvocation, outwardSideEffect, realInvocation, recordTest, testPlan, verdict } from './invocation_record.js';
 
 const addRow = { key: 'ADD', type: 'fn', target: '', content: '# WHAT: Add two numbers.\n# $1 a — first\n# $2 b — second\n# EXAMPLE: [ADD]2|3[/ADD]\n$1 + $2', enabled: 1 };
 const agentRow = { key: 'ROUTER', type: 'agent', target: '', content: '# WHAT: routes.\nYou are the router.', enabled: 1 };
@@ -13,12 +13,10 @@ test('the invocation is the raw dispatch REST envelope with example args and the
   const inv = buildInvocation(addRow, { origin: 'https://example.test' });
   assert.equal(inv.method, 'POST');
   assert.equal(inv.url, 'https://example.test/api/dispatch');
-  assert.equal(inv.headers['x-terminal-key'], '$TERMINAL_KEY');
+  assert.equal(inv.headers['x-terminal-key'], 'INJECTED_BY_WORKER');
   assert.deepEqual(inv.body, { key: 'ADD', body: '2|3' });
-  assert.equal(inv.args.length, 2);
-  assert.match(inv.curl, /-H "x-terminal-key: \$TERMINAL_KEY"/);
-  assert.match(inv.curl, /--data '\{"key":"ADD","body":"2\|3"\}'/);
-  assert.match(inv.sheet, /=INVOKE\(A2,"status"\)/);
+  assert.deepEqual(Object.keys(inv).sort(), ['body', 'headers', 'method', 'url'], 'exactly the runner shape, nothing else');
+  assert.equal(describeInvocation(addRow).args.length, 2);
   assert.equal(buildInvocation(addRow, { args: '10|20' }).body.body, '10|20');
 });
 
@@ -67,20 +65,18 @@ test('after a run the invocation is the REAL outbound request with the credentia
     body: { model: 'grok-4.3', messages: [{ role: 'system', content: 'You are the router.' }, { role: 'user', content: 'Reply OK' }] } });
   const inv = realInvocation(agentRow, recorded, { origin: 'https://example.test' });
   assert.equal(inv.url, 'https://api.x.ai/v1/chat/completions');
-  assert.equal(inv.headers.authorization, 'Bearer $XAI_API_KEY');
-  assert.equal(inv.credential_env, 'XAI_API_KEY');
+  assert.equal(inv.headers.authorization, 'Bearer INJECTED_BY_WORKER');
+  assert.deepEqual(Object.keys(inv).sort(), ['body', 'headers', 'method', 'url']);
   assert.equal(inv.body.model, 'grok-4.3');
   assert.equal(inv.body.messages[0].content, 'You are the router.');
-  assert.match(inv.curl, /^curl -sS -X POST 'https:\/\/api\.x\.ai\/v1\/chat\/completions' -H 'content-type: application\/json' -H "authorization: Bearer \$XAI_API_KEY" --data '\{"model":"grok-4.3"/);
-  assert.equal(inv.build_wrapper.url, 'https://example.test/api/dispatch');
   // an http row names its own secret in its auth column
   const httpRow = { key: 'STRIPE_BALANCE', type: 'http', target: 'GET https://api.stripe.com/v1/balance', auth: 'Bearer:$STRIPE_SECRET_KEY', content: '# WHAT: balance', enabled: 1 };
   const inv2 = realInvocation(httpRow, JSON.stringify({ url: 'https://api.stripe.com/v1/balance', method: 'GET', headers: { authorization: '<REDACTED>' } }));
-  assert.equal(inv2.headers.authorization, 'Bearer $STRIPE_SECRET_KEY');
+  assert.equal(inv2.headers.authorization, 'Bearer INJECTED_BY_WORKER');
   assert.equal(credentialEnvFor('https://miscsubjects.com/api/x', {}), 'TERMINAL_KEY');
   assert.equal(credentialEnvFor('https://unknown.example/x', {}), null);
   // no request recorded → the wrapper, honestly labelled
-  assert.match(realInvocation(noArgs, null).via, /build dispatch/);
+  assert.equal(realInvocation(noArgs, null).url, 'https://miscsubjects.com/api/dispatch');
 });
 
 test('a call that went through the Cloudflare AI Gateway is written as the provider\'s own request with the vault key', () => {
@@ -88,7 +84,5 @@ test('a call that went through the Cloudflare AI Gateway is written as the provi
   const inv = realInvocation(agentRow, recorded);
   assert.equal(inv.url, 'https://api.x.ai/v1/chat/completions');
   assert.equal(inv.body.model, 'grok-4.3');
-  assert.equal(inv.headers.Authorization, 'Bearer $XAI_API_KEY');
-  assert.equal(inv.credential_env, 'XAI_API_KEY');
-  assert.match(inv.as_sent, /gateway\.ai\.cloudflare\.com/);
+  assert.equal(inv.headers.Authorization, 'Bearer INJECTED_BY_WORKER');
 });

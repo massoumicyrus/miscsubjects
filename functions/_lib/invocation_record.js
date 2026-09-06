@@ -55,41 +55,25 @@ export function credentialEnvFor(url, row) {
   return null;
 }
 
-function shellQuote(s) { return "'" + String(s).replace(/'/g, "'\\''") + "'"; }
-
-function curlFor(envelope) {
-  const parts = ['curl -sS -X ' + String(envelope.method || 'GET').toUpperCase(), shellQuote(envelope.url)];
-  for (const [k, v] of Object.entries(envelope.headers || {})) {
-    // A header carrying $VAR is left in double quotes so the shell expands the vault variable.
-    parts.push('-H ' + (/\$[A-Z][A-Z0-9_]+/.test(String(v)) ? '"' + k + ': ' + String(v).replace(/"/g, '\\"') + '"' : shellQuote(k + ': ' + v)));
-  }
-  if (envelope.body != null && !/^(GET|HEAD)$/i.test(envelope.method || 'GET')) {
-    parts.push('--data ' + shellQuote(typeof envelope.body === 'string' ? envelope.body : JSON.stringify(envelope.body)));
-  }
-  return parts.join(' ');
-}
-
 export function buildInvocation(row, { origin = 'https://miscsubjects.com', args = null } = {}) {
   const spec = deriveInvoke(row);
   const body = args != null ? String(args) : defaultArgs(row, spec);
-  const envelope = {
+  return {
     method: 'POST',
     url: origin + '/api/dispatch',
-    headers: { 'content-type': 'application/json', 'x-terminal-key': '$TERMINAL_KEY' },
+    headers: { 'Content-Type': 'application/json', 'x-terminal-key': 'INJECTED_BY_WORKER' },
     body: { key: String(row.key), body },
   };
+}
+
+// What a row needs to be called with — read-side help, kept apart from the payload itself.
+export function describeInvocation(row) {
+  const spec = deriveInvoke(row);
   return {
-    ...envelope,
-    via: String(row.type) === 'fn' || String(row.type) === 'flow'
-      ? 'build dispatch — this row runs inside the worker (' + row.type + '); there is no single outbound HTTP request to show'
-      : 'build dispatch — the row has not been run yet; after a test this becomes the real outbound request',
-    credential_env: 'TERMINAL_KEY',
     args: spec.args.map((a) => ({ pos: a.pos, name: a.name, desc: a.desc || '', variadic: !!a.variadic })),
     ops: spec.ops ? spec.ops.map((o) => o.op) : undefined,
     tag: spec.tag,
     returns: spec.returns || null,
-    curl: curlFor(envelope),
-    sheet: 'A2 = this JSON · B2 = =INVOKE(A2,"status") · C2 = =INVOKE(A2)',
   };
 }
 
@@ -103,32 +87,17 @@ export function realInvocation(row, requestJson, { origin = 'https://miscsubject
   if (!req || typeof req !== 'object' || !req.url) return buildInvocation(row, { origin, args });
   const direct = unwrapGateway(req);
   if (direct) req = { ...req, url: direct.url, body: direct.body };
-  const envVar = direct ? direct.env : credentialEnvFor(req.url, row);
   const headers = {};
   for (const [k, v] of Object.entries(req.headers || {})) {
-    const lk = k.toLowerCase();
-    if (String(v) === '<REDACTED>' || /REDACTED|INJECTED_BY_WORKER/.test(String(v))) {
-      const bearer = lk === 'authorization';
-      headers[k] = envVar ? (bearer ? 'Bearer $' + envVar : '$' + envVar) : (bearer ? 'Bearer $SECRET' : '$SECRET');
+    if (String(v) === '<REDACTED>' || /REDACTED|INJECTED_BY_WORKER|\$[A-Z][A-Z0-9_]+/.test(String(v))) {
+      headers[k] = k.toLowerCase() === 'authorization' ? 'Bearer INJECTED_BY_WORKER' : 'INJECTED_BY_WORKER';
     } else headers[k] = v;
   }
   let body = req.body;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch {} }
-  const envelope = { method: String(req.method || 'POST').toUpperCase(), url: String(req.url), headers, body: body == null ? undefined : body };
-  const wrapper = buildInvocation(row, { origin, args });
-  return {
-    ...envelope,
-    via: direct
-      ? 'the request this row made when it was run, reached through the Cloudflare AI Gateway (as_sent); written here as the provider\'s own call with the vault key'
-      : 'the outbound request this row made when it was run — recorded from the wire, credential written as its vault variable',
-    ...(direct ? { as_sent: direct.as_sent } : {}),
-    credential_env: envVar,
-    ...(envVar ? {} : { credential_note: 'no vault variable is known for this host; $SECRET stands where the credential goes' }),
-    args: wrapper.args, ops: wrapper.ops, tag: wrapper.tag, returns: wrapper.returns,
-    build_wrapper: { method: wrapper.method, url: wrapper.url, headers: wrapper.headers, body: wrapper.body },
-    curl: curlFor(envelope),
-    sheet: wrapper.sheet,
-  };
+  const out = { method: String(req.method || 'POST').toUpperCase(), url: String(req.url), headers };
+  if (body != null) out.body = body;
+  return out;
 }
 
 // Args to test with, in this order: an entry of the row's `examples` column, the EXAMPLE in the
