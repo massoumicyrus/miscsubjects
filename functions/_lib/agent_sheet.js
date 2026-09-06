@@ -69,7 +69,7 @@ export const SETTINGS_SCHEMA = [
   { key: 'max_inbound_chars',  type: 'int',   min: 200, max: 100000, def: '4000' },
   { key: 'tool_result_cap',    type: 'int',   min: 500, max: 200000, def: '16000' },
   { key: 'daily_cost_cap_usd', type: 'float', min: 0,   max: 1000,   def: '5.00', note: 'the turn halts before the first model call at or over this' },
-  { key: 'agent_key',          type: 'text',  def: 'ROUTER', note: 'the directory row this agent IS. system_prompt and model here and content/target on that row are the same text: edit either, the other follows' },
+  { key: 'agent_key',          type: 'text',  def: '',  optional: true, note: 'empty = this sheet runs the turn with the settings above and mirrors directory row ROUTER (content = system_prompt, target = model; edit either, the other follows). A different agent key routes the turn to that directory agent instead.' },
   { key: 'agent_name',         type: 'text',  def: 'MiscOS', note: 'what this agent calls itself' },
   { key: 'identity_at',        type: 'text',  def: '',  optional: true,
     note: 'where this agent\'s identity actually lives — filled in for you, and it follows agent_key' },
@@ -291,7 +291,6 @@ export async function readSettings(env, sheet, { fresh = false } = {}) {
 // directory row's updated_at; the newer side is the truth and is copied across.
 async function mirrorIdentity(env, sheet, out, byRow) {
   const key = String(out.agent_key || '').trim() || 'ROUTER';
-  out.agent_key = key;
   const dir = await env.DB.prepare('SELECT content, target, updated_at FROM directory WHERE key = ? AND type = ?').bind(key, 'agent').first();
   if (!dir) return;
   const pairs = [['system_prompt', 'content'], ['model', 'target']];

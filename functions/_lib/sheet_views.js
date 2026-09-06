@@ -115,7 +115,8 @@ function colSql(src, path) {
   if (!pp || !src.fields.includes(pp.col)) return null;
   if (!pp.json) return pp.col;
   if (!/^\$[A-Za-z0-9_.[\]$-]*$/.test(pp.json)) return null;
-  return "json_extract(" + pp.col + ", '" + pp.json.replace(/'/g, "''") + "')";
+  const jp = "'" + pp.json.replace(/'/g, "''") + "'";
+  return "CASE WHEN json_valid(" + pp.col + ") THEN json_extract(" + pp.col + ", " + jp + ") END";
 }
 
 const OPS = { '=': '=', '!=': '!=', '>': '>', '<': '<', '>=': '>=', '<=': '<=' };

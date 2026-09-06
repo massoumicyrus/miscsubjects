@@ -68,16 +68,121 @@ export async function logEvent(env, opts) {
       `INSERT INTO events_stats (source, key, n, errors, last_ts) VALUES (?, ?, 1, ?, ?)
        ON CONFLICT(source, key) DO UPDATE SET n = n + 1, errors = errors + ?, last_ts = excluded.last_ts`
     ).bind(String(o.source || ''), o.key || '', isErr, ts, isErr);
-    try {
-      await env.LEDGER.batch([insertStmt, statsStmt]);
-    } catch {
-      // events_stats missing (pre-migration local db) — the event row must still land.
-      await insertStmt.run();
+    const landed = await insertWithRetry(env, insertStmt, statsStmt);
+    if (!landed) {
+      await stashRow(env, id, {
+        id, ts, build: BUILD, source: String(o.source || ''), key: o.key || null,
+        route: o.route ? scrubOwnerIdentity(o.route) : null, actor: o.actor ? scrubOwnerIdentity(o.actor) : null,
+        action: o.action || null, direction: o.direction || null,
+        status: typeof o.status === 'number' ? o.status : null, trace_id: o.trace_id || null,
+        step: typeof o.step === 'number' ? o.step : null, parent: o.parent || null,
+        request_preview: previewOf(reqStr), response_preview: previewOf(resStr),
+        request_size: reqSize, response_size: resSize, request_json: reqJson, response_json: resJson,
+        r2_request_key: r2Req, r2_response_key: r2Res, legacy_table: o.legacy_table || null, legacy_id: o.legacy_id || null,
+        _errors: isErr,
+      });
+      return id;
     }
+    maybeFlush(env);
     return id;
   } catch {
     return null;
   }
+}
+
+// ── never-drop machinery ──────────────────────────────────────────────────────────────────
+
+const RETRY_DELAYS_MS = [150, 500, 1200];
+const PENDING_PREFIX = 'ledger:pending:';
+const PENDING_FLAG = 'ledger:pending:any';
+const FLUSH_GAP_MS = 20000;
+let lastFlushCheck = 0;
+
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+// The events row and its stats counter, together, with three more tries when the database
+// refuses. A missing events_stats table (pre-migration local db) still lets the event land.
+async function insertWithRetry(env, insertStmt, statsStmt) {
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      await env.LEDGER.batch([insertStmt, statsStmt]);
+      return true;
+    } catch (e) {
+      const msg = String(e && e.message || e);
+      if (/no such table: events_stats/i.test(msg)) {
+        try { await insertStmt.run(); return true; } catch {}
+      }
+      if (attempt < RETRY_DELAYS_MS.length) await sleep(RETRY_DELAYS_MS[attempt]);
+      else { try { console.error('ledger write refused after retries: ' + msg.slice(0, 200)); } catch {} }
+    }
+  }
+  return false;
+}
+
+// A row the database refused, kept whole (its original timestamp included) until it can land.
+async function stashRow(env, id, row) {
+  if (!env.KV) return false;
+  try {
+    await env.KV.put(PENDING_PREFIX + id, JSON.stringify(row), { expirationTtl: 7 * 86400 });
+    await env.KV.put(PENDING_FLAG, '1', { expirationTtl: 7 * 86400 });
+    return true;
+  } catch { return false; }
+}
+
+// Cheap, throttled: after a successful write, look once every FLUSH_GAP_MS for stashed rows.
+function maybeFlush(env) {
+  const now = Date.now();
+  if (now - lastFlushCheck < FLUSH_GAP_MS) return;
+  lastFlushCheck = now;
+  flushPendingEvents(env, 25).catch(() => {});
+}
+
+// Re-insert stashed rows, oldest first, keeping their original timestamps. Idempotent: a row
+// that already landed (INSERT OR IGNORE on the primary key) is simply cleared from the stash.
+export async function flushPendingEvents(env, max = 50) {
+  if (!env || !env.LEDGER || !env.KV) return { flushed: 0, remaining: 0 };
+  let flag = null;
+  try { flag = await env.KV.get(PENDING_FLAG); } catch { return { flushed: 0, remaining: 0 }; }
+  if (!flag) return { flushed: 0, remaining: 0 };
+  let list;
+  try { list = await env.KV.list({ prefix: PENDING_PREFIX, limit: Math.max(1, Math.min(200, max)) + 1 }); }
+  catch { return { flushed: 0, remaining: 0 }; }
+  const keys = (list.keys || []).map((k) => k.name).filter((n) => n !== PENDING_FLAG);
+  let flushed = 0;
+  for (const name of keys.slice(0, max)) {
+    let row;
+    try { row = await env.KV.get(name, 'json'); } catch { continue; }
+    if (!row || !row.id) { try { await env.KV.delete(name); } catch {} continue; }
+    try {
+      const ins = env.LEDGER.prepare(
+        `INSERT OR IGNORE INTO events
+         (id, ts, build, source, key, route, actor, action, direction, status,
+          trace_id, step, parent, request_preview, response_preview, request_size,
+          response_size, request_json, response_json, r2_request_key, r2_response_key,
+          legacy_table, legacy_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        row.id, row.ts, row.build || BUILD, row.source || '', row.key, row.route, row.actor, row.action, row.direction,
+        row.status, row.trace_id, row.step, row.parent, row.request_preview, row.response_preview,
+        row.request_size || 0, row.response_size || 0, row.request_json, row.response_json,
+        row.r2_request_key, row.r2_response_key, row.legacy_table, row.legacy_id,
+      );
+      const stats = env.LEDGER.prepare(
+        `INSERT INTO events_stats (source, key, n, errors, last_ts) VALUES (?, ?, 1, ?, ?)
+         ON CONFLICT(source, key) DO UPDATE SET n = n + 1, errors = errors + ?, last_ts = MAX(last_ts, excluded.last_ts)`
+      ).bind(row.source || '', row.key || '', row._errors ? 1 : 0, row.ts, row._errors ? 1 : 0);
+      try { await env.LEDGER.batch([ins, stats]); } catch (e) {
+        if (/no such table: events_stats/i.test(String(e && e.message || e))) await ins.run(); else throw e;
+      }
+      await env.KV.delete(name);
+      flushed++;
+    } catch {
+      break; // the database is still refusing — leave the rest for the next flush
+    }
+  }
+  const remaining = Math.max(0, keys.length - flushed);
+  if (!remaining && flushed === keys.length) { try { await env.KV.delete(PENDING_FLAG); } catch {} }
+  return { flushed, remaining };
 }
 
 // Archival: full payloads older than ARCHIVE_DAYS move from D1 to R2 (raw preserved,

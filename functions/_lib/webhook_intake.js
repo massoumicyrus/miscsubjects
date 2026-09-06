@@ -1,7 +1,7 @@
 import { routeInbound, sendBlooio } from '../blooio.js';
 import { send2chat } from '../2chat.js';
 import { sendTelegram } from '../telegram.js';
-import { logEvent } from './event_log.js';
+import { logEvent, flushPendingEvents } from './event_log.js';
 import { runDirectExec, sniffPrefix } from './direct_exec.js';
 import { dispatch } from '../api/dispatch.js';
 import { spawnCliAgent } from './cli_agent_spawn.js';
@@ -625,6 +625,9 @@ async function reconcileDeliveryWebhook(env, channel, raw) {
 export async function processWebhook(context, channel) {
   const { request, env } = context;
   const bg = (p) => { try { context.waitUntil(p); } catch {} };
+  // Rows the ledger refused under load are stashed, not dropped (event_log.js). An inbound
+  // message is the moment the record matters most, so they land before this one is written.
+  bg(flushPendingEvents(env, 50).catch(() => {}));
   const raw = await request.text();
   const deliveryHandled = await reconcileDeliveryWebhook(env, channel, raw);
   // Ephemeral indicator webhooks (typing/presence/read/delivery receipts) carry no payload

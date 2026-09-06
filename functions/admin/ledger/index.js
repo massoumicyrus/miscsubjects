@@ -2,7 +2,7 @@ import { shellHtml } from '../_layout.js';
 import { workbookResponse } from '../sheets/index.js';
 import { isBuildAuthed } from '../../_lib/admin_session.js';
 import { classify, TAXONOMY, CAT_COLOR, GROUP_COLOR, cardHash } from '../../_lib/ledger_taxonomy.js';
-import { logEvent, archiveTick } from '../../_lib/event_log.js';
+import { logEvent, archiveTick, flushPendingEvents } from '../../_lib/event_log.js';
 import { buildUnifiedCards } from '../../_lib/card_builder.js';
 import {
   enrichEventRow, SERVICE_COLOR, serviceWhereClause, buildServiceCounts,
@@ -122,6 +122,8 @@ export async function onRequestGet(context) {
   const url = new URL(request.url);
   const params = url.searchParams;
   const dataMode = params.get('data');
+  // Anything the ledger refused under load sits in a KV stash; the reader lands it first.
+  try { context.waitUntil(flushPendingEvents(env, 50).catch(() => {})); } catch {}
 
   {
     const passthrough = ['view', 'share', 'terminal_key', 'tk', 'tab', 'kind', 'sort', 'cell', 'id', 'field'];
