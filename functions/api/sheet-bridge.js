@@ -58,14 +58,24 @@ async function runner(env, action, args) {
 }
 
 async function readTab(env, sheetId, tab, rows) {
-  const got = await runner(env, 'sheets_get', { id: sheetId, tab, range: 'A2:B' + rows });
+  // The runner names the spreadsheet `sheet_id`, not `id`. Passing the wrong name silently fell
+  // back to its default spreadsheet instead of erroring, which is the worst shape a wrong argument
+  // can take: it works until the day you point it somewhere else.
+  const got = await runner(env, 'sheets_get', { sheet_id: sheetId, tab, range: 'A2:B' + rows });
   if (!got || got.ok === false) return { ok: false, error: got?.error || 'sheets_get failed' };
   return { ok: true, values: Array.isArray(got.values) ? got.values : [] };
 }
 
-// One row's answer, written back as A..E so a reader sees the invocation and its result together.
+// One row's answer, written back across B..E so a reader sees the invocation and its result
+// together. The range must span exactly as many columns as the array: setValues on a one-cell
+// range with four values throws, and the first version of this swallowed that throw and reported
+// a clean `ran:2` over a sheet where nothing had been written. A write that fails is returned, not
+// discarded.
 async function writeBack(env, sheetId, tab, row, cells) {
-  return runner(env, 'sheets_set_range', { id: sheetId, tab, range: 'B' + row, values: [cells] });
+  const out = await runner(env, 'sheets_set_range', {
+    sheet_id: sheetId, tab, range: 'B' + row + ':E' + row, values: [cells],
+  });
+  return { ok: out && out.ok !== false, error: out && out.error ? String(out.error).slice(0, 300) : '' };
 }
 
 function verdict(result, ran) {
@@ -82,8 +92,13 @@ async function runQueue(env, sheetId, tab, limit) {
 
   // Claim before running. Two overlapping passes must not fire the same invocation twice, and a
   // claim written first is the only thing that makes this safe to schedule on a short interval.
+  // If the claim cannot be written, the queue is not run at all: firing invocations we cannot
+  // record is worse than not firing them.
   for (const item of queued) {
-    await writeBack(env, sheetId, tab, item.row, ['running', '', new Date().toISOString(), '']);
+    const claim = await writeBack(env, sheetId, tab, item.row, ['running', '', new Date().toISOString(), '']);
+    if (!claim.ok) {
+      return { ok: false, tab, sheet: sheetId, ran: 0, error: 'cannot write to the tab, so nothing was run: ' + claim.error };
+    }
   }
 
   const results = [];
@@ -93,13 +108,16 @@ async function runQueue(env, sheetId, tab, limit) {
     try { out = await dispatch(env, item.spec.key, item.spec.body, { actor: 'sheet-bridge' }); }
     catch (e) { threw = String(e && e.message || e); }
     const v = threw ? { ok: false, payload: 'ERR:' + threw } : verdict(out?.result, out?.ran !== false);
-    await writeBack(env, sheetId, tab, item.row, [
+    const wrote = await writeBack(env, sheetId, tab, item.row, [
       v.ok ? 'ok' : 'error',
       v.payload,
       new Date().toISOString(),
       String(out?.trace || ''),
     ]);
-    results.push({ row: item.row, key: item.spec.key, ok: v.ok, trace: out?.trace || null });
+    results.push({
+      row: item.row, key: item.spec.key, ok: v.ok, trace: out?.trace || null,
+      written: wrote.ok, ...(wrote.ok ? {} : { write_error: wrote.error }),
+    });
   }
 
   await logEvent(env, {
