@@ -383,8 +383,18 @@ var TSTATES={};    // id -> state
 var DIR_FIELDS=['key','type','used','size','category','target','content','includes','auth','allowed_categories','seq','enabled','planner_visible','planner_rank','input_schema','examples','sensitive','runner','created_at','updated_at','href'];
 var DIR_EDITABLE={type:1,target:1,category:1,content:1,includes:1,auth:1,allowed_categories:1,seq:1,enabled:1,planner_visible:1,planner_rank:1,input_schema:1,examples:1,sensitive:1,runner:1};
 var DIR_W={key:190,type:60,used:56,size:66,category:104,target:240,content:280,includes:110,auth:100,allowed_categories:110,seq:48,enabled:56,planner_visible:76,planner_rank:72,input_schema:150,examples:150,sensitive:62,runner:74,created_at:140,updated_at:140,href:170};
-var LED_FIELDS=['ts','source','key','action','direction','status','route','trace_id','step','parent','request_preview','response_preview','request_size','response_size','id'];
-var LED_W={ts:150,source:110,key:170,action:110,direction:70,status:56,route:170,trace_id:130,step:50,parent:90,request_preview:320,response_preview:320,request_size:80,response_size:82,id:200};
+// my message, the reply, and the session it belongs to are the first thing
+// a ledger row shows. you_said / agent_said are computed server-side from the row's payload
+// (a CLI turn_in carries {session, text}; a turn_out carries the reply); session is read from the
+// payload or from the gc_<session> trace, so a Claude Code / Grok CLI turn names its session.
+var LED_FIELDS=['ts','you_said','agent_said','session','source','key','action','direction','status','trace_id','route','step','parent','request_preview','response_preview','request_size','response_size','id'];
+var LED_W={ts:150,you_said:340,agent_said:340,session:150,source:100,key:150,action:110,direction:60,status:56,trace_id:130,route:150,step:50,parent:90,request_preview:320,response_preview:320,request_size:80,response_size:82,id:200};
+function sessionOf(r){
+  var rp=r.request_preview||''; if(rp.charAt(0)==='{'){ try{ var j=JSON.parse(rp); if(j&&j.session) return String(j.session); }catch(e){} }
+  var t=String(r.trace_id||''); if(t.indexOf('gc_')===0) return t.slice(3);
+  if(t.indexOf('codex_')===0||t.indexOf('kimi_')===0||t.indexOf('grok_')===0) return t;
+  return '';
+}
 
 // One read-only rule for every grid: whole-sheet (ledger/turns/forum), per-row (corpus
 // projections), or per-field (non-PATCHable directory columns). Draft rows stay writable.
@@ -471,13 +481,13 @@ function loadTab(st, force){
     // cards) — the GAS-facing ?turns=1 lane is often empty on recent data.
     return cacheFirstAll(st, ['/admin/ledger?cards=1&limit=200'], function(rr){
       var cards=((rr[0])||{}).cards||[];
-      var F=['ts','source','category','actor','input','output','routed','tools_used','n_events','trace_id','hash','kind'];
+      var F=['ts','input','output','session','source','category','actor','routed','tools_used','n_events','trace_id','hash','kind'];
       st.fields=F.slice(); st.ro=true;
       st.meta=cards.map(function(t){ return {id:t.card_id||t.trace_id||'', ro:true, href:t.trace_id?'/admin/ledger?data=1&trace_id='+encodeURIComponent(t.trace_id):''}; });
-      st.vals=cards.map(function(t){ return F.map(function(f){ var v=t[f]; if(v==null) return ''; return typeof v==='object'?JSON.stringify(v):String(v); }); });
+      st.vals=cards.map(function(t){ return F.map(function(f){ var v=(f==='session')?(t.session||sessionOf({trace_id:t.trace_id,request_preview:''})):t[f]; if(v==null) return ''; return typeof v==='object'?JSON.stringify(v):String(v); }); });
       st.nRows=st.vals.length; st.nCols=F.length;
       if(st.colOrder.length!==st.nCols) st.colOrder=F.map(function(_,i){ return i; });
-      if(!Object.keys(st.colW).length){ var W={ts:150,source:110,category:104,actor:96,input:320,output:320,routed:100,tools_used:180,n_events:64,trace_id:132,hash:96,kind:110}; F.forEach(function(f,i){ st.colW[i]=W[f]||DEFAULT_W; }); }
+      if(!Object.keys(st.colW).length){ var W={ts:150,session:150,source:110,category:104,actor:96,input:340,output:340,routed:100,tools_used:180,n_events:64,trace_id:132,hash:96,kind:110}; F.forEach(function(f,i){ st.colW[i]=W[f]||DEFAULT_W; }); }
       finishLoad(st);
     });
   }
@@ -505,9 +515,9 @@ function loadTab(st, force){
       st.fields=LED_FIELDS.slice(); st.ro=true;
       st._noMore=false; st._loadingMore=false;
       st.meta=rows.map(function(r){ return {id:r.id, ro:true, href:'/admin/ledger/'+encodeURIComponent(r.id)+'?data=1'}; });
-      st.vals=rows.map(function(r){ return LED_FIELDS.map(function(f){ var v=r[f]; return v==null?'':String(v); }); });
+      st.vals=rows.map(function(r){ return LED_FIELDS.map(function(f){ var v=(f==='session')?sessionOf(r):r[f]; return v==null?'':String(v); }); });
       st.nRows=st.vals.length; st.nCols=LED_FIELDS.length;
-      if(!st.colOrder.length) st.colOrder=LED_FIELDS.map(function(_,i){ return i; });
+      if(st.colOrder.length!==LED_FIELDS.length) st.colOrder=LED_FIELDS.map(function(_,i){ return i; });
       if(!Object.keys(st.colW).length) LED_FIELDS.forEach(function(f,i){ st.colW[i]=LED_W[f]||DEFAULT_W; });
       restoreViewPrefs(st,'led');
       finishLoad(st);
@@ -970,6 +980,8 @@ function setLocal(st,dr,dc,v){ if(!st.vals[dr]) st.vals[dr]=[]; st.vals[dr][dc]=
 /* view prefs: column order + widths for directory/ledger persist per browser */
 function persistViewPrefs(st,tag){ try{ localStorage.setItem('gs_prefs_'+tag, JSON.stringify({order:st.colOrder,w:st.colW})); }catch(e){} }
 function restoreViewPrefs(st,tag){ try{ var p=JSON.parse(localStorage.getItem('gs_prefs_'+tag)||'null');
+  // a layout saved against an older column set (the ledger gained you_said/agent_said/session) is stale
+  if(p&&p.order&&st.nCols&&p.order.length&&Math.max.apply(null,p.order)>=st.nCols) p=null;
   if(p&&p.order&&p.order.length===st.nCols) st.colOrder=p.order;
   if(p&&p.w) Object.keys(p.w).forEach(function(k){ st.colW[k]=p.w[k]; }); }catch(e){} }
 
@@ -2000,14 +2012,17 @@ function openColCtx(vi,x,y){
     {label:'Filter…',fn:function(){ openFilterPanel(vi,x,y); }},
   ];
   items.push('-');
+  items.push({label:'Move column left',fn:function(){ if(vi<=0) return; if(T.kind==='view'){ var v=T.viewDef; var cc=v.columns.splice(dc,1)[0]; v.columns.splice(dc-1,0,cc); saveViewDef(T,v); return; } moveColumn(vi, vi-1); }});
+  items.push({label:'Move column right',fn:function(){ if(vi>=T.colOrder.length-1) return; if(T.kind==='view'){ var v=T.viewDef; if(dc>=v.columns.length-1) return; var cc=v.columns.splice(dc,1)[0]; v.columns.splice(dc+1,0,cc); saveViewDef(T,v); return; } moveColumn(vi, vi+2); }});
+  items.push({label:'Move column to first',fn:function(){ if(T.kind==='view'){ var v=T.viewDef; var cc=v.columns.splice(dc,1)[0]; v.columns.unshift(cc); saveViewDef(T,v); return; } moveColumn(vi, 0); }});
+  items.push({label:'Hide column '+(T.fields?T.fields[dc]:colLetter(dc+1))+' (View → Reset column layout brings it back)',fn:function(){ if(T.colOrder.length<=1) return; T.colOrder.splice(vi,1); persistColWidths(); renderAll(); }});
+  items.push('-');
   items.push({label:'Format column: '+(formatOf(T,dc)||'text')+' …',fn:function(){ formatDialog(dc); }});
   if(T.kind==='view'){
     items.push('-');
     items.push({label:'Add column from source (left)…',fn:function(){ columnDialog(dc,null); }});
     items.push({label:'Add column from source (right)…',fn:function(){ columnDialog(dc+1,null); }});
     items.push({label:'Edit this column (path / header / format)…',fn:function(){ columnDialog(null,dc); }});
-    items.push({label:'Move column left',fn:function(){ if(dc<=0) return; var v=T.viewDef; var c=v.columns.splice(dc,1)[0]; v.columns.splice(dc-1,0,c); saveViewDef(T,v); }});
-    items.push({label:'Move column right',fn:function(){ var v=T.viewDef; if(dc>=v.columns.length-1) return; var c=v.columns.splice(dc,1)[0]; v.columns.splice(dc+1,0,c); saveViewDef(T,v); }});
     items.push('-');
     items.push({label:'Rows: filters, WHERE, order…',fn:filtersDialog});
   }
@@ -2063,12 +2078,29 @@ function deleteDirectoryRows(){
 // A read-only cell is a handle: the preview lives in the grid, the object lives at its own
 // address. The viewer shows both — the value and the door.
 function showValueViewer(val, href){
+  // A ledger cell is a preview; the whole row (request_json / response_json, full length) is one
+  // fetch away, and that is what "full value" has to mean on this tab.
+  if(T&&T.kind==='ledger'&&T.sel){ var m=T.meta[T.view[T.activeR]]; if(m&&m.id){
+    var f=T.fields?T.fields[T.colOrder[T.activeC]]:'';
+    jfetch('/admin/ledger/'+encodeURIComponent(m.id)+'?data=1').then(function(res){
+      var e=(res.j&&(res.j.event||res.j.row||res.j))||{};
+      var pick = (f==='you_said'||f==='request_preview'||f==='request_json') ? (e.request_json||e.request_preview||val)
+        : (f==='agent_said'||f==='response_preview'||f==='response_json') ? (e.response_json||e.response_preview||val)
+        : (e[f]!=null ? e[f] : val);
+      if(f==='you_said'||f==='agent_said'){ try{ var pj=JSON.parse(pick); if(pj&&typeof pj==='object'&&pj.text!=null) pick=pj.text; }catch(x){} }
+      showValueViewerRaw(String(pick==null?'':pick), m.href, e.id ? ('ledger row '+e.id+' · '+(e.ts||'')+' · '+f) : '');
+    });
+    return;
+  } }
+  showValueViewerRaw(val, href, '');
+}
+function showValueViewerRaw(val, href, sub){
   var hp=$('gs-help-body');
   var link='';
   if(href){ var h=href; if(TOKQ&&h.charAt(0)==='/') h+=(h.indexOf('?')>=0?'&':'?')+TOKQ;
     link='<p style="font-size:12.5px;margin:6px 0"><a href="'+esc(h)+'" target="_blank" rel="noopener">Open this row&#39;s raw object ↗</a> <span style="color:#9aa0a6">'+esc(href.split('?')[0])+'</span></p>'; }
   var shown=prettyJson(val);
-  hp.innerHTML='<h2>Cell value</h2>'+link+'<pre style="max-height:60vh;white-space:pre-wrap">'+esc(shown)+'</pre>'
+  hp.innerHTML='<h2>Cell value'+(sub?' <span style="font-size:12px;color:#9aa0a6;font-weight:400">'+esc(sub)+'</span>':'')+'</h2>'+link+'<pre style="max-height:60vh;white-space:pre-wrap">'+esc(shown)+'</pre>'
     +'<div class="gs-fbtns"><button class="gs-btn" id="gs-vv-copy">Copy</button><button class="gs-btn pri" id="gs-vv-x">Close</button></div>';
   $('gs-help').style.display='flex';
   $('gs-vv-copy').onclick=function(){ navigator.clipboard&&navigator.clipboard.writeText(val); toast('Copied'); };
