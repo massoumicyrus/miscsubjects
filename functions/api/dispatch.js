@@ -2407,7 +2407,8 @@ async function mintCapability(env, origin, q) {
   // scope=pool&workspace=<slug>&role=<role> — the workspace-pool credential. The token
   // names the pool, never the rows; the allowed set is the workspace's living declaration.
   else if (scope === 'pool' && q.workspace) scope = 'pool:' + String(q.workspace).trim().toLowerCase() + ':' + String(q.role || 'observer').trim().toLowerCase();
-  else if (!scope.startsWith('row:') && !scope.startsWith('rows:') && !scope.startsWith('pfx:') && !scope.startsWith('pool:') && scope !== 'act') scope = 'read';
+  else if (scope === 'sheet' && q.sheet) scope = 'sheet:' + String(q.sheet).trim();
+  else if (!scope.startsWith('row:') && !scope.startsWith('rows:') && !scope.startsWith('pfx:') && !scope.startsWith('pool:') && !scope.startsWith('sheet:') && scope !== 'act') scope = 'read';
   const minted = await mintShareToken(env, { ttlSec: q.ttl, scope, maxUses: q.uses });
   if (!minted) return { error: 'no_secret', note: 'ADMIN_SESSION_SECRET / TERMINAL_KEY not set' };
   const fingerprint = await capFingerprint(minted.token);
@@ -3208,6 +3209,7 @@ async function onRequestGetInner(context) {
       prefix: p.get('prefix'),
       workspace: p.get('workspace'),
       role: p.get('role'),
+      sheet: p.get('sheet'),
       ttl: p.get('ttl'),
       uses: p.get('uses'),
       purpose: p.get('purpose'),
