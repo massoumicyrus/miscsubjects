@@ -47,7 +47,8 @@ export function slugKey(name) {
 // the first real candidate the ledger surfaced carried a JSON body and was wrongly refused whole.
 function escapeForFlow(text) {
   const t = String(text);
-  if (t.trim().startsWith('{')) return null;
+  // A step part is `KEY: body`, so a body that begins with `{` never begins the part and never reads
+  // as a fan-out; `{}` is an ordinary empty-object constant.
   let depth = 0;
   for (const c of t) {
     if (c === '{' || c === '[') depth++;
@@ -148,8 +149,10 @@ export function makeFlowLearnFnMap({ loadDirectory, logEvent, readEventFull, get
       }
       list.push({ inv: r.id, key, action: String(r.action || ''), input: isOutbound ? '' : input, output: String(r.response_json == null ? '' : r.response_json), ts: r.ts });
     }
-    if (list.length && list[list.length - 1].action === 'flow') list.pop();
-    return list;
+    // A flow row anywhere in the trace means the trace IS a flow execution: its member steps are the
+    // flow's body, already compiled. The flow rows themselves are not steps, and the ledger interleaves
+    // them with the members, so they are removed wherever they appear rather than only at the end.
+    return list.filter((st) => st.action !== 'flow');
   }
   async function stepsFromIds(env, ids) {
     const rows = [];
@@ -267,8 +270,7 @@ export function makeFlowLearnFnMap({ loadDirectory, logEvent, readEventFull, get
       const sigs = new Map();
       let compiledAlready = 0;
       for (const [trace, evs] of byTrace) {
-        const outer = evs[evs.length - 1];
-        if (outer && String(outer.action) === 'flow') { compiledAlready++; continue; }     // already a capability
+        if (evs.some((e) => String(e.action) === 'flow')) { compiledAlready++; continue; }   // a flow execution: already a capability
         const steps = stepsFromEvents(evs);
         if (steps.length < MIN_STEPS || steps.length > MAX_STEPS) continue;
         if (steps.some((st) => String(st.output || '').startsWith('ERR'))) continue;
