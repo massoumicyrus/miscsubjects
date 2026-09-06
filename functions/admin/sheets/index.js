@@ -403,11 +403,29 @@ function sessionOf(r){
   return '';
 }
 
+// A PROJECTION OF THE DIRECTORY IS THE DIRECTORY. TYPING IN IT EDITS THE ROW.
+// Every cell of every view used to be read-only, so "make a sheet of my agents and fix their
+// prompts" ended at looking. The rows already carry their own object key and each column already
+// names its own field, which is everything a write needs. A cell is writable when the source is a
+// writable table, the row resolved to a real object, and the column is a plain stored field the
+// REST lane will PATCH — not a JSON path, not an expression, not a computed field. The ledger is
+// append-only and stays read-only everywhere.
+var VIEW_WRITABLE_SOURCES={directory:1};
+function viewCellWritable(st,dr,dc){
+  var v=st.viewDef; if(!v||!VIEW_WRITABLE_SOURCES[v.source]) return false;
+  var m=st.meta[dr]; if(!m||!m.id) return false;
+  var col=(v.columns||[])[dc]; if(!col) return false;
+  var path=String(col.path||'');
+  if(path.charAt(0)==='=') return false;          // an expression is computed, not stored
+  if(/[.[]/.test(path)) return false;             // a JSON path reads inside a payload
+  return !!DIR_EDITABLE[path];
+}
+
 // One read-only rule for every grid: whole-sheet (ledger/turns/forum), per-row (corpus
 // projections), or per-field (non-PATCHable directory columns). Draft rows stay writable.
 function cellRo(st,dr,dc){
   if(st.ro===true) return true;
-  if(st.kind==='view') return true;
+  if(st.kind==='view') return !viewCellWritable(st,dr,dc);
   var m=st.meta[dr];
   if(st.kind==='directory'){
     if(st.drafts[dr]){ var f0=st.fields[dc]; return !(DIR_EDITABLE[f0]||f0==='key'); }
@@ -829,13 +847,34 @@ function columnDialog(atIndex, editIndex){
   viewSources().then(function(){
     var cur = editIndex!=null ? T.viewDef.columns[editIndex] : {path:'',header:'',format:'text',w:160};
     var paths=discoverPaths(T, 80);
-    var inner='<div class="hint">A path is a column of the source, or a column plus a JSON path into it — request_json.body.messages[0].content is the system prompt that was actually sent.</div>'
-      +'<label>Path</label><input type="text" id="cd-path" list="cd-paths" value="'+esc(cur.path)+'" placeholder="request_json.body.model"><datalist id="cd-paths">'+paths.map(function(p){ return '<option value="'+esc(p)+'">'; }).join('')+'</datalist>'
-      +'<div class="hint">'+paths.length+' paths found in the rows on screen — start typing to pick one.</div>'
+    // THREE KINDS OF COLUMN, SAID OUT LOUD, BECAUSE THE THIRD IS THE ONE THAT DOES THE WORK.
+    // A stored field, a JSON path into a payload, or an EXPRESSION evaluated once per row with
+    // every field of that row in scope by name. The expression is how a tag regex or a prompt
+    // field gets tested against a live slice without anyone writing product code.
+    var EXPR_EXAMPLES=[
+      '=REGEXALL(response_json,"\\\\[([A-Z][A-Z0-9_]{2,})\\\\]")',
+      '=REGEX(response_json,"\\\\[([A-Z][A-Z0-9_]{2,})\\\\]")',
+      '=REGEXCOUNT(response_json,"ERR:")',
+      '=JSON(request_json,"$.body.messages[0].content")',
+      '=JSON(request_json,"$.body.model")',
+      '=JSON(response_json,"$.usage.total_tokens")',
+      '=IF(CONTAINS(response_json,"ERR:"),"broken","ok")',
+      '=LEN(response_json)'
+    ];
+    var inner='<div class="hint"><b>A column is one of three things.</b><br>'
+      +'1 · a field of the source — <code>ts</code>, <code>source</code>, <code>content</code><br>'
+      +'2 · a JSON path into a payload — <code>request_json.body.messages[0].content</code><br>'
+      +'3 · an <b>expression</b>, starting with <code>=</code>, run once per row with every field of that row in scope by its own name:<br>'
+      +'&nbsp;&nbsp;<code>=REGEXALL(response_json,"\\[([A-Z][A-Z0-9_]{2,})\\]")</code> → the tool tags that turn emitted<br>'
+      +'&nbsp;&nbsp;<code>=JSON(request_json,"$.body.messages[0].content")</code> → the system prompt as sent<br>'
+      +'Functions: REGEX · REGEXALL · REGEXCOUNT · JSON · CONTAINS · IF · LEN · LEFT · UPPER · CONCAT · SUM · COUNT. '
+      +'Editing the expression re-tests every row on the next open. A column never spends money: DISPATCH, TAG, LLMCALL and INVOKE are refused here and belong in a stored sheet cell.</div>'
+      +'<label>Field, JSON path, or =expression</label><input type="text" id="cd-path" list="cd-paths" value="'+esc(cur.path)+'" placeholder="request_json.body.model"><datalist id="cd-paths">'+EXPR_EXAMPLES.concat(paths).map(function(p){ return '<option value="'+esc(p)+'">'; }).join('')+'</datalist>'
+      +'<div class="hint">'+paths.length+' paths found in the rows on screen, plus '+EXPR_EXAMPLES.length+' ready expressions — start typing to pick one.</div>'
       +'<div class="row"><div><label>Header</label><input type="text" id="cd-head" value="'+esc(cur.header||'')+'" placeholder="what this column is called"></div>'
       +'<div><label>Format</label>'+formatSelect('cd-fmt',cur.format||'text')+'</div><div><label>Width px</label><input type="text" id="cd-w" value="'+esc(String(cur.w||160))+'"></div></div>'
       +'<div class="gs-fbtns">'+(editIndex!=null?'<button class="gs-btn" id="cd-del" style="margin-right:auto;color:#c5221f">Remove column</button>':'')+'<button class="gs-btn" data-close>Cancel</button><button class="gs-btn pri" id="cd-go">'+(editIndex!=null?'Save':'Add column')+'</button></div>';
-    dialog(editIndex!=null?'Edit column':'Add column from source', inner, function(hp, close){
+    dialog(editIndex!=null?'Edit column':'Add column', inner, function(hp, close){
       $('cd-path').focus();
       $('cd-go').onclick=function(){
         var path=$('cd-path').value.trim(); if(!path){ toast('Path is required'); return; }
@@ -998,7 +1037,26 @@ function restoreViewPrefs(st,tag){ try{ var p=JSON.parse(localStorage.getItem('g
 function commitCell(st, dr, dc, val, onDone){
   if(st.kind==='ledger'){ onDone(false,'The ledger is append-only — cells here are read-only.'); return; }
   if(st.kind==='turns'||st.kind==='forum'){ onDone(false,'This sheet is a read-only projection of the ledger.'); return; }
-  if(st.kind==='view'){ onDone(false,'This sheet is a projection of the '+((st.viewDef&&st.viewDef.source)||'ledger')+' — rows are read from the source of record, not stored here. To change what shows, change the columns or filters (right-click a column header). To edit an object, pin it above the grid.'); return; }
+  if(st.kind==='view'){
+    if(viewCellWritable(st,dr,dc)){
+      var vkey=st.meta[dr].id, vfield=String(st.viewDef.columns[dc].path), vbody={};
+      vbody[vfield]=val;
+      saveStatus('Saving…');
+      jfetch('/api/directory/'+encodeURIComponent(vkey),{method:'PATCH',body:vbody}).then(function(res){
+        if(res.ok&&res.j.ok){ setLocal(st,dr,dc,val); saveStatus('Saved to '+vkey); onDone(true); }
+        else { saveStatus('Save failed',true); onDone(false,(res.j&&(res.j.how_to_fix||res.j.error))||('HTTP '+res.status)); }
+      });
+      return;
+    }
+    var vsrc=(st.viewDef&&st.viewDef.source)||'ledger';
+    var vcol=(st.viewDef&&st.viewDef.columns||[])[dc], vpath=vcol?String(vcol.path||''):'';
+    onDone(false, vsrc==='ledger'
+      ? 'The ledger is append-only — a payload is what happened and cannot be rewritten. Add a column (right-click a header) to pull a piece of it out.'
+      : (vpath.charAt(0)==='=' ? 'This column is an expression — edit the expression itself (right-click the header → Edit column).'
+        : (/[.[]/.test(vpath) ? 'This column reads inside a stored payload; edit '+vpath.split(/[.[]/)[0]+' itself, or the object at its own address.'
+          : vpath+' is not an editable field of a '+vsrc+' row.')));
+    return;
+  }
   if(st.kind==='directory'){
     var field=st.fields[dc];
     if(st.drafts[dr]){ setLocal(st,dr,dc,val); maybeCommitDraft(st,dr,onDone); return; }
@@ -2032,8 +2090,8 @@ function openColCtx(vi,x,y){
   items.push({label:'Format column: '+(formatOf(T,dc)||'text')+' …',fn:function(){ formatDialog(dc); }});
   if(T.kind==='view'){
     items.push('-');
-    items.push({label:'Add column from source (left)…',fn:function(){ columnDialog(dc,null); }});
-    items.push({label:'Add column from source (right)…',fn:function(){ columnDialog(dc+1,null); }});
+    items.push({label:'Add column (left)…',fn:function(){ columnDialog(dc,null); }});
+    items.push({label:'Add column (right)…',fn:function(){ columnDialog(dc+1,null); }});
     items.push({label:'Edit this column (path / header / format)…',fn:function(){ columnDialog(null,dc); }});
     items.push('-');
     items.push({label:'Rows: filters, WHERE, order…',fn:filtersDialog});
@@ -2196,7 +2254,7 @@ var MENUS=[
     {label:'Pin an object row to the header…',fn:function(){ pinDialog(); }},
     {label:'Pin the ROUTER system prompt (directory/ROUTER/content)',fn:function(){ addPin('directory/ROUTER/content','ROUTER · system prompt'); }},
     '-',
-    {label:'Add column from source…',fn:function(){ columnDialog(null,null); },disabled:T.kind!=='view'},
+    {label:'Add column…',fn:function(){ columnDialog(null,null); },disabled:T.kind!=='view'},
     {label:'Rows: filters, WHERE, order…',fn:filtersDialog,disabled:T.kind!=='view'},
     {label:'Load older rows',fn:loadMoreView,disabled:T.kind!=='view'},
   ];}},

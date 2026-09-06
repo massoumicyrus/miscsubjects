@@ -72,7 +72,15 @@ function tokenize(src) {
     if (/\s/.test(ch)) { i++; continue; }
     if (ch === '"') {
       let j = i + 1, s = '';
-      while (j < src.length && src[j] !== '"') { s += src[j] === '\\' ? src[++j] : src[j]; j++; }
+      // A BACKSLASH IN A STRING BELONGS TO THE STRING, NOT TO THE TOKENIZER.
+      // Only \" and \\ are escapes here. Every other backslash survives verbatim, because the
+      // strings people type into this grid are regular expressions — "\\[([A-Z_]+)\\]" has to
+      // reach RegExp with its brackets still escaped or every pattern silently means something
+      // else. Swallowing them made REGEX() unusable, which was the whole reason it exists.
+      while (j < src.length && src[j] !== '"') {
+        if (src[j] === '\\' && (src[j + 1] === '"' || src[j + 1] === '\\')) { s += src[j + 1]; j += 2; continue; }
+        s += src[j]; j++;
+      }
       t.push({ k: 'str', v: s }); i = j + 1; continue;
     }
     if (/[0-9]/.test(ch) || (ch === '.' && /[0-9]/.test(src[i + 1] || ''))) {
@@ -113,7 +121,7 @@ function parse(tokens) {
     if (t.k === 'num' || t.k === 'str') { p++; return { t: t.k, v: t.v }; }
     if (t.k === 'ref') { p++; return { t: 'ref', v: t.v }; }
     if (t.k === 'range') { p++; return { t: 'range', v: t.v }; }
-    if (t.k === 'name') { p++; return { t: 'str', v: t.v }; }
+    if (t.k === 'name') { p++; return { t: 'name', v: t.v }; }
     if (t.k === 'fn') {
       p++; eat('op', '(');
       const args = [];
@@ -170,6 +178,40 @@ const truthy = (v) => {
   return !(s === '' || s === '0' || s === 'false' || s === 'no');
 };
 
+
+// A pattern typed into a cell is user input, not code: a bad one returns its reason, never throws,
+// and a catastrophic pattern is bounded by the same per-row work every other column does.
+function compileRe(pattern, flags, forceGlobal) {
+  const src = String(pattern == null ? '' : pattern);
+  if (!src) return '#REGEX no pattern';
+  let f = String(flags == null ? '' : flags).replace(/[^gimsuy]/g, '');
+  if (forceGlobal && !f.includes('g')) f += 'g';
+  if (!forceGlobal) f = f.replace(/g/g, '');
+  try { return new RegExp(src, f); }
+  catch (e) { return '#REGEX ' + String(e && e.message || e).slice(0, 90); }
+}
+
+// $.a.b[0].c over a JSON string or an already-parsed value. Anything that is not an object at the
+// step being asked for reads as empty, the way a missing cell does.
+function jsonPath(value, path) {
+  let v = value;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch { return '#JSON not json'; } }
+  const p = String(path == null ? '' : path).replace(/^\$\.?/, '');
+  if (p) {
+    for (const step of p.split('.')) {
+      const m = String(step).match(/^([^\[\]]*)((?:\[\d+\])*)$/);
+      if (!m) return '';
+      if (m[1]) { if (v == null || typeof v !== 'object') return ''; v = v[m[1]]; }
+      for (const idx of (m[2] || '').matchAll(/\[(\d+)\]/g)) {
+        if (!Array.isArray(v)) return '';
+        v = v[Number(idx[1])];
+      }
+    }
+  }
+  if (v == null) return '';
+  return typeof v === 'object' ? JSON.stringify(v) : String(v);
+}
+
 async function flatten(node, ctx, depth) {
   // a range evaluates to the list of its cells; everything else to a single value
   if (node.t === 'range') {
@@ -185,6 +227,17 @@ async function evalNode(node, ctx, depth) {
   if (depth > MAX_DEPTH) throw new Error('formula nested deeper than ' + MAX_DEPTH);
   switch (node.t) {
     case 'num': case 'str': return node.v;
+    // A BARE NAME IS THE ROW'S FIELD WHEN THERE IS A ROW.
+    // On a projection every column of the underlying row is in scope by its own name, so
+    // `=REGEX(response_json,"...")` reads the payload that row actually carries. With no row in
+    // scope (an ordinary stored sheet) a bare word stays the literal word it has always been.
+    case 'name': {
+      if (ctx && typeof ctx.field === 'function') {
+        const v = await ctx.field(node.v);
+        if (v !== undefined) return v;
+      }
+      return node.v;
+    }
     case 'neg': {
       const v = await evalNode(node.v, ctx, depth + 1);
       return node.sign === '-' ? -num(v) : num(v);
@@ -355,6 +408,51 @@ async function callFn(node, ctx, depth) {
     case 'TRIM':  return String((await argVals())[0] ?? '').trim();
     case 'TEXT':  return String((await argVals())[0] ?? '');
     case 'VALUE': return num((await argVals())[0]);
+
+    // ── TESTING A SUB-FIELD ──────────────────────────────────────────────────────────────────
+    // The point of these four: a payload column is a wall of JSON, and the only way to find out
+    // whether a tool tag fired, which model answered, or what the system prompt actually said is
+    // to pull the piece out and look at it. Written as a column expression they run per row, so
+    // one edit re-tests the whole slice.
+    //
+    //   =REGEX(response_json,"\[([A-Z_]{2,})\]")     first tool tag the model emitted
+    //   =REGEXALL(response_json,"\[([A-Z_]{2,})\]")  every tag, comma separated
+    //   =REGEXCOUNT(request_json,"BLOOIO")             how many times it appears
+    //   =JSON(request_json,"$.body.messages[0].content")  the system prompt as sent
+    //
+    // A bad pattern shows its reason in the cell instead of failing the row.
+    case 'REGEX': {
+      const a = await argVals();
+      const re = compileRe(a[1], a[3], false);
+      if (typeof re === 'string') return re;
+      const m = re.exec(String(a[0] ?? ''));
+      if (!m) return '';
+      const g = a.length > 2 && String(a[2] ?? '').trim() !== '' ? Math.trunc(num(a[2])) : (m.length > 1 ? 1 : 0);
+      return m[g] == null ? '' : String(m[g]);
+    }
+    case 'REGEXALL': {
+      const a = await argVals();
+      const re = compileRe(a[1], a[3], true);
+      if (typeof re === 'string') return re;
+      const sep = a.length > 2 && a[2] != null && String(a[2]) !== '' ? String(a[2]) : ', ';
+      const out = [];
+      for (const m of String(a[0] ?? '').matchAll(re)) out.push(String((m.length > 1 ? m[1] : m[0]) ?? ''));
+      return out.join(sep);
+    }
+    case 'REGEXCOUNT': {
+      const a = await argVals();
+      const re = compileRe(a[1], a[2], true);
+      if (typeof re === 'string') return re;
+      return [...String(a[0] ?? '').matchAll(re)].length;
+    }
+    case 'JSON': {
+      const a = await argVals();
+      return jsonPath(a[0], a[1]);
+    }
+    case 'CONTAINS': {
+      const a = await argVals();
+      return String(a[0] ?? '').includes(String(a[1] ?? ''));
+    }
     default: return '#NAME? ' + name;
   }
 }

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { parsePath, normalizeView, instantiateTemplate, parseRef, runView, TEMPLATES } from './sheet_views.js';
+import { parsePath, normalizeView, instantiateTemplate, parseRef, runView, TEMPLATES, isExpressionColumn, LEDGER_NOISE_SOURCE } from './sheet_views.js';
 
 test('a column path is a source column with an optional JSON path', () => {
   assert.deepEqual(parsePath('ts'), { col: 'ts', json: null });
@@ -67,4 +67,75 @@ test('a directory view projects environment descriptor fields by JSON path', asy
   assert.equal(out.rows.length, 1);
   assert.deepEqual(out.rows[0], ['PAGE_ADMIN_SHEETS', 'page://admin/sheets', '["law://sheets/S01"]', '["programmability"]', '2', 'sha256:abc']);
   assert.equal(out.meta[0].href, '/admin/directory/PAGE_ADMIN_SHEETS');
+});
+
+
+test('a ledger view leads with the time and the raw payloads', () => {
+  const v = normalizeView({ source: 'ledger' });
+  assert.deepEqual(v.columns.slice(0, 3).map((c) => c.path), ['ts', 'request_json', 'response_json']);
+  assert.equal(v.columns[1].format, 'json');
+});
+
+test('the classifier flood is excluded by default, as a filter the owner can see and delete', () => {
+  const v = normalizeView({ source: 'ledger' });
+  assert.deepEqual(v.filters[0], { field: 'source', op: '!=', value: LEDGER_NOISE_SOURCE });
+  // a view that names source itself is left exactly as written
+  const own = normalizeView({ source: 'ledger', filters: [{ field: 'source', op: '=', value: 'jci' }] });
+  assert.equal(own.filters.length, 1);
+  assert.equal(own.filters[0].value, 'jci');
+  // and other sources still get the exclusion appended to their own filters
+  const both = normalizeView({ source: 'ledger', filters: [{ field: 'status', op: '=', value: '200' }] });
+  assert.equal(both.filters.length, 2);
+});
+
+test('an expression column survives normalization and is not checked against the table', () => {
+  const v = normalizeView({
+    source: 'ledger',
+    columns: [{ path: 'ts' }, { path: '=REGEXALL(response_json,"x")', header: 'tags' }, { path: 'not_a_column' }],
+  });
+  assert.deepEqual(v.columns.map((c) => c.header), ['ts', 'tags']);
+  assert.equal(isExpressionColumn(v.columns[1].path), true);
+  assert.equal(isExpressionColumn(v.columns[0].path), false);
+});
+
+test('an expression column is evaluated once per row with that row\'s fields in scope', async () => {
+  const rows = [{
+    c0: '2026-09-06T10:00:00Z',
+    f_response_json: JSON.stringify({ choices: [{ message: { content: '[X_POST]a[/X_POST] [D1_QUERY]b[/D1_QUERY]' } }] }),
+    f_request_json: JSON.stringify({ body: { model: 'grok-4.3' } }),
+    __id: 'e1', __ts: '2026-09-06T10:00:00Z',
+  }];
+  const env = { LEDGER: { prepare: () => ({ bind: () => ({ all: async () => ({ results: rows }) }) }) } };
+  const out = await runView(env, {
+    source: 'ledger',
+    columns: [
+      { path: 'ts' },
+      { path: '=REGEXALL(response_json,"\\[([A-Z][A-Z0-9_]{2,})\\]")', header: 'tags' },
+      { path: '=JSON(request_json,"$.body.model")', header: 'model' },
+    ],
+  }, {});
+  assert.equal(out.rows[0][1], 'X_POST, D1_QUERY');
+  assert.equal(out.rows[0][2], 'grok-4.3');
+  // the expression's fields are fetched, the expression itself is never sent to SQL
+  assert.match(out.sql, /f_response_json/);
+  assert.doesNotMatch(out.sql, /REGEXALL/);
+});
+
+test('a column may not spend money: a recalculation runs once per row on every open', async () => {
+  const env = { LEDGER: { prepare: () => ({ bind: () => ({ all: async () => ({ results: [{ c0: 'x', __id: 'e1', __ts: 't' }] }) }) }) } };
+  for (const expr of ['=DISPATCH("X_POST","hi")', '=LLMCALL(A1,"hi")', '=TAG(A1)', '=INVOKE(A1)']) {
+    const out = await runView(env, { source: 'ledger', columns: [{ path: 'ts' }, { path: expr }] }, {});
+    assert.match(out.rows[0][1], /^#NO_EFFECTS/, expr + ' must be refused in a column');
+  }
+});
+
+test('the traffic template carries both the phone line and the gateway, with the tags pulled out', () => {
+  const t = TEMPLATES.find((x) => x.id === 'traffic');
+  assert.ok(t, 'traffic template is missing');
+  const sources = t.view.filters[0].value.split(',');
+  assert.ok(sources.includes('blooio'), 'blooio missing');
+  assert.ok(sources.includes('grok') && sources.includes('aigateway'), 'gateway missing');
+  const headers = t.view.columns.map((c) => c.header);
+  assert.deepEqual(headers.slice(0, 4), ['time', 'source', 'RAW IN', 'RAW OUT']);
+  assert.ok(t.view.columns.some((c) => isExpressionColumn(c.path) && /REGEXALL/.test(c.path)));
 });

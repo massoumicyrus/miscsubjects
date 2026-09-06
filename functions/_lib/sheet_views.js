@@ -52,19 +52,32 @@ export const SOURCES = {
 export const FORMATS = ['text', 'json', 'time', 'number', 'link', 'image'];
 
 // The full-payload column set: what went down the wire, not a 500-character preview.
+// TIME, THEN THE RAW PAYLOAD. IN THAT ORDER, BECAUSE THAT IS WHAT THE LEDGER IS FOR.
+// The previous order put nine identifier columns before the payload, so opening a ledger view
+// showed you a row's metadata and made you scroll to reach the only thing you came for: what was
+// actually sent and what actually came back. Identity still travels with the row — it just sits
+// after the evidence instead of in front of it.
 const LEDGER_DEFAULT_COLUMNS = [
-  { path: 'ts', header: 'time', format: 'time', w: 150 },
+  { path: 'ts', header: 'time', format: 'time', w: 160 },
+  { path: 'request_json', header: 'RAW IN', format: 'json', w: 520 },
+  { path: 'response_json', header: 'RAW OUT', format: 'json', w: 520 },
   { path: 'source', header: 'source', w: 100 },
   { path: 'key', header: 'key', w: 150 },
   { path: 'action', header: 'action', w: 120 },
-  { path: 'direction', header: 'dir', w: 56 },
+  { path: 'actor', header: 'actor', w: 130 },
   { path: 'status', header: 'status', format: 'number', w: 60 },
+  { path: 'direction', header: 'dir', w: 56 },
   { path: 'trace_id', header: 'trace', w: 120 },
-  { path: 'actor', header: 'actor', w: 120 },
-  { path: 'request_json', header: 'raw request (in)', format: 'json', w: 420 },
-  { path: 'response_json', header: 'raw response (out)', format: 'json', w: 420 },
   { path: 'id', header: 'id', w: 260 },
 ];
+
+// THE ONE SOURCE THAT DROWNS THE LEDGER.
+// jci is the per-request traffic classifier: 742,132 of the last 810,000 events. Every ledger
+// view opened without a source filter was 92% classifier noise, which is why the ledger read as
+// unusable rather than as a record. It is excluded by DEFAULT, not by force: normalizeView writes
+// the exclusion into the view's own filter list, so it shows up in Rows… as an ordinary line the
+// owner can edit or delete. A view that names `source` itself is left exactly as written.
+export const LEDGER_NOISE_SOURCE = 'jci';
 
 // Ready-made descriptions. `param` names what the person supplies when they pick one.
 export const TEMPLATES = [
@@ -98,6 +111,23 @@ export const TEMPLATES = [
   { id: 'agents', title: 'Directory — agents', what: 'every agent row: its model and its whole system prompt',
     view: { source: 'directory', filters: [{ field: 'type', op: '=', value: 'agent' }],
       columns: [{ path: 'key', header: 'agent', w: 180 }, { path: 'target', header: 'model', w: 200 }, { path: 'content', header: 'system prompt', w: 600 }, { path: 'updated_at', header: 'updated', format: 'time', w: 150 }] } },
+  { id: 'traffic', title: 'Traffic — Blooio + AI Gateway (raw)',
+    what: 'every raw payload in and out of the phone line and the model gateway, with the tool tags pulled out',
+    view: { source: 'ledger',
+      filters: [{ field: 'source', op: 'in', value: 'blooio,grok,aig,aigateway,invoke_json,openai,cloudflare,dispatch' }],
+      columns: [
+        { path: 'ts', header: 'time', format: 'time', w: 160 },
+        { path: 'source', header: 'source', w: 90 },
+        { path: 'request_json', header: 'RAW IN', format: 'json', w: 520 },
+        { path: 'response_json', header: 'RAW OUT', format: 'json', w: 520 },
+        { path: '=JSON(request_json,"$.body.messages[0].content")', header: 'system prompt sent', w: 320 },
+        { path: '=JSON(request_json,"$.body.model")', header: 'model', w: 120 },
+        { path: '=REGEXALL(response_json,"\\[([A-Z][A-Z0-9_]{2,})\\]")', header: 'tool tags emitted', w: 220 },
+        { path: '=JSON(response_json,"$.usage.total_tokens")', header: 'tokens', format: 'number', w: 80 },
+        { path: 'key', header: 'key', w: 140 },
+        { path: 'status', header: 'status', format: 'number', w: 60 },
+        { path: 'trace_id', header: 'trace', w: 120 },
+      ] } },
   { id: 'custom', title: 'Custom (write the WHERE)', param: { name: 'where', hint: "source='blooio' AND request_json LIKE '%How are you%'" },
     what: 'any table, any condition — SQL WHERE clause, read-only',
     view: { source: 'ledger', where: '{{where}}', columns: LEDGER_DEFAULT_COLUMNS } },
@@ -167,21 +197,46 @@ function safeWhere(where) {
   return w;
 }
 
+
+// AN EXPRESSION COLUMN: THE POINT OF THE WHOLE THING.
+// `=REGEX(response_json,"\\[([A-Z_0-9]{2,})\\]")` is a column, evaluated once per row, with every
+// field of that row in scope by its own name. Change the pattern, reopen, and the whole slice is
+// re-tested. Without this a projection could only ever show what the table already stored, so
+// asking "did the tool tag fire on these 300 turns" meant writing product code.
+export function isExpressionColumn(path) {
+  return typeof path === 'string' && path.trim().charAt(0) === '=';
+}
+
+// A RECALCULATION MUST NEVER SPEND MONEY OR SEND ANYTHING (law://sheets/S01).
+// A stored cell may call a tool, because a person typed it into one cell and it runs once. A view
+// column runs once PER ROW, every time the tab is opened — a =DISPATCH there would fire hundreds
+// of real calls on a scroll. Refused by name, with the lane that does work said out loud.
+const EFFECTFUL_IN_EXPRESSION = /\b(DISPATCH|TAG|INVOKE|LLMCALL|IMAGE|D1QUERY|SEARCH|SEARCHCOUNT)\s*\(/i;
+
 export function normalizeView(view) {
   const v = view && typeof view === 'object' ? view : {};
   const source = SOURCES[v.source] ? v.source : 'ledger';
   const src = SOURCES[source];
   const columns = (Array.isArray(v.columns) && v.columns.length ? v.columns : LEDGER_DEFAULT_COLUMNS)
     .map((c) => (typeof c === 'string' ? { path: c } : c))
-    .filter((c) => c && c.path && parsePath(c.path) && src.fields.includes(parsePath(c.path).col))
+    // A column is EITHER a stored field (optionally with a JSON path) OR an expression. An
+    // expression starts with '=' and is not checked against the table's columns, because its
+    // whole point is to compute something the table does not store.
+    .filter((c) => c && c.path && (isExpressionColumn(c.path) || (parsePath(c.path) && src.fields.includes(parsePath(c.path).col))))
     .map((c) => ({
       path: String(c.path), header: String(c.header || c.path).slice(0, 80),
-      format: FORMATS.includes(c.format) ? c.format : (parsePath(c.path).json ? 'text' : (src.json.includes(c.path) ? 'json' : (c.path === src.ts ? 'time' : 'text'))),
+      format: FORMATS.includes(c.format) ? c.format
+        : (isExpressionColumn(c.path) ? 'text'
+          : (parsePath(c.path).json ? 'text' : (src.json.includes(c.path) ? 'json' : (c.path === src.ts ? 'time' : 'text')))),
       w: Math.max(40, Math.min(1200, parseInt(c.w, 10) || 140)),
     }));
+  const filters = (Array.isArray(v.filters) ? v.filters : []).filter((f) => f && f.field).slice(0, 12);
+  if (source === 'ledger' && !filters.some((f) => String(f.field) === 'source')) {
+    filters.unshift({ field: 'source', op: '!=', value: LEDGER_NOISE_SOURCE });
+  }
   return {
     source,
-    filters: (Array.isArray(v.filters) ? v.filters : []).filter((f) => f && f.field).slice(0, 12),
+    filters,
     where: String(v.where || '').slice(0, 2000),
     columns: columns.length ? columns : LEDGER_DEFAULT_COLUMNS.slice(0, 4),
     order: v.order === 'asc' ? 'asc' : 'desc',
@@ -205,7 +260,21 @@ export async function runView(env, viewIn, { limit, before, after } = {}) {
   if (raw) where.push('(' + raw + ')');
   if (before) { where.push(src.ts + ' < ?'); binds.push(String(before)); }
   if (after) { where.push(src.ts + ' > ?'); binds.push(String(after)); }
-  const selects = view.columns.map((c, i) => colSql(src, c.path) + ' AS c' + i);
+  // Stored columns are selected. Expression columns select nothing — instead the raw fields their
+  // text names are fetched alongside, so each one can be evaluated against its own row below.
+  const selects = [];
+  const exprCols = [];
+  view.columns.forEach((c, i) => {
+    if (isExpressionColumn(c.path)) { exprCols.push({ i, expr: c.path }); return; }
+    selects.push(colSql(src, c.path) + ' AS c' + i);
+  });
+  const needed = new Set();
+  for (const { expr } of exprCols) {
+    for (const m of String(expr).matchAll(/[A-Za-z_][A-Za-z0-9_]*/g)) {
+      if (src.fields.includes(m[0])) needed.add(m[0]);
+    }
+  }
+  for (const f of needed) selects.push(f + ' AS f_' + f);
   const idCol = src.fields.includes('id') ? 'id' : (src.fields.includes('key') ? 'key' : src.fields[0]);
   selects.push(idCol + ' AS __id', src.ts + ' AS __ts');
   if (src.fields.includes('trace_id')) selects.push('trace_id AS __trace');
@@ -217,14 +286,35 @@ export async function runView(env, viewIn, { limit, before, after } = {}) {
   let res;
   try { res = await db.prepare(sql).bind(...binds).all(); }
   catch (e) { return { error: 'query_failed', detail: String(e && e.message || e), sql, columns: view.columns, rows: [], meta: [] }; }
+  let evaluate = null;
+  if (exprCols.length) {
+    ({ evaluate } = await import('./sheet_formula.js'));
+  }
   const rows = [];
   const meta = [];
   for (const r of (res.results || [])) {
-    rows.push(view.columns.map((c, i) => {
+    const cells = view.columns.map((c, i) => {
       const v = r['c' + i];
       if (v == null) return '';
       return typeof v === 'string' ? v : (typeof v === 'object' ? JSON.stringify(v) : String(v));
-    }));
+    });
+    for (const { i, expr } of exprCols) {
+      if (EFFECTFUL_IN_EXPRESSION.test(expr)) {
+        cells[i] = '#NO_EFFECTS — a column runs once per row on every open. Put the call in a stored sheet cell instead.';
+        continue;
+      }
+      // Every field of THIS row, by its own name. readCell is inert: a projection has no A1 grid
+      // of its own, so an accidental =A1 reads empty rather than reaching into some other sheet.
+      const ctx = {
+        field: async (name) => (Object.prototype.hasOwnProperty.call(r, 'f_' + name)
+          ? (r['f_' + name] == null ? '' : String(r['f_' + name]))
+          : undefined),
+        readCell: async () => '',
+      };
+      try { cells[i] = String(await evaluate(expr, ctx)); }
+      catch (e) { cells[i] = '#ERROR ' + String(e && e.message || e).slice(0, 120); }
+    }
+    rows.push(cells);
     meta.push({
       id: r.__id == null ? '' : String(r.__id), ts: r.__ts || '', trace_id: r.__trace || '',
       href: view.source === 'ledger' ? '/admin/ledger/' + encodeURIComponent(String(r.__id)) + '?data=1'
