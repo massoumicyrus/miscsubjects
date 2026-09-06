@@ -91,4 +91,6 @@ test('placeholder args name each declared positional so a row can be shaped with
   assert.equal(placeholderArgs(addRow), '<arg1>|<arg2>');
   assert.equal(placeholderArgs(needsArgs), '<arg1>');
   assert.equal(placeholderArgs(agentRow), '<your message>');
+  const opsRow = { key: 'KLAVIYO', type: 'http', target: 'target_map:' + JSON.stringify({ profiles: { method: 'GET', url: 'https://a.klaviyo.com/api/profiles' }, lists: { method: 'GET', url: 'https://a.klaviyo.com/api/lists/$1' } }), content: '# WHAT: klaviyo', enabled: 1 };
+  assert.equal(placeholderArgs(opsRow), 'lists|<arg1>');
 });

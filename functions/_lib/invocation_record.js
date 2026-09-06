@@ -104,7 +104,13 @@ export function realInvocation(row, requestJson, { origin = 'https://miscsubject
 export function placeholderArgs(row) {
   const spec = deriveInvoke(row);
   if (String(row.type) === 'agent') return '<your message>';
-  if (spec.ops) return '<op>|<arg1>';
+  // A row with named operations is shaped with its FIRST real op, so the column shows that
+  // provider's request rather than an unknown-op error.
+  if (spec.ops && spec.ops.length) {
+    const first = spec.ops[0];
+    const extra = Array.from({ length: Math.max(0, Number(first.extraArgs || 0)) }, (_, i) => '<arg' + (i + 1) + '>');
+    return [first.op, ...extra].join('|');
+  }
   return spec.args.map((a) => '<' + (/^[A-Za-z_][\w-]*$/.test(String(a.name || '')) ? a.name : 'arg' + a.pos) + '>').join('|');
 }
 
