@@ -54,7 +54,7 @@ test('POST /api/directory without a descriptor binds object_kind by type, never 
   const { onRequestPost } = await import('./index.js');
   let binds = null;
   const env = { TERMINAL_KEY: 'owner-test-token', DB: { prepare(sql) { return { bind(...b) { binds = b; return this; }, async run() { return { success: true }; } }; } } };
-  const mk = (type) => new Request('https://example.test/api/directory', { method: 'POST', headers: { 'content-type': 'application/json', 'x-terminal-key': 'owner-test-token' }, body: JSON.stringify({ key: 'NEW_' + type.toUpperCase(), type, content: '# WHAT: x' }) });
+  const mk = (type) => new Request('https://example.test/api/directory', { method: 'POST', headers: { 'content-type': 'application/json', 'x-terminal-key': 'owner-test-token' }, body: JSON.stringify({ key: 'NEW_' + type.toUpperCase(), type, auth: 'owner', content: '# WHAT: x', examples: '[""]' }) });
   // bind order: …, runner(15), object_kind(16), descriptor_json, descriptor_rev, descriptor_hash, updated_at
   assert.equal((await onRequestPost({ env, request: mk('agent') })).status, 201);
   assert.equal(binds[16], 'agent');
