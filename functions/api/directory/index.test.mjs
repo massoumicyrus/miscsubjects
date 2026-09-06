@@ -60,4 +60,5 @@ test('POST /api/directory without a descriptor binds object_kind by type, never 
   assert.equal(binds[16], 'agent');
   assert.equal((await onRequestPost({ env, request: mk('fn') })).status, 201);
   assert.equal(binds[16], 'capability');
+  assert.equal(binds[18], 1, 'descriptor_rev must be 1, never null');
 });

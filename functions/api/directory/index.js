@@ -112,7 +112,7 @@ export async function onRequestPost(context) {
       // object_kind is NOT NULL since 0373: a row created without a descriptor is an agent or a capability.
       descriptor ? descriptor.kind : (b.object_kind != null ? String(b.object_kind) : (String(b.type) === 'agent' ? 'agent' : 'capability')),
       descriptorJson,
-      descriptor ? 1 : null,
+      1, // descriptor_rev is NOT NULL since 0373; a row without a descriptor starts at revision 1
       descriptorHash,
       ts
     ).run();
