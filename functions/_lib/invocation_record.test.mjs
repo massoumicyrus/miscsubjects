@@ -88,7 +88,7 @@ test('a call that went through the Cloudflare AI Gateway is written as the provi
 });
 
 test('placeholder args name each declared positional so a row can be shaped without being sent', () => {
-  assert.equal(placeholderArgs(addRow), '<a>|<b>');
+  assert.equal(placeholderArgs(addRow), '<arg1>|<arg2>');
   assert.equal(placeholderArgs(needsArgs), '<arg1>');
   assert.equal(placeholderArgs(agentRow), '<your message>');
 });
