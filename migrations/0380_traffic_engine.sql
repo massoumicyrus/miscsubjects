@@ -382,7 +382,7 @@ CREATE TABLE IF NOT EXISTS traffic_history (
   utm_json          TEXT,
   click_ids_json    TEXT,
   imported_at       TEXT,
-  returning         INTEGER,
+  "returning"       INTEGER,
   replay_json       TEXT,
   replay_decision   TEXT,
   replay_reason     TEXT,
