@@ -3,6 +3,7 @@ import { checkAirunnerResponse } from "../_lib/airunner_contract.js";
 import { makePromoFnMap } from "../_lib/promo_loop.js";
 import { makeConscienceFnMap } from "../_lib/conscience_law.js";
 import { makeConstitutionFnMap } from "../_lib/decision_constitution.js";
+import { makeWebmodelFnMap } from "../_lib/webmodel_gateway.js";
 import { publicSecretFindingAndRevoke, publicSecret404 } from '../_lib/public_secret_guard.js';
 import { logEvent, readEventFull } from '../_lib/event_log.js';
 import { getPath } from '../_lib/json_path.js';
@@ -3871,3 +3872,9 @@ Object.assign(FN_MAP, makePromoFnMap({ buildNowIso, xaiSearch, pipeJson,
 // The Good Conscience Law (conscienceGate) — the veto between "can execute" and "will execute".
 Object.assign(FN_MAP, makeConscienceFnMap({ buildNowIso }));
 Object.assign(FN_MAP, makeConstitutionFnMap());
+// BROWSER MODELS ARE ORDINARY CAPABILITIES. webmodelSessionNew/Send/Read/Status/Close plus the
+// shared state-handle verbs. A web ChatGPT/Claude/Grok/Gemini/Kimi session is a substrate like
+// any other: because it is a normal fn row it dispatches, composes into flows, schedules under
+// automations, and projects into Sheets/CLI/MCP/URL with no per-provider integration.
+// _lib/webmodel_gateway.js — additive merge; fn_runners.js is untouched.
+Object.assign(FN_MAP, makeWebmodelFnMap({ logEvent, buildNowIso }));
