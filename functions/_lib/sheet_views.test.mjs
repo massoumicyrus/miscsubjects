@@ -143,3 +143,13 @@ test('the traffic template carries both the phone line and the gateway, with the
   assert.ok(t.view.columns.some((c) => c.header === 'the message' && /data\.text/.test(c.path) && /choices\[0\]/.test(c.path)));
   assert.ok(t.view.columns.some((c) => isExpressionColumn(c.path) && /REGEXALL/.test(c.path)));
 });
+
+test('a column that SHOWS a call is not a column that MAKES one', async () => {
+  const env = { LEDGER: { prepare: () => ({ bind: () => ({ all: async () => ({ results: [{ c0: 'x', f_key: 'NOW', __id: 'e1', __ts: 't' }] }) }) }) } };
+  // the literal is inside quotes: it displays "=DISPATCH("NOW","")" and calls nothing
+  const shown = await runView(env, { source: 'ledger', columns: [{ path: 'ts' }, { path: '="=DISPATCH(\\"NOW\\",\\"\\")"' }] }, {});
+  assert.equal(shown.rows[0][1], '=DISPATCH("NOW","")');
+  // an actual call is still refused
+  const made = await runView(env, { source: 'ledger', columns: [{ path: 'ts' }, { path: '=DISPATCH("NOW","")' }] }, {});
+  assert.match(made.rows[0][1], /^#NO_EFFECTS/);
+});

@@ -304,7 +304,11 @@ export async function runView(env, viewIn, { limit, before, after } = {}) {
       return typeof v === 'string' ? v : (typeof v === 'object' ? JSON.stringify(v) : String(v));
     });
     for (const { i, expr } of exprCols) {
-      if (EFFECTFUL_IN_EXPRESSION.test(expr)) {
+      // Test the CODE, not the strings. A column whose job is to SHOW the formula —
+      // ="=DISPATCH("&key&",…)" — contains the word DISPATCH inside a quoted literal and calls
+      // nothing. Blanking string literals first is the difference between a column that displays
+      // a call and a column that makes one.
+      if (EFFECTFUL_IN_EXPRESSION.test(String(expr).replace(/"(?:[^"\\]|\\.)*"/g, '""'))) {
         cells[i] = '#NO_EFFECTS — a column runs once per row on every open. Put the call in a stored sheet cell instead.';
         continue;
       }
