@@ -21,7 +21,7 @@ import { xOAuth1Header, xWriteFailureMessage } from '../_lib/x_oauth1.js';
 import { runCliAgentGroup } from '../_lib/cli_agent_group.js';
 import { triggerIssueReflex } from '../_lib/issue_reflex.js';
 import { loadPromptBlockMap, assembleAgentPrompt, parseIncludes } from '../_lib/prompt_blocks.js';
-import { logInvocation, getInvocation, linkRepairedBy, recordChargeFromResult, tenantBalance } from '../_lib/invocation_log.js';
+import { logInvocation, getInvocation, lookupInvocation, linkRepairedBy, recordChargeFromResult, tenantBalance } from '../_lib/invocation_log.js';
 import {
   isBuildAuthed, buildReadAuthed, mintShareToken, verifyShareToken, consumeShareUse,
   capFingerprint, parseShareTokenRaw, saveCapability, getCapabilityByNonce, getCapabilityByFingerprint,
@@ -2853,7 +2853,9 @@ async function onRequestGetInner(context) {
   if (p.get('confirm') != null) {
     const invId = p.get('confirm');
     if (!invId) return dispatchJson({ error: 'confirm id required' }, 400);
-    const rec = await getInvocation(env, invId);
+    const look = await lookupInvocation(env, invId);
+    if (!look.ok) return dispatchJson({ protocol: 'OIP', kind: 'confirmation', confirmed: null, id: invId, error: 'LEDGER_LOOKUP_FAILED', note: 'The ledger did not answer, so nothing is known about this invocation; it may exist. Retry.', detail: look.error }, 503);
+    const rec = look.rec;
     if (!rec) return dispatchJson({ protocol: 'OIP', kind: 'confirmation', confirmed: false, id: invId, note: 'No such invocation — it did not happen.' }, 404);
     const publicReceipt = publicReceiptPayload(rec);
     return dispatchJson({
@@ -3127,7 +3129,9 @@ async function onRequestGetInner(context) {
   if (p.get('receipt') != null) {
     const invId = p.get('receipt');
     if (!invId) return dispatchJson({ error: 'receipt id required' }, 400);
-    const rec = await getInvocation(env, invId);
+    const look = await lookupInvocation(env, invId);
+    if (!look.ok) return dispatchJson({ error: 'LEDGER_LOOKUP_FAILED', id: invId, note: 'The ledger did not answer; this invocation may exist. Retry.', detail: look.error }, 503);
+    const rec = look.rec;
     if (!rec) return dispatchJson({ error: 'unknown invocation', id: invId }, 404);
     let readAllowed = await buildReadAuthed(request, env);
     let scopedReceiptCap = null;

@@ -1,4 +1,4 @@
-import { getInvocation } from '../_lib/invocation_log.js';
+import { getInvocation, lookupInvocation } from '../_lib/invocation_log.js';
 import { publicReceiptPayload } from '../_lib/object_contract.js';
 import { redactPublicSecrets } from '../_lib/public_secret_guard.js';
 import { governanceHeader, governanceFooter, governanceChromeStyles } from '../_lib/governance_chrome.js';
@@ -26,7 +26,9 @@ function branch(label, href, note) {
 export async function onRequestGet({ env, params }) {
   const id = String(params.id || '').trim();
   if (!/^inv_[A-Za-z0-9_-]{4,160}$/.test(id)) return new Response('Receipt not found', { status: 404 });
-  const rec = await getInvocation(env, id);
+  const look = await lookupInvocation(env, id);
+  if (!look.ok) return new Response('The ledger did not answer; this receipt may exist. Retry in a few seconds.', { status: 503, headers: { 'retry-after': '5' } });
+  const rec = look.rec;
   if (!rec) return new Response('Receipt not found', { status: 404 });
   const proof = publicReceiptPayload(rec);
   const detail = proof.invocation;

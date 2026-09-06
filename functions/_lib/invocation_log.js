@@ -106,6 +106,22 @@ export async function getInvocation(env, id) {
   }
 }
 
+export async function lookupInvocation(env, id, { retries = 1 } = {}) {
+  if (!env?.LEDGER) return { ok: false, error: 'LEDGER binding missing', rec: null };
+  if (!id) return { ok: true, rec: null };
+  let lastErr = null;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const rec = await env.LEDGER.prepare("SELECT * FROM invocations WHERE id = ?").bind(String(id)).first();
+      return { ok: true, rec: rec || null };
+    } catch (e) {
+      lastErr = e;
+      if (attempt < retries) await new Promise((r) => setTimeout(r, 150));
+    }
+  }
+  return { ok: false, error: String(lastErr?.message || lastErr || 'lookup failed'), rec: null };
+}
+
 /** Reverse link: stamp repaired_by on the old invocation when a repair lands. */
 export async function linkRepairedBy(env, repairedId, byId) {
   if (!env?.LEDGER || !repairedId || !byId) return false;
