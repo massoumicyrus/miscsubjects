@@ -39,3 +39,13 @@ test('POST applies the same hygiene gate before creating a catalogue row', async
     state_changed: false,
   });
 });
+
+test('GET /api/directory?brief=1 lists the catalog without payload columns', async () => {
+  const { onRequestGet } = await import('./index.js');
+  const env = { DB: { prepare() { return { bind() { return this; }, async all() { return { results: [{ key: 'NOW', type: 'fn', category: 'util', content: '# WHAT: the time.\n{}', test_state: '🟢 works', tested_at: 't', invocation: 'x'.repeat(5000), last_response: 'y'.repeat(5000) }] }; } }; } } };
+  const res = await onRequestGet({ env, request: new Request('https://example.test/api/directory?brief=1') });
+  const body = await res.json();
+  assert.equal(body.rows.length, 1);
+  assert.deepEqual(Object.keys(body.rows[0]).sort(), ['category', 'docs', 'enabled', 'key', 'planner_visible', 'row_num', 'test_state', 'tested_at', 'type']);
+  assert.equal(body.rows[0].docs, 'WHAT: the time.');
+});

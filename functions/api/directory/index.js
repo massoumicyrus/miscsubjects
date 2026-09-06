@@ -35,7 +35,13 @@ export async function onRequestGet(context) {
   const type = url.searchParams.get('type');
   const fmt = url.searchParams.get('format');
   const rowNumParam = url.searchParams.get('row_num');
-  const rows = await listRows(env, type);
+  let rows = await listRows(env, type);
+  // ?brief=1 — the catalog a model can read: no payload columns (a full list is ~5 MB once every row
+  // carries its invocation and last response). Keeps key, type, category, state, docs.
+  if (url.searchParams.get('brief')) {
+    rows = rows.map((r) => ({ key: r.key, type: r.type, category: r.category, test_state: r.test_state, tested_at: r.tested_at, enabled: r.enabled, planner_visible: r.planner_visible,
+      docs: String(r.content || '').split('\n').filter((l) => /^\s*#/.test(l)).map((l) => l.replace(/^\s*#\s?/, '')).join(' ').slice(0, 300), row_num: r.row_num }));
+  }
 
   if (rowNumParam) {
     const n = parseInt(rowNumParam, 10);
