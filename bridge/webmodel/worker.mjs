@@ -44,17 +44,37 @@ async function context() {
   return ctxs[0];
 }
 
-// A session's page, re-created and re-navigated after a worker or Chrome restart. This is what
-// makes cold restart survivable: the durable session carries the conversation URL, so the tab
-// itself is disposable.
+const MAX_LIVE_PAGES = parseInt(process.env.WEBMODEL_MAX_PAGES || '6', 10);
+const lastUsed = new Map();     // session_id -> ms
+
+async function reapPages() {
+  const open = [...pages.entries()].filter(([, p]) => p && !p.isClosed());
+  if (open.length < MAX_LIVE_PAGES) return;
+  const idle = open.filter(([sid]) => !locks.has(sid)).sort((x, y) => (lastUsed.get(x[0]) || 0) - (lastUsed.get(y[0]) || 0));
+  for (const [sid, p] of idle.slice(0, open.length - MAX_LIVE_PAGES + 1)) {
+    try { await p.close(); } catch {}
+    pages.delete(sid); lastUsed.delete(sid);
+  }
+}
+
 async function pageFor(session) {
+  lastUsed.set(session.session_id, Date.now());
   const live = pages.get(session.session_id);
   if (live && !live.isClosed()) return live;
+  await reapPages();
   const ctx = await context();
   const page = await ctx.newPage();
   pages.set(session.session_id, page);
   const a = adapterFor(session.provider);
-  await page.goto(session.conversation_url || a.newUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  try {
+    // 'commit' returns as soon as the navigation is committed; the composer wait in detectSession is
+    // the real readiness check, so a slow SPA does not spend the whole budget in goto.
+    await page.goto(session.conversation_url || a.newUrl, { waitUntil: 'commit', timeout: 45000 });
+  } catch (e) {
+    try { await page.close(); } catch {}
+    pages.delete(session.session_id);
+    throw Object.assign(new Error(`${a.label} did not load within 45s: ${String(e.message || e).split('\n')[0]}`), { code: 'PROVIDER_UNAVAILABLE' });
+  }
   await page.waitForTimeout(2500);
   return page;
 }
