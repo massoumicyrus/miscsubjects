@@ -278,6 +278,19 @@ async function callFn(node, ctx, depth) {
       const want = a.length > 2 ? String(a[2] == null ? '' : a[2]) : '';
       return await ctx.llm(req, msg, want);
     }
+    case 'INVOKE': {
+      // =INVOKE(A2)            the full response payload of the REST envelope in A2
+      // =INVOKE(A2,"status")   the transport record — http, ok, ms, trace_id, ledger link
+      // =INVOKE(A2,"verdict")  🟢 works / 🔴 broken
+      // A2 is the raw REST JSON a directory row's `invocation` column holds. Three columns —
+      // payload, status, response — are one run each way down the sheet.
+      const a = await argVals();
+      if (!ctx.invoke) return '#NO_INVOKE';
+      const req = String(a[0] == null ? '' : a[0]);
+      if (!req.trim()) return '';
+      const want = a.length > 1 ? String(a[1] == null ? '' : a[1]) : '';
+      return await ctx.invoke(req, want);
+    }
     case 'IMAGE': {
       // =IMAGE("https://…") — the grid draws the picture instead of the address. The cell still
       // holds the URL, so every other reader (CSV, the REST lane, a model) sees a usable link.

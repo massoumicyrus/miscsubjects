@@ -1184,10 +1184,12 @@ async function dispatchTag(key, body, ctx) {
         const ret = await runHttp(row, args, ctx);
         // Shape mode: surface the fully-shaped outbound payload as the result (T12).
         result = ctx.shapeOnly ? redactShapeResult(ret.requestJson || ret.result) : ret.result; logInput = ret.requestJson;
+        if (ctx.depth === 0 || ctx.depth == null) ctx.lastRequestJson = ret.requestJson || null;
       }
       else if (row.type === 'agent') {
         const ret = await runAgent(key, row, args.join('|'), ctx);
         result = ctx.shapeOnly ? redactShapeResult(ret.requestJson || ret.result) : (ctx.routeOnly ? ret.result : inertReplyExecutableTags(ret.result)); logInput = ret.requestJson;
+        if (ctx.depth === 0 || ctx.depth == null) ctx.lastRequestJson = ret.requestJson || null;
       }
       else if (row.type === 'flow') result = await runFlow(row, args, ctx);
       else result = 'ERR:dispatch:bad_type:' + row.type;
@@ -1961,6 +1963,7 @@ export async function dispatch(env, key, body, opts) {
   return {
     trace,
     result,
+    request_json: ctx.lastRequestJson || null,
     cost: ctx.cost,
     tokens_in: ctx.tokens_in || 0,
     tokens_out: ctx.tokens_out || 0,

@@ -118,7 +118,7 @@ export const DEFAULT_ENVELOPE = {
 };
 
 // host -> the env var holding that provider's key. The cell never contains a secret.
-const KEY_BY_HOST = {
+export const KEY_BY_HOST = {
   'api.x.ai': 'GROK_API_KEY',
   'api.openai.com': 'OPENAI_API_KEY',
   'api.anthropic.com': 'ANTHROPIC_API_KEY',

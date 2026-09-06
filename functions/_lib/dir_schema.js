@@ -19,6 +19,11 @@ export const DIR_SCHEMA = {
     descriptor_json: 'canonical miscsubjects/environment-object/1 JSON: identity, exact operations, relationships, governance, comparables, representations',
     descriptor_rev: 'monotonic descriptor revision; incremented whenever descriptor_json changes',
     descriptor_hash: 'sha256 of canonical descriptor JSON',
+    invocation: 'the raw REST JSON that invokes this row: {method,url,headers,body} with the credential left as INJECTED_BY_WORKER; written by POST /api/directory/<key>/test',
+    last_status: 'transport record of the last test: {http, ok, ms, trace_id, ledger, error, at} — or {skipped, reason}',
+    last_response: 'the full payload the last test returned (up to 60k chars)',
+    test_state: '🟢 works | 🔴 broken | 🟡 untested — decided only by POST /api/directory/<key>/test, never by hand',
+    tested_at: 'when test_state was decided',
     row_num: 'int · computed · 1-based position in the canonical directory list (stable for a given ordering)',
   },
   rest: {

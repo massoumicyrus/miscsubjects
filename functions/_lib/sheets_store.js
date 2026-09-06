@@ -275,6 +275,65 @@ function evalContext(env, sheet, actor) {
         ledger: out && out.trace ? '/admin/ledger?trace_id=' + out.trace : null,
       });
     },
+    // =INVOKE(A2)            run the REST envelope in A2 — {method,url,headers,body} — and put the
+    //                         full response payload in this cell
+    // =INVOKE(A2,"status")   the transport record: {http, ok, ms, trace_id, ledger}
+    // =INVOKE(A2,"verdict")  🟢 works / 🔴 broken
+    // The envelope is exactly what a directory row's `invocation` column holds. A same-origin
+    // /api/dispatch envelope is executed through dispatch() itself (one receipt, same as REST);
+    // any other URL is fetched with the credential swapped in at the wire for INJECTED_BY_WORKER.
+    // One execution per envelope per 10 minutes, shared by the status and payload cells, so two
+    // columns asking about one call do not fire it twice. Edit the cell to run it again.
+    async invoke(requestJson, want) {
+      let envelope;
+      try { envelope = JSON.parse(String(requestJson || '')); } catch { return '#BAD_REQUEST_JSON'; }
+      if (!envelope || typeof envelope !== 'object' || !envelope.url) return '#NO_URL';
+      const cacheKey = 'sheet_invoke:' + (await sha256Hex(JSON.stringify({ m: envelope.method, u: envelope.url, b: envelope.body })));
+      let out = null;
+      if (env.KV) { try { const hit = await env.KV.get(cacheKey, 'json'); if (hit) out = hit; } catch {} }
+      if (!out) {
+        const started = Date.now();
+        let url; try { url = new URL(String(envelope.url)); } catch { return '#BAD_URL'; }
+        const { verdict, transportRecord } = await import('./invocation_record.js');
+        const body = envelope.body && typeof envelope.body === 'object' ? envelope.body : (() => { try { return JSON.parse(String(envelope.body || '{}')); } catch { return null; } })();
+        if (/miscsubjects\.com$|^localhost$/.test(url.hostname) && url.pathname === '/api/dispatch' && body && body.key) {
+          const { dispatch } = await import('../api/dispatch.js');
+          let r = null; let threw = null;
+          try { r = await dispatch(env, String(body.key), body.body == null ? '' : String(body.body), { actor: actor || 'sheet-invoke' }); }
+          catch (e) { threw = String(e && e.message || e); }
+          const v = verdict(r && r.result, threw);
+          const payload = r && r.result != null ? (typeof r.result === 'string' ? r.result : JSON.stringify(r.result)) : (threw || '');
+          out = { transport: transportRecord({ ok: v.ok, ms: Date.now() - started, trace: r && r.trace, why: v.why, actor: actor || 'sheet-invoke' }), payload };
+        } else {
+          const { KEY_BY_HOST } = await import('./agent_sheet.js');
+          const { CREDENTIAL_ENV_BY_HOST } = await import('./invocation_record.js');
+          // The credential named for THIS host, and only that one, is swapped in for INJECTED_BY_WORKER
+          // or for its $VARIABLE form — an envelope cannot name some other secret and mail it elsewhere.
+          const hostVar = /miscsubjects\.com$/.test(url.hostname) ? 'TERMINAL_KEY' : (CREDENTIAL_ENV_BY_HOST[url.hostname] || KEY_BY_HOST[url.hostname] || null);
+          const secret = hostVar ? env[hostVar] : null;
+          const swap = (str) => String(str).replace('INJECTED_BY_WORKER', secret || '').replace(/\$([A-Z][A-Z0-9_]+)/g, (m, name) => (name === hostVar && secret ? secret : m));
+          const headers = {};
+          for (const k of Object.keys(envelope.headers || {})) headers[k] = swap(envelope.headers[k]);
+          if (!secret && /INJECTED_BY_WORKER|\$[A-Z][A-Z0-9_]+/.test(JSON.stringify(envelope.headers || {}) + envelope.url)) {
+            out = { transport: transportRecord({ ok: false, ms: 0, why: 'no credential for host ' + url.hostname }), payload: '' };
+          } else {
+            let res = null; let text = ''; let threw = null;
+            try {
+              res = await fetch(swap(envelope.url), { method: String(envelope.method || 'GET').toUpperCase(), headers, body: envelope.body == null || /^(GET|HEAD)$/i.test(envelope.method || 'GET') ? undefined : (typeof envelope.body === 'string' ? envelope.body : JSON.stringify(envelope.body)) });
+              text = await res.text();
+            } catch (e) { threw = String(e && e.message || e); }
+            const ok = !threw && res && res.status < 400;
+            out = { transport: transportRecord({ ok, ms: Date.now() - started, http: res ? res.status : 0, why: threw || (ok ? '' : 'HTTP ' + (res && res.status)) }), payload: text.slice(0, 60000) };
+          }
+        }
+        if (env.KV) { try { await env.KV.put(cacheKey, JSON.stringify(out), { expirationTtl: 600 }); } catch {} }
+      }
+      const w = String(want || '').trim().toLowerCase();
+      if (w === 'status' || w === 'transport') return JSON.stringify(out.transport);
+      if (w === 'verdict') return out.transport.ok ? '🟢 works' : '🔴 broken — ' + String(out.transport.error || '').slice(0, 200);
+      if (w === 'ms') return String(out.transport.ms || 0);
+      return String(out.payload == null ? '' : out.payload);
+    },
     async query(sql) {
       if (!/^\s*(select|with)\b/i.test(String(sql || ''))) return [];
       const q = await env.DB.prepare(String(sql)).all();

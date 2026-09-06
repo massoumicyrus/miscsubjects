@@ -135,6 +135,9 @@ header nav.tab-row,header nav.sub-row{display:none}
   font-size:13px;font-family:Arial,sans-serif;padding:0 4px;line-height:20px;white-space:nowrap;overflow:hidden;
   text-overflow:clip;background:#fff;color:var(--gs-ink);cursor:cell}
 .gs-cell.ro{color:#3c4043;background:#fcfcfc}
+.gs-cell.state-ok{background:#c8f0d2;color:#0b3d1c;font-weight:600}
+.gs-cell.state-bad{background:#f8c9c9;color:#5a0d0d;font-weight:600}
+.gs-cell.state-wait{background:#fff0b3;color:#4a3900;font-weight:600}
 /* FROZEN PANES. Cells are absolutely positioned inside the scroller and repainted on every
    scroll event, so a pinned cell is the same cell drawn at scrollTop+y instead of y. It needs an
    opaque background and a z-index, or the rows sliding underneath show through it. */
@@ -380,9 +383,13 @@ var TSTATES={};    // id -> state
 // meta -> content -> files). Capability rows are editable through PATCH /api/directory/<key>;
 // corpus rows (content/pages/files/meta) are read-only projections whose cells are handles
 // to the object at meta.href.
-var DIR_FIELDS=['key','type','used','size','category','target','content','includes','auth','allowed_categories','seq','enabled','planner_visible','planner_rank','input_schema','examples','sensitive','runner','created_at','updated_at','href'];
+// every row shows whether it WORKS, right after its name — test_state
+// (🟢 works / 🔴 broken / 🟡 untested), the raw REST invocation that calls it, the transport record
+// of the last test, the full payload it returned, and when. Set only by POST /api/directory/<key>/test.
+var DIR_FIELDS=['key','type','test_state','invocation','last_status','last_response','tested_at','used','size','category','target','content','includes','auth','allowed_categories','seq','enabled','planner_visible','planner_rank','input_schema','examples','sensitive','runner','created_at','updated_at','href'];
+var DIR_TEST_FIELDS=['test_state','invocation','last_status','last_response','tested_at'];
 var DIR_EDITABLE={type:1,target:1,category:1,content:1,includes:1,auth:1,allowed_categories:1,seq:1,enabled:1,planner_visible:1,planner_rank:1,input_schema:1,examples:1,sensitive:1,runner:1};
-var DIR_W={key:190,type:60,used:56,size:66,category:104,target:240,content:280,includes:110,auth:100,allowed_categories:110,seq:48,enabled:56,planner_visible:76,planner_rank:72,input_schema:150,examples:150,sensitive:62,runner:74,created_at:140,updated_at:140,href:170};
+var DIR_W={key:190,type:60,test_state:104,invocation:320,last_status:260,last_response:320,tested_at:140,used:56,size:66,category:104,target:240,content:280,includes:110,auth:100,allowed_categories:110,seq:48,enabled:56,planner_visible:76,planner_rank:72,input_schema:150,examples:150,sensitive:62,runner:74,created_at:140,updated_at:140,href:170};
 // my message, the reply, and the session it belongs to are the first thing
 // a ledger row shows. you_said / agent_said are computed server-side from the row's payload
 // (a CLI turn_in carries {session, text}; a turn_out carries the reply); session is read from the
@@ -466,7 +473,8 @@ function loadTab(st, force){
         var size = r.size!=null && r.size!=='' ? r.size : (a&&a.content ? String(a.content).length : '');
         var row={ key:r.key, type:r.type, used:(r.used!=null?r.used:''), size:size, category:r.category||'',
           target:r.target||'', created_at:r.created_at||'', updated_at:r.updated_at||(a?a.updated_at||'':''), href:r.href||'' };
-        if(a){ ['content','includes','auth','allowed_categories','seq','enabled','planner_visible','planner_rank','input_schema','examples','sensitive','runner'].forEach(function(f){ row[f]=a[f]==null?'':String(a[f]); }); }
+        if(a){ ['content','includes','auth','allowed_categories','seq','enabled','planner_visible','planner_rank','input_schema','examples','sensitive','runner'].concat(DIR_TEST_FIELDS).forEach(function(f){ row[f]=a[f]==null?'':String(a[f]); }); }
+        if(cap && !row.test_state) row.test_state='🟡 untested';
         st.vals.push(DIR_FIELDS.map(function(f){ return row[f]==null?'':String(row[f]); }));
       });
       st.nRows=st.vals.length; st.nCols=DIR_FIELDS.length;
@@ -1342,6 +1350,8 @@ function renderRows(){
       var fx = fmt ? fmtCell(val, fmt, w) : null;
       var isImg = fx ? !!fx.img : isImgUrl(val);
       var cls='gs-cell'+(ro?' ro':'')+((fx?false:isNum(val))?' num':'')+(isImg?' img':'')+(fx?fx.cls:'');
+      // The state column is the traffic light: green works, red broken, yellow untested.
+      if(T.kind==='directory' && T.fields[dc]==='test_state' && val){ cls+= val.indexOf('works')>=0?' state-ok':(val.indexOf('broken')>=0?' state-bad':' state-wait'); }
       if(FIND.q && val && val.toLowerCase().indexOf(FIND.q)>=0) cls+=' hl';
       // Google Sheets overflow: text longer than its column spills over the empty cells to
       // its right instead of clipping (clicks still land on the cell under the pointer —

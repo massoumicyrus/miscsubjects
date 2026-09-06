@@ -209,8 +209,34 @@ for (const row of db.prepare('SELECT * FROM directory WHERE descriptor_json IS N
   check(manual.includes('## Every sheet is an object with its own link') && manual.includes('scope=sheet:<id>'), 'manual: does not teach sheet links, visibility and sheet-scoped tokens');
 }
 
+// 10. Every row carries its invocation and test record; the state is written by recording a run,
+//     the sheet engine projects it, and the manual teaches =INVOKE.
+{
+  db.exec(readFileSync(join(ROOT, 'migrations/0375_directory_invocation.sql'), 'utf8'));
+  const { buildInvocation, recordTest, testPlan, verdict, STATE } = await import(join(ROOT, 'functions/_lib/invocation_record.js'));
+  const row = db.prepare("SELECT * FROM directory WHERE key='ADD'").get();
+  check(row.test_state === STATE.untested, 'invocation: a fresh row is not 🟡 untested: ' + row.test_state);
+  const inv = buildInvocation(row, { origin: ORIGIN });
+  check(inv.url === ORIGIN + '/api/dispatch' && inv.headers['x-terminal-key'] === '$TERMINAL_KEY' && inv.body.key === 'ADD', 'invocation: wrapper is not the dispatch call with the owner key as its vault variable');
+  const { realInvocation } = await import(join(ROOT, 'functions/_lib/invocation_record.js'));
+  const real = realInvocation({ key: 'ROUTER', type: 'agent', content: '' }, JSON.stringify({ url: 'https://api.x.ai/v1/chat/completions', method: 'POST', headers: { authorization: '<REDACTED>' }, body: { model: 'grok-4.3', messages: [] } }));
+  check(real.url === 'https://api.x.ai/v1/chat/completions' && real.headers.authorization === 'Bearer $GROK_API_KEY' && real.body.model === 'grok-4.3' && /"authorization: Bearer \$GROK_API_KEY"/.test(real.curl), 'invocation: the real outbound request is not reconstructed with its vault variable: ' + JSON.stringify(real).slice(0, 200));
+  check(testPlan({ key: 'EMAIL_SEND', type: 'fn', content: '' }).runnable === false && testPlan(row).runnable === true, 'invocation: outward rows must be skipped and arg-free rows runnable');
+  const v = verdict('ERR:nope'); check(v.ok === false, 'invocation: ERR result must be broken');
+  await recordTest(env, 'ADD', { invocation: inv, transport: { http: 200, ok: true, ms: 3 }, response: '5', state: STATE.works });
+  const after = db.prepare("SELECT test_state, last_response, invocation FROM directory WHERE key='ADD'").get();
+  check(after.test_state === STATE.works && after.last_response === '5' && JSON.parse(after.invocation).body.key === 'ADD', 'invocation: recordTest did not land the five columns on the row');
+  const view = normalizeView({ source: 'directory', columns: ['test_state', 'key', 'invocation.body.key', 'last_status.ok', 'last_response'], filters: [{ field: 'test_state', op: 'contains', value: 'works' }] });
+  const out = await runView(env, view);
+  check(out.ok && out.rows.length === 1 && out.rows[0][0] === STATE.works && out.rows[0][2] === 'ADD' && out.rows[0][3] === '1', 'sheets: a directory view does not project the test columns by JSON path: ' + JSON.stringify(out.rows) + ' ' + (out.detail || ''));
+  const manual = await (await get('', '?format=markdown')).text();
+  check(manual.includes('=INVOKE(A2,"status")') && manual.includes('/api/directory/<KEY>/test'), 'manual: does not teach =INVOKE and the per-row test route');
+  const formula = readFileSync(join(ROOT, 'functions/_lib/sheet_formula.js'), 'utf8');
+  check(formula.includes("case 'INVOKE':"), 'formula: INVOKE is not a sheet function');
+}
+
 if (failures.length) {
   console.error(JSON.stringify({ ok: false, law: 'ENVIRONMENT_CONTRACT_LAW', examined, failed: failures.length, failures }, null, 2));
   process.exit(1);
 }
-console.log(JSON.stringify({ ok: true, law: 'ENVIRONMENT_CONTRACT_LAW', examined, checked: 'migration 0373 on a fresh database; environment root/manual/governance/comparables; descriptor hash recomputation; PATCH effect + stale refusal + version row; sheet JSON-path projection; MCP resources; admin shell object context; sheets as objects (visibility, self payload, sheet:// resolution, sheet-scoped token)' }));
+console.log(JSON.stringify({ ok: true, law: 'ENVIRONMENT_CONTRACT_LAW', examined, checked: 'migration 0373 on a fresh database; environment root/manual/governance/comparables; descriptor hash recomputation; PATCH effect + stale refusal + version row; sheet JSON-path projection; MCP resources; admin shell object context; sheets as objects (visibility, self payload, sheet:// resolution, sheet-scoped token); invocation record columns + =INVOKE' }));

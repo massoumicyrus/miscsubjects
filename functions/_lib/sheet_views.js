@@ -34,12 +34,15 @@ export const DIRECTORY_FIELDS = [
   // column path like descriptor_json.governance.direct or descriptor_json.comparables[0].dimensions
   // projects any part of it with the generic JSON-path grammar — no descriptor-specific feature.
   'object_kind', 'descriptor_json', 'descriptor_rev', 'descriptor_hash',
+  // Invocation record (migration 0375): the raw REST call, the last transport record, the last
+  // full payload and the 🟢/🟡/🔴 state — so a directory view is a live tool-status board.
+  'invocation', 'last_status', 'last_response', 'test_state', 'tested_at',
 ];
 
 // Every table a view may read. `db` names the binding; `ts` the column that orders it.
 export const SOURCES = {
   ledger:             { db: 'LEDGER', table: 'events',             ts: 'ts',         fields: EVENT_FIELDS, json: ['request_json', 'response_json'] },
-  directory:          { db: 'DB',     table: 'directory',          ts: 'updated_at', fields: DIRECTORY_FIELDS, json: ['descriptor_json'] },
+  directory:          { db: 'DB',     table: 'directory',          ts: 'updated_at', fields: DIRECTORY_FIELDS, json: ['descriptor_json', 'invocation', 'last_status'] },
   directory_versions: { db: 'DB',     table: 'directory_versions', ts: 'ts',         fields: ['key', 'version', 'content', 'content_hash', 'actor', 'ts', 'descriptor_json', 'descriptor_hash'], json: ['descriptor_json'] },
   agent_turns:        { db: 'DB',     table: 'agent_turns',        ts: 'ts',         fields: ['id', 'ts', 'agent', 'source', 'session', 'trace_id', 'input_kind', 'user_input', 'assistant_text', 'n_tools', 'tools_json', 'commands_json', 'files_json', 'model_id', 'tokens_in', 'tokens_out', 'cost_usd', 'turn_key'], json: ['tools_json', 'commands_json', 'files_json'] },
   turn_jobs:          { db: 'DB',     table: 'turn_jobs',          ts: 'created_at', fields: ['id', 'job_json', 'status', 'attempts', 'created_at', 'updated_at'], json: ['job_json'] },

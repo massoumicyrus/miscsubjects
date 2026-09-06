@@ -12,13 +12,21 @@ function json(obj, status) {
   return new Response(JSON.stringify(obj), { status: status || 200, headers: { 'content-type': 'application/json' } });
 }
 
+const TEST_COLS = ['invocation', 'last_status', 'last_response', 'test_state', 'tested_at'];
+
 async function listRows(env, type) {
-  let sql = 'SELECT ' + COLS.join(', ') + ', updated_at FROM directory ';
   const binds = [];
-  if (type) { sql += 'WHERE type = ? '; binds.push(type); }
-  sql += ORDER;
-  const r = await env.DB.prepare(sql).bind(...binds).all();
-  return (r.results || []).map((row, idx) => ({ ...row, row_num: idx + 1 }));
+  const where = type ? 'WHERE type = ? ' : '';
+  if (type) binds.push(type);
+  // The invocation-record columns arrive with migration 0375; read them when present and fall
+  // back to the older shape while it lands, so the list never goes dark.
+  try {
+    const r = await env.DB.prepare('SELECT ' + [...COLS, ...TEST_COLS].join(', ') + ', updated_at FROM directory ' + where + ORDER).bind(...binds).all();
+    return (r.results || []).map((row, idx) => ({ ...row, row_num: idx + 1 }));
+  } catch {
+    const r = await env.DB.prepare('SELECT ' + COLS.join(', ') + ', updated_at FROM directory ' + where + ORDER).bind(...binds).all();
+    return (r.results || []).map((row, idx) => ({ ...row, row_num: idx + 1 }));
+  }
 }
 
 export async function onRequestGet(context) {
