@@ -181,9 +181,15 @@ function applyAuth(authSpec, headers, env, urlIn) {
     return url;
   }
   if (a.startsWith('basic:')) {
-    const name = a.slice(6);
-    const v = env[name];
-    if (v) headers['Authorization'] = 'Basic ' + btoa(String(v) + ':');
+    const spec = a.slice(6);
+    const parts = spec.split(':').map((x) => x.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      const u = env[parts[0]]; const pw = env[parts[1]];
+      if (u != null && pw != null) headers['Authorization'] = 'Basic ' + btoa(String(u) + ':' + String(pw));
+    } else {
+      const v = env[parts[0]];
+      if (v) headers['Authorization'] = 'Basic ' + btoa(String(v) + ':');
+    }
     return url;
   }
   if (a.startsWith('headers:')) {
