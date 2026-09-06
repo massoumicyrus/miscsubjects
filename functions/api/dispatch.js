@@ -404,9 +404,10 @@ async function snapshotStamp(env) {
   } catch { return null; }
 }
 export async function loadDirectory(env) {
-  if (_dirMemo && Date.now() - _dirMemo.ts < 30000) {
-    if (await snapshotStamp(env) === _dirMemo.stamp) return _dirMemo.rows;
-    _dirMemo = null;
+  const memo = _dirMemo;
+  if (memo && Date.now() - memo.ts < 30000) {
+    if (await snapshotStamp(env) === memo.stamp) return memo.rows;
+    if (_dirMemo === memo) _dirMemo = null;
   }
   if (env.KV) {
     const cached = await env.KV.get('directory:snapshot', 'json');
