@@ -84,7 +84,7 @@ export async function logEvent(env, opts) {
       return id;
     }
     maybeFlush(env);
-    maybeFireEventAutomations(env, o);
+    await maybeFireEventAutomations(env, o, id);
     return id;
   } catch {
     return null;
@@ -136,36 +136,49 @@ function eventRuleMatches(rule, o) {
   return true;
 }
 
-function maybeFireEventAutomations(env, o) {
+// The rule list is cached in module scope. Without the cache every ledger row would cost a query,
+// and the ledger takes hundreds of thousands of rows a week. Rules change rarely; a minute between
+// registering an automation and its first firing is the right trade for making the common path —
+// no rule matches — cost nothing.
+let ruleCache = { at: 0, rules: [] };
+const RULE_TTL_MS = 60000;
+export function resetEventRuleCache() { ruleCache = { at: 0, rules: [] }; }
+
+async function eventRules(env) {
+  const now = Date.now();
+  if (now - ruleCache.at < RULE_TTL_MS) return ruleCache.rules;
+  const res = await env.DB.prepare(
+    "SELECT trigger FROM automations WHERE enabled=1 AND COALESCE(force_off,0)=0 AND trigger LIKE 'event:on %'",
+  ).all();
+  ruleCache = { at: now, rules: (res?.results || []).map((r) => String(r.trigger)) };
+  return ruleCache.rules;
+}
+
+async function maybeFireEventAutomations(env, o, id) {
   try {
     if (!env?.DB) return;
     if (/^automation:/.test(String(o.actor || ''))) return;   // rule 2: never re-enter
-    const run = (async () => {
-      const res = await env.DB.prepare(
-        "SELECT trigger FROM automations WHERE enabled=1 AND COALESCE(force_off,0)=0 AND trigger LIKE 'event:on %'",
-      ).all();
-      const rules = (res?.results || []).filter((r) => eventRuleMatches(r.trigger, o));
-      if (!rules.length) return;
-      const { dispatch } = await import('../api/dispatch.js');
-      // PIPE-SAFE BY CONSTRUCTION.
-      // Dispatch splits a body on |, and AUTOMATE_FIRE takes the event name and the payload as two
-      // positional arguments — so a payload carrying a pipe is silently truncated at the first
-      // one. Raw request and response previews contain pipes constantly, so they are deliberately
-      // NOT included: the payload carries identity only, and trace_id is the handle an automation
-      // uses to read the full row out of the ledger if it needs it. Any pipe that still reaches
-      // here from an identifier is replaced rather than trusted.
-      const safe = (v) => String(v == null ? '' : v).split('|').join('/');
-      const payload = JSON.stringify({
-        source: safe(o.source), key: safe(o.key), action: safe(o.action),
-        status: o.status ?? null, trace_id: safe(o.trace_id), event_id: safe(id),
-        read_the_row: 'LEDGER_QUERY: SELECT * FROM events WHERE id=' + JSON.stringify(String(id)),
-      }).split('|').join('/');
-      for (const r of new Set(rules.map((x) => x.trigger))) {
-        await dispatch(env, 'AUTOMATE_FIRE', String(r).slice('event:'.length) + '|' + payload, { actor: 'automation:ledger-bridge' });
-      }
-    })();
-    if (env.waitUntil) env.waitUntil(run.catch(() => {}));
-    else run.catch(() => {});   // rule 3: a trigger never breaks the write that caused it
+    const rules = (await eventRules(env)).filter((r) => eventRuleMatches(r, o));
+    if (!rules.length) return;
+    const { dispatch } = await import('../api/dispatch.js');
+    // PIPE-SAFE BY CONSTRUCTION.
+    // Dispatch splits a body on |, and AUTOMATE_FIRE takes the event name and the payload as two
+    // positional arguments — so a payload carrying a pipe is silently truncated at the first
+    // one. Raw request and response previews contain pipes constantly, so they are deliberately
+    // NOT included: the payload carries identity only, and trace_id is the handle an automation
+    // uses to read the full row out of the ledger if it needs it. Any pipe that still reaches
+    // here from an identifier is replaced rather than trusted.
+    const safe = (v) => String(v == null ? '' : v).split('|').join('/');
+    const payload = JSON.stringify({
+      source: safe(o.source), key: safe(o.key), action: safe(o.action),
+      status: o.status ?? null, trace_id: safe(o.trace_id), event_id: safe(id),
+      read_the_row: 'LEDGER_QUERY: SELECT * FROM events WHERE id=' + JSON.stringify(String(id)),
+    }).split('|').join('/');
+    for (const r of new Set(rules)) {
+      // rule 3: a trigger must never break the write of the evidence that caused it
+      try { await dispatch(env, 'AUTOMATE_FIRE', String(r).slice('event:'.length) + '|' + payload, { actor: 'automation:ledger-bridge' }); }
+      catch { /* a failed automation is not a failed ledger write */ }
+    }
   } catch { /* the same */ }
 }
 
