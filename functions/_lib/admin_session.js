@@ -120,6 +120,7 @@ export async function mintShareToken(env, { ttlSec, scope, maxUses } = {}) {
   else if (typeof scope === 'string' && scope.startsWith('row:') && scope.slice(4).trim()) sc = 'row:' + scope.slice(4).trim();
   else if (typeof scope === 'string' && scope.startsWith('rows:') && scope.slice(5).trim()) sc = 'rows:' + scope.slice(5).trim().replace(/\s+/g, '');
   else if (typeof scope === 'string' && scope.startsWith('pfx:') && scope.slice(4).trim()) sc = 'pfx:' + scope.slice(4).trim();
+  else if (typeof scope === 'string' && scope.startsWith('sheet:') && scope.slice(6).trim()) sc = 'sheet:' + scope.slice(6).trim().replace(/[^A-Za-z0-9_-]/g, '');
   // pool:<workspace-slug>:<role> — a workspace-pool credential. It names no rows itself;
   // the allowed set is resolved at exercise time from the workspace object's declared
   // capability pool, so authority follows the WORK and can never exceed what the workspace
@@ -189,11 +190,12 @@ export async function verifyShareTokenValue(env, tokenRaw) {
   else return null;
   const exp = Number(parts[1]);
   if (!Number.isFinite(exp) || exp < Math.floor(Date.now() / 1000)) return null;
-  let scope = 'read', rowKey = null, rowKeys = null, prefix = null, pool = null;
+  let scope = 'read', rowKey = null, rowKeys = null, prefix = null, pool = null, sheetId = null;
   if (rawScope === 'act') scope = 'act';
   else if (rawScope && rawScope.startsWith('row:')) { scope = 'row'; rowKey = rawScope.slice(4); }
   else if (rawScope && rawScope.startsWith('rows:')) { scope = 'rows'; rowKeys = rawScope.slice(5).split(',').filter(Boolean); }
   else if (rawScope && rawScope.startsWith('pfx:')) { scope = 'pfx'; prefix = rawScope.slice(4); }
+  else if (rawScope && rawScope.startsWith('sheet:')) { scope = 'sheet'; sheetId = rawScope.slice(6); }
   else if (rawScope && rawScope.startsWith('pool:')) {
     // pool:<workspace>:<role>. Unresolved pool tokens allow NOTHING (tokenAllowsKey denies
     // until resolvePoolToken has loaded the workspace's declared set) — fail closed.
@@ -202,7 +204,7 @@ export async function verifyShareTokenValue(env, tokenRaw) {
     pool = { workspace: String(rest[0] || '').toLowerCase(), role: String(rest[1] || 'observer').toLowerCase() };
   }
   return {
-    scope, rowKey, rowKeys, prefix, pool, maxUses: uses, nonce, exp,
+    scope, rowKey, rowKeys, prefix, pool, sheetId, maxUses: uses, nonce, exp,
     // Fingerprint the resolved signed token, never its short KV alias. Callers use this
     // for actor attribution and capability-record lookup after either credential form.
     fingerprint: await capFingerprint(token),
@@ -220,6 +222,15 @@ export function tokenAllowsKey(t, key) {
   // (resolvePoolToken fills rowKeys from the workspace's declared role grant). Unresolved
   // pool tokens allow nothing: the credential without the work behind it is not authority.
   if (t.scope === 'pool') return Array.isArray(t.rowKeys) && t.rowKeys.includes(key);
+  return false;
+}
+
+// Does this verified token permit operating sheet `id`? act = any sheet; sheet = exactly that one.
+// A sheet token never invokes a directory row and a row token never touches a sheet.
+export function tokenAllowsSheet(t, id) {
+  if (!t) return false;
+  if (t.scope === 'act') return true;
+  if (t.scope === 'sheet') return !!t.sheetId && t.sheetId === String(id);
   return false;
 }
 

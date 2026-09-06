@@ -117,9 +117,12 @@ function newId() {
   return 'sh_' + s;
 }
 
+export const SHEET_VISIBILITIES = ['private', 'public'];
+
 export async function listSheets(env) {
   const r = await env.DB.prepare(
-    'SELECT s.id, s.title, s.rows, s.cols, s.created_at, s.updated_at, ' +
+    // visibility arrives with migration 0374; IFNULL keeps a row readable while it lands.
+    'SELECT s.id, s.title, s.rows, s.cols, s.created_at, s.updated_at, IFNULL(s.visibility, \'private\') AS visibility, ' +
     '(SELECT COUNT(*) FROM sheet_cells sc WHERE sc.sheet_id = s.id) AS cell_count ' +
     'FROM user_sheets s ORDER BY s.sort_order ASC, s.created_at ASC',
   ).all();
@@ -134,6 +137,7 @@ export async function getSheet(env, id) {
   ).bind(id).first();
   return {
     ...row,
+    visibility: row.visibility === 'public' ? 'public' : 'private',
     col_meta: safeJson(row.col_meta, {}),
     used_rows: Number(used?.max_r || 0),
     used_cols: Number(used?.max_c || 0),
@@ -168,6 +172,13 @@ export async function patchSheet(env, id, b = {}) {
   await env.DB.prepare(
     'UPDATE user_sheets SET title=?, rows=?, cols=?, col_meta=?, sort_order=?, updated_at=? WHERE id=?',
   ).bind(title, rows, cols, colMeta, sortOrder, ts, id).run();
+  // Visibility is its own statement: only 'public' | 'private' is accepted, anything else is
+  // refused rather than coerced, and the column is untouched when the caller did not send it.
+  if (b.visibility != null) {
+    const v = String(b.visibility).toLowerCase();
+    if (!SHEET_VISIBILITIES.includes(v)) return { error: 'bad_visibility', allowed: SHEET_VISIBILITIES, got: b.visibility };
+    await env.DB.prepare('UPDATE user_sheets SET visibility=?, updated_at=? WHERE id=?').bind(v, ts, id).run();
+  }
   return getSheet(env, id);
 }
 

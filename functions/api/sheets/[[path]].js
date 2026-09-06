@@ -1,5 +1,6 @@
 
-import { isBuildAuthed } from '../../_lib/admin_session.js';
+import { isBuildAuthed, tokenAllowsSheet, verifyTokenAnyTransport } from '../../_lib/admin_session.js';
+import { sheetSelfMarkdown, sheetSelfPayload } from '../../_lib/sheet_self.js';
 import { logEvent } from '../../_lib/event_log.js';
 import { runView, resolvePins, writePin, describeSources, instantiateTemplate, normalizeView } from '../../_lib/sheet_views.js';
 import {
@@ -26,13 +27,37 @@ async function sheetsAuthed(request, env, url) {
   return isBuildAuthed(request, env);
 }
 
+async function sheetAuthority(request, env, url, sheet) {
+  if (await sheetsAuthed(request, env, url)) return { level: 'owner', token: null };
+  const token = await verifyTokenAnyTransport(request, env);
+  if (token && sheet && tokenAllowsSheet(token, sheet.id)) return { level: 'token', token };
+  if (sheet && sheet.visibility === 'public') return { level: 'public', token };
+  return { level: 'none', token };
+}
+const READ_LANES = new Set(['self', 'view', 'values', 'history', 'export.csv']);
+function denied(base, sheet, need) {
+  return json({
+    error: 'unauthorized', need, sheet: sheet ? sheet.id : null, visibility: sheet ? sheet.visibility : null,
+    how_to_fix: need === 'owner' ? 'owner authority: `authorization: Bearer <build key>` or an admin cookie'
+      : 'owner authority, or a token scoped to this sheet (`?share=<token>` or `authorization: Bearer <token>`); the owner mints one at ' + base + '/api/dispatch?mint_share=1&scope=sheet:' + (sheet ? sheet.id : '<id>'),
+    self: sheet ? base + '/api/sheets/' + sheet.id + '/self' : null, contract: base + '/api/sheets',
+  }, 401);
+}
+
 function contract(base) {
   return {
     _self: {
       schema: 'miscsubjects/sheets/1',
       what: 'Stored grids with Google-Sheets-shaped addressing. Every cell is A1-addressable over REST; whole tabs are sheets: Directory and Ledger are projections of their own tables, user sheets store cells here.',
       workbook: base + '/admin/sheets',
-      auth: 'admin cookie or `authorization: Bearer <TERMINAL_KEY>` — this contract is the only public read',
+      auth: 'admin cookie or `authorization: Bearer <TERMINAL_KEY>`; per sheet also a token scoped sheet:<id> (?share= or Bearer), and a PUBLIC sheet reads without any credential',
+      every_sheet_is_an_object: {
+        ref: 'sheet://<id>', link: base + '/sheet/<id>', self: base + '/api/sheets/<id>/self  (?format=markdown for prose)',
+        visibility: 'PATCH ' + base + '/api/sheets/<id> {"visibility":"public"|"private"} (owner) — public: anyone reads at /sheet/<id> and the GET lanes; writes always need authority',
+        token_for_one_sheet: 'owner mints GET ' + base + '/api/dispatch?mint_share=1&scope=sheet:<id>&ttl=86400 — operates that sheet only',
+        webhook: 'POST ' + base + '/api/sheets/<id>/values:append {"values":[[...]]}',
+        environment: base + '/api/environment/objects?ref=sheet%3A%2F%2F<id>',
+      },
     },
     values_lane: {
       read: 'GET ' + base + '/api/sheets/<id>/values/A1:C10  → {range, values[][]}',
@@ -184,11 +209,28 @@ async function handle(context) {
     return json(doc);
   }
 
-  if (!(await sheetsAuthed(request, env, url))) {
+  // Sheet-addressed routes decide authority per sheet (owner / token / public read) below; the
+  // workbook-wide routes (list, create, view-sources, unaddressed pins) stay owner-only.
+  const sheetAddressed = seg.length >= 1 && !['view-sources', 'pins'].includes(seg[0]);
+  let authority = { level: 'none', token: null };
+  let sheet = null;
+  if (sheetAddressed) {
+    sheet = await getSheet(env, seg[0]);
+    if (!sheet) return json({ error: 'sheet_not_found', id: seg[0], list: base + '/api/sheets' }, 404);
+    authority = await sheetAuthority(request, env, url, sheet);
+    const lane = seg[1] || 'meta';
+    const isRead = method === 'GET' && (lane === 'meta' || READ_LANES.has(lane));
+    const ownerOnly = method === 'DELETE' || (method === 'PATCH' && body && body.visibility != null);
+    if (ownerOnly && authority.level !== 'owner') return denied(base, sheet, 'owner');
+    if (!isRead && authority.level !== 'owner' && authority.level !== 'token') return denied(base, sheet, 'sheet');
+    if (isRead && authority.level === 'none') return denied(base, sheet, 'sheet');
+  } else if (!(await sheetsAuthed(request, env, url))) {
     return json({ error: 'unauthorized', how_to_fix: 'admin cookie or `authorization: Bearer <TERMINAL_KEY>`', contract: base + '/api/sheets' }, 401);
+  } else {
+    authority = { level: 'owner', token: null };
   }
 
-  const actor = 'admin';
+  const actor = authority.level === 'token' ? 'sheet-token:' + (authority.token && authority.token.fingerprint || 'cap') : 'admin';
   const receipt = (key, req, res, status = 200) =>
     context.waitUntil(logEvent(env, {
       source: 'sheets', key, route: url.pathname, actor: 'sheets-api',
@@ -223,24 +265,42 @@ async function handle(context) {
       if (body.pins) meta.pins = body.pins;
       sheet = await patchSheet(env, sheet.id, { col_meta: meta });
     }
-    receipt('SHEET_CREATE', { title: sheet.title, view: view ? view.source : null, template: body.template || null }, { id: sheet.id }, 201);
-    return json({ ok: true, sheet, open: base + '/admin/sheets?tab=' + sheet.id }, 201);
+    if (body.visibility != null) {
+      const vis = await patchSheet(env, sheet.id, { visibility: body.visibility });
+      if (vis && vis.error) return json(vis, 400);
+      sheet = vis;
+    }
+    const created = sheetSelfPayload(sheet, { origin: base, authority: 'owner' });
+    receipt('SHEET_CREATE', { title: sheet.title, view: view ? view.source : null, template: body.template || null, visibility: sheet.visibility }, { id: sheet.id }, 201);
+    return json({ ok: true, sheet, open: base + '/admin/sheets?tab=' + sheet.id, link: created.links.human, self: created.links.self, webhook: created.links.webhook, _self: created }, 201);
   }
 
   const id = seg[0];
-  const sheet = await getSheet(env, id);
-  if (!sheet) return json({ error: 'sheet_not_found', id, list: base + '/api/sheets' }, 404);
+
+  // GET /api/sheets/<id>/self — the sheet describing itself (JSON, or ?format=markdown)
+  if (seg[1] === 'self' && method === 'GET') {
+    const self = sheetSelfPayload(sheet, { origin: base, authority: authority.level === 'none' ? 'none' : authority.level === 'public' ? 'public read' : authority.level });
+    if (/^(markdown|md|text)$/i.test(String(url.searchParams.get('format') || ''))) {
+      return new Response(sheetSelfMarkdown(self), { headers: { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'no-store', 'access-control-allow-origin': '*' } });
+    }
+    return json(self);
+  }
 
   // /api/sheets/<id>
   if (seg.length === 1) {
     if (method === 'GET') {
       const runs = await listRunConfigs(env, id);
-      return json({ ok: true, sheet, runs, rest: contract(base).values_lane });
+      const self = sheetSelfPayload(sheet, { origin: base, authority: authority.level === 'public' ? 'public read' : authority.level });
+      if (/^(markdown|md|text)$/i.test(String(url.searchParams.get('format') || ''))) {
+        return new Response(sheetSelfMarkdown(self), { headers: { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'no-store' } });
+      }
+      return json({ ok: true, sheet, runs, rest: contract(base).values_lane, _self: self });
     }
     if (method === 'PATCH') {
       const updated = await patchSheet(env, id, body);
-      receipt('SHEET_PATCH', body, { id });
-      return json({ ok: true, sheet: updated });
+      if (updated && updated.error) return json(updated, 400);
+      receipt('SHEET_PATCH', body, { id, visibility: updated ? updated.visibility : null });
+      return json({ ok: true, sheet: updated, _self: sheetSelfPayload(updated, { origin: base, authority: authority.level }) });
     }
     if (method === 'DELETE') {
       await deleteSheet(env, id);

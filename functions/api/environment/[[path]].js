@@ -6,6 +6,8 @@ import {
 import { resolveEffectiveGovernance } from '../../_lib/governance_resolver.js';
 import { resolveComparables } from '../../_lib/environment_comparables.js';
 import { environmentManualMarkdown } from '../../_lib/environment_manual.js';
+import { getSheet, listSheets } from '../../_lib/sheets_store.js';
+import { sheetDescriptor } from '../../_lib/sheet_self.js';
 
 function parts(raw) {
   if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
@@ -41,6 +43,36 @@ function objectResult(catalog, ref) {
     governance: resolveEffectiveGovernance(catalog, ref),
     comparables: resolveComparables(catalog, ref),
   };
+}
+
+// SHEETS ARE OBJECTS TOO. sheet://<id> is resolved from user_sheets on demand — the sheet row is
+// the store, its descriptor is generated, nothing is copied into the directory. A private sheet
+// is acknowledged (it exists) but not described on this public route; its own /api/sheets/<id>/self
+// answers to authority. Returns null when no such sheet, { private: true } when it is private.
+async function sheetObject(env, catalog, ref, origin) {
+  const id = ref.slice('sheet://'.length);
+  if (!id || !env?.DB) return null;
+  let sheet = null;
+  try { sheet = await getSheet(env, id); } catch { return null; }
+  if (!sheet) return null;
+  if (sheet.visibility !== 'public') return { private: true, ref, self: `${origin}/api/sheets/${encodeURIComponent(id)}/self` };
+  const descriptor = sheetDescriptor(sheet, { origin });
+  const withSheet = [...catalog, descriptor];
+  return { ...descriptor, governance: resolveEffectiveGovernance(withSheet, ref), comparables: resolveComparables(withSheet, ref) };
+}
+
+async function publicSheetDescriptors(env, origin) {
+  if (!env?.DB) return [];
+  try {
+    const rows = await listSheets(env);
+    const out = [];
+    for (const row of rows) {
+      if (row.visibility !== 'public') continue;
+      const sheet = await getSheet(env, row.id);
+      if (sheet) out.push(sheetDescriptor(sheet, { origin }));
+    }
+    return out;
+  } catch { return []; }
 }
 
 function listObjects(catalog, url) {
@@ -144,7 +176,18 @@ export async function onRequestGet({ request, env, params }) {
 
   if (action === 'objects') {
     const ref = String(url.searchParams.get('ref') || '').trim();
-    if (!ref) return response(listObjects(catalog, url));
+    const kind = String(url.searchParams.get('kind') || '').trim();
+    if (!ref) {
+      // Public sheets join the listing as objects of kind sheet / view_sheet.
+      const sheets = (!kind || kind === 'sheet' || kind === 'view_sheet') ? await publicSheetDescriptors(env, origin) : [];
+      return response(listObjects([...catalog, ...sheets], url));
+    }
+    if (ref.startsWith('sheet://')) {
+      const found = await sheetObject(env, catalog, ref, origin);
+      if (!found) return response({ error: 'object_not_registered', ref, note: 'no sheet with that id' }, 404);
+      if (found.private) return response({ error: 'object_private', ref, note: 'the sheet exists and is private; its self payload answers to authority', self: found.self }, 403);
+      return response(found);
+    }
     const object = objectResult(catalog, ref);
     return object ? response(object) : response({ error: 'object_not_registered', ref }, 404);
   }
@@ -152,6 +195,12 @@ export async function onRequestGet({ request, env, params }) {
   if (action === 'governance') {
     const ref = String(url.searchParams.get('ref') || '').trim();
     if (!ref) return response({ error: 'ref_required', usage: '/api/environment/governance?ref=<canonical-ref>' }, 400);
+    if (ref.startsWith('sheet://')) {
+      const found = await sheetObject(env, catalog, ref, origin);
+      if (!found) return response({ error: 'object_not_registered', ref }, 404);
+      if (found.private) return response({ error: 'object_private', ref, self: found.self }, 403);
+      return response(found.governance);
+    }
     const result = resolveEffectiveGovernance(catalog, ref);
     return response(result, result.unresolved.some((item) => item.reason === 'target_not_registered') ? 404 : 200);
   }

@@ -175,8 +175,42 @@ for (const row of db.prepare('SELECT * FROM directory WHERE descriptor_json IS N
   check(mw.includes('injectObjectContext(html, url.pathname)'), 'middleware: injectShareIfAdmin no longer calls injectObjectContext on admin HTML — the human path is gone');
 }
 
+// 9. Every sheet is an object: visibility defaults private, flips by PATCH, self payload names its
+//    own links and webhook, the environment resolves sheet://<id> for public sheets and refuses to
+//    describe private ones, and a sheet-scoped token operates that sheet only.
+{
+  db.exec(readFileSync(join(ROOT, 'migrations/0365_user_sheets.sql'), 'utf8'));
+  db.exec(readFileSync(join(ROOT, 'migrations/0371_sheet_sort_order.sql'), 'utf8'));
+  db.exec(readFileSync(join(ROOT, 'migrations/0374_sheet_visibility.sql'), 'utf8'));
+  const { createSheet, patchSheet, getSheet } = await import(join(ROOT, 'functions/_lib/sheets_store.js'));
+  const { sheetSelfPayload, sheetSelfMarkdown } = await import(join(ROOT, 'functions/_lib/sheet_self.js'));
+  const { tokenAllowsSheet } = await import(join(ROOT, 'functions/_lib/admin_session.js'));
+  const created = await createSheet(env, { title: 'Agents', rows: 1, cols: 3 }, 'gate');
+  check(created.visibility === 'private', 'sheet: a new sheet is not private by default: ' + created.visibility);
+  const ref = 'sheet://' + created.id;
+  const priv = await get('objects', '?ref=' + encodeURIComponent(ref));
+  check(priv.status === 403 && (await priv.json()).error === 'object_private', 'environment: a private sheet must answer 403 object_private, got ' + priv.status);
+  const bad = await patchSheet(env, created.id, { visibility: 'everyone' });
+  check(bad && bad.error === 'bad_visibility' && (await getSheet(env, created.id)).visibility === 'private', 'sheet: an unknown visibility must be refused without changing the row');
+  const pub = await patchSheet(env, created.id, { visibility: 'public', col_meta: { view: { source: 'directory', columns: ['key', 'descriptor_json.ref'], filters: [{ field: 'object_kind', op: '=', value: 'page' }] } } });
+  check(pub.visibility === 'public' && (await getSheet(env, created.id)).visibility === 'public', 'sheet: PATCH visibility public did not land in the row');
+  const self = sheetSelfPayload(pub, { origin: ORIGIN, authority: 'public read' });
+  check(self.ref === ref && self.links.human === `${ORIGIN}/sheet/${created.id}` && self.links.webhook === `${ORIGIN}/api/sheets/${created.id}/values:append`, 'sheet self: ref, human link or webhook address wrong: ' + JSON.stringify(self.links));
+  check(self.operations.some((o) => o.id === 'append' && o.method === 'POST') && self.operations.some((o) => o.id === 'run_view') && self.kind === 'view_sheet', 'sheet self: operations do not include append and run_view for a view sheet');
+  check(sheetSelfMarkdown(self).includes(self.links.webhook) && !/sh\.\d{10}\./.test(JSON.stringify(self)), 'sheet self markdown: missing webhook or carries a token');
+  const obj = await get('objects', '?ref=' + encodeURIComponent(ref));
+  const body = await obj.json();
+  check(obj.status === 200 && body.ref === ref && body.parent_ref === 'page://admin/sheets', 'environment: a public sheet does not resolve as an object: ' + obj.status + ' ' + JSON.stringify(body).slice(0, 200));
+  check((body.governance?.effective || []).map((r) => r.rule_ref).join(',') === 'law://sheets/S01,law://design/D08,law://work/W01', 'environment: a sheet does not inherit the sheets page rules: ' + JSON.stringify(body.governance?.effective?.map((r) => r.rule_ref)));
+  const listed = await (await get('objects', '?kind=view_sheet')).json();
+  check(listed.objects.some((o) => o.ref === ref), 'environment: the public sheet is not listed under kind=view_sheet');
+  check(tokenAllowsSheet({ scope: 'sheet', sheetId: created.id }, created.id) && !tokenAllowsSheet({ scope: 'sheet', sheetId: created.id }, 'sh_other') && tokenAllowsSheet({ scope: 'act' }, created.id) && !tokenAllowsSheet({ scope: 'row', rowKey: 'X' }, created.id), 'token: sheet scope does not bound to exactly one sheet');
+  const manual = await (await get('', '?format=markdown')).text();
+  check(manual.includes('## Every sheet is an object with its own link') && manual.includes('scope=sheet:<id>'), 'manual: does not teach sheet links, visibility and sheet-scoped tokens');
+}
+
 if (failures.length) {
   console.error(JSON.stringify({ ok: false, law: 'ENVIRONMENT_CONTRACT_LAW', examined, failed: failures.length, failures }, null, 2));
   process.exit(1);
 }
-console.log(JSON.stringify({ ok: true, law: 'ENVIRONMENT_CONTRACT_LAW', examined, checked: 'migration 0373 on a fresh database; environment root/manual/governance/comparables; descriptor hash recomputation; PATCH effect + stale refusal + version row; sheet JSON-path projection; MCP resources; admin shell object context' }));
+console.log(JSON.stringify({ ok: true, law: 'ENVIRONMENT_CONTRACT_LAW', examined, checked: 'migration 0373 on a fresh database; environment root/manual/governance/comparables; descriptor hash recomputation; PATCH effect + stale refusal + version row; sheet JSON-path projection; MCP resources; admin shell object context; sheets as objects (visibility, self payload, sheet:// resolution, sheet-scoped token)' }));
