@@ -44,6 +44,22 @@ function denied(base, sheet, need) {
   }, 401);
 }
 
+// "source=directory, columns=key,type,content, filter=type = agent" → a view definition.
+export function viewFromWords(body) {
+  const columns = Array.isArray(body.columns) ? body.columns
+    : String(body.columns || '').split(/\s*,\s*(?![^()]*\))/).map((c) => c.trim()).filter(Boolean);
+  const filters = Array.isArray(body.filters) ? body.filters : parseFilterWords(body.filter || body.filters);
+  return { source: String(body.source), columns, filters, where: body.where || '', limit: body.limit, order: body.order };
+}
+export function parseFilterWords(text) {
+  const out = [];
+  for (const part of String(text || '').split(/\s*;\s*/)) {
+    const m = part.trim().match(/^([A-Za-z_][\w.\[\]]*)\s+(=|!=|contains|starts|in|>=|<=|>|<|empty|not_empty)\s*(.*)$/i);
+    if (m) out.push({ field: m[1], op: m[2].toLowerCase(), value: m[3].replace(/^["']|["']$/g, '') });
+  }
+  return out;
+}
+
 function contract(base) {
   return {
     _self: {
@@ -51,6 +67,14 @@ function contract(base) {
       what: 'Stored grids with Google-Sheets-shaped addressing. Every cell is A1-addressable over REST; whole tabs are sheets: Directory and Ledger are projections of their own tables, user sheets store cells here.',
       workbook: base + '/admin/sheets',
       auth: 'admin cookie or `authorization: Bearer <TERMINAL_KEY>`; per sheet also a token scoped sheet:<id> (?share= or Bearer), and a PUBLIC sheet reads without any credential',
+      in_words: {
+        create: 'POST ' + base + '/api/sheets {"title":"Agents","source":"directory","columns":"key,type,content,last_status","filter":"type = agent"}  — columns as a comma list (JSON paths and =expressions allowed), filter as "field op value" lines joined by ;',
+        add_column: 'POST ' + base + '/api/sheets/<id>/columns {"path":"=REGEXALL(response_json,\"\\\\[([A-Z_]+)\\\\]\")","header":"tags"}',
+        add_filter: 'POST ' + base + '/api/sheets/<id>/filters {"filter":"key contains BLOOIO"}',
+        pin: 'POST ' + base + '/api/sheets/<id>/pins:add {"label":"ROUTER prompt","ref":"directory/ROUTER/content"}',
+        remove_column: 'POST ' + base + '/api/sheets/<id>/columns:remove {"path":"content"}',
+        as_directory_rows: 'SHEET_NEW, SHEET_ADD_COLUMN, SHEET_ADD_FILTER, SHEET_PIN, SHEET_VISIBILITY, SHEET_LIST — the same verbs as tools, so a message to the build, the model panel or an MCP client makes a sheet',
+      },
       every_sheet_is_an_object: {
         ref: 'sheet://<id>', link: base + '/sheet/<id>', self: base + '/api/sheets/<id>/self  (?format=markdown for prose)',
         visibility: 'PATCH ' + base + '/api/sheets/<id> {"visibility":"public"|"private"} (owner) — public: anyone reads at /sheet/<id> and the GET lanes; writes always need authority',
@@ -258,6 +282,8 @@ async function handle(context) {
       view = inst.view; title = title || inst.title;
     } else if (body.view && typeof body.view === 'object') {
       view = normalizeView(body.view);
+    } else if (body.source) {
+      view = normalizeView(viewFromWords(body));
     }
     let sheet = await createSheet(env, { title, rows: view ? 1 : body.rows, cols: view ? view.columns.length : body.cols }, actor);
     if (view) {
@@ -318,6 +344,37 @@ async function handle(context) {
       limit: url.searchParams.get('limit'), before: url.searchParams.get('before'), after: url.searchParams.get('after'),
     });
     return json({ ...out, sheet: sheet.id, title: sheet.title, pins, formats: meta.formats || {} }, out.error ? 400 : 200);
+  }
+
+  // ONE VERB PER CHANGE (step 3): a sheet's description changes by naming the change, so a message,
+  // a directory row or a model can do it without rewriting col_meta.
+  //   POST /api/sheets/<id>/columns   {path, header?}            add a column (JSON path or =expression)
+  //   POST /api/sheets/<id>/filters   {field, op, value} | {filter:"field op value"}
+  //   POST /api/sheets/<id>/pins:add  {label?, ref}              pin an object field above the grid
+  //   POST /api/sheets/<id>/columns:remove {path}
+  if (method === 'POST' && (seg[1] === 'columns' || seg[1] === 'filters' || seg[1] === 'pins:add' || seg[1] === 'columns:remove')) {
+    const meta = { ...(sheet.col_meta || {}) };
+    if (seg[1] === 'pins:add') {
+      if (!body.ref) return json({ error: 'ref_required', example: { label: 'ROUTER prompt', ref: 'directory/ROUTER/content' } }, 400);
+      meta.pins = [...(Array.isArray(meta.pins) ? meta.pins : []), { label: String(body.label || body.ref), ref: String(body.ref) }];
+    } else {
+      if (!meta.view) return json({ error: 'not_a_view_sheet', how_to_fix: 'POST /api/sheets {title, source, columns} makes one' }, 400);
+      const v = { ...meta.view };
+      if (seg[1] === 'columns') {
+        if (!body.path) return json({ error: 'path_required', example: { path: 'descriptor_json.governance.direct', header: 'rules' } }, 400);
+        v.columns = [...(v.columns || []), { path: String(body.path), header: body.header ? String(body.header) : undefined, format: body.format, w: body.w }];
+      } else if (seg[1] === 'columns:remove') {
+        v.columns = (v.columns || []).filter((c) => String(c.path) !== String(body.path || ''));
+      } else {
+        const add = body.field ? [{ field: String(body.field), op: String(body.op || '='), value: body.value == null ? '' : String(body.value) }] : parseFilterWords(body.filter);
+        if (!add.length) return json({ error: 'filter_required', example: { field: 'type', op: '=', value: 'agent' } }, 400);
+        v.filters = [...(v.filters || []), ...add];
+      }
+      meta.view = normalizeView(v);
+    }
+    const updated = await patchSheet(env, id, { col_meta: meta });
+    receipt('SHEET_' + seg[1].toUpperCase().replace(/[^A-Z]/g, '_'), body, { id });
+    return json({ ok: true, sheet: updated, open: base + '/admin/sheets?tab=' + id, view: updated.col_meta && updated.col_meta.view || null, pins: updated.col_meta && updated.col_meta.pins || [] });
   }
 
   // POST /api/sheets/<id>/pins — write through one pinned object field

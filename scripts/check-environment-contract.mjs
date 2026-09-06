@@ -237,6 +237,16 @@ for (const row of db.prepare('SELECT * FROM directory WHERE descriptor_json IS N
   check(formula.includes("case 'INVOKE':"), 'formula: INVOKE is not a sheet function');
 }
 
+// 11. Sheets by saying so: words become a view definition; the manual names the verbs.
+{
+  const { viewFromWords, parseFilterWords } = await import(join(ROOT, 'functions/api/sheets/[[path]].js'));
+  const v = viewFromWords({ source: 'directory', columns: 'key,type,=REGEXALL(content,"[A-Z]+"),descriptor_json.governance.direct', filter: 'type = agent; key contains ROUT' });
+  check(v.columns.length === 4 && v.columns[2].startsWith('=REGEXALL') && v.filters.length === 2 && v.filters[1].op === 'contains', 'sheets in words: columns/filter text did not become a view: ' + JSON.stringify(v));
+  check(parseFilterWords('status >= 400; source = sheets')[0].value === '400', 'sheets in words: numeric filter value lost');
+  const manual = await (await get('', '?format=markdown')).text();
+  check(manual.includes('SHEET_NEW') && manual.includes('SHEET_PIN'), 'manual: does not name the sheet verbs');
+}
+
 if (failures.length) {
   console.error(JSON.stringify({ ok: false, law: 'ENVIRONMENT_CONTRACT_LAW', examined, failed: failures.length, failures }, null, 2));
   process.exit(1);
