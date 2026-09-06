@@ -1901,6 +1901,15 @@ async function execFlowSeq(text, ctx) {
 // them can spend money.
 function flowJsonPath(value, path) {
   let v = value;
+  // SEE THROUGH THE TRANSPORT PREFIX.
+  // runHttp returns "HTTP 200:{...}" — the status is part of the string, not part of the payload.
+  // Without stripping it JSON.parse fails and every path into an http response reads empty, which
+  // is exactly what the first live test of this did: ran:true and a blank result. A flow step that
+  // silently returns nothing is worse than one that errors.
+  if (typeof v === 'string') {
+    const m = v.match(/^\s*HTTP\s+\d{3}\s*:\s*([\s\S]*)$/);
+    if (m) v = m[1];
+  }
   if (typeof v === 'string') { try { v = JSON.parse(v); } catch { return ''; } }
   const p = String(path || '').replace(/^\$\.?/, '');
   if (p) {
@@ -1920,6 +1929,10 @@ function flowJsonPath(value, path) {
 
 function flowList(prev) {
   let v = prev;
+  if (typeof v === 'string') {
+    const m = v.match(/^\s*HTTP\s+\d{3}\s*:\s*([\s\S]*)$/);
+    if (m) v = m[1];
+  }
   if (typeof v === 'string') { try { v = JSON.parse(v); } catch { return String(prev || '').split('\n').filter(Boolean); } }
   if (Array.isArray(v)) return v;
   if (v && typeof v === 'object') return Object.values(v).find(Array.isArray) || [v];

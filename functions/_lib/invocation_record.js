@@ -172,15 +172,20 @@ export function testPlan(row) {
 }
 
 // A result is a failure when it is an ERR:/ERROR: string, a JSON with an error field, or empty.
+// The row answered "give me a real argument" — a missing/placeholder argument, an id that names
+// nothing, an empty queue. The tool ran; it is untested, not broken.
+export const NEEDS_ARGS = /_required\b|\brequired\b|needs? (an? )?(arg|argument|example)|not_found|no_queued_items|e\.g\.|placeholder|unknown (key|id|slug)/i;
+export function needsArgs(text) { return NEEDS_ARGS.test(String(text || '').slice(0, 600)); }
+
 export function verdict(result, threw) {
   const text = result == null ? '' : (typeof result === 'string' ? result : JSON.stringify(result));
-  if (threw) return { ok: false, why: 'threw: ' + threw };
+  if (threw) return { ok: false, why: 'threw: ' + threw, needs_args: needsArgs(threw) };
   if (!text.trim()) return { ok: false, why: 'empty result' };
-  if (/^\s*(ERR|ERROR|#ERR|#NAME|BREAKER|PROVIDER_ERROR)[:?\s]/i.test(text)) return { ok: false, why: text.slice(0, 300) };
+  if (/^\s*(ERR|ERROR|#ERR|#NAME|BREAKER|PROVIDER_ERROR)[:?\s]/i.test(text)) return { ok: false, why: text.slice(0, 300), needs_args: !/PROVIDER_ERROR|BREAKER/i.test(text.slice(0, 40)) && needsArgs(text) };
   // An agent that answered with its provider's failure text did not work, whatever the transport said.
   if (/\bPROVIDER_ERROR\b|Incorrect API key|invalid_api_key|insufficient_quota|model returned nothing/i.test(text.slice(0, 400))) return { ok: false, why: text.slice(0, 300) };
   if (/^\s*\{/.test(text)) {
-    try { const j = JSON.parse(text); if (j && typeof j === 'object' && (j.error || j.ok === false)) return { ok: false, why: String(j.error || j.note || 'ok:false').slice(0, 300) }; } catch {}
+    try { const j = JSON.parse(text); if (j && typeof j === 'object' && (j.error || j.ok === false)) return { needs_args: needsArgs(String(j.error || j.note || '')), ok: false, why: String(j.error || j.note || 'ok:false').slice(0, 300) }; } catch {}
   }
   if (/^SHAPED:not_sent/.test(text)) return { ok: false, why: 'shaped only, not sent' };
   return { ok: true, why: '' };

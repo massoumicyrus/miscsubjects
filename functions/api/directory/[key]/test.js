@@ -65,13 +65,15 @@ export async function onRequestPost({ request, env, params }) {
   const { dispatch } = await import('../../dispatch.js');
   const started = Date.now();
   let out = null; let threw = null;
-  try { out = await dispatch(env, key, args || '', { actor: 'directory-test' }); }
+  try { out = await dispatch(env, key, args || '', { actor: 'directory-test', authContext: { ownerAuthed: true, actor: 'directory-test', tokenInfo: null, capFingerprint: null, tenant_id: null } }); }
   catch (e) { threw = String(e && e.message || e); }
   const ms = Date.now() - started;
   const result = out ? out.result : null;
   const v = verdict(result, threw);
   const transport = transportRecord({ ok: v.ok, ms, trace: out && out.trace, why: v.why, at, actor: 'directory-test' });
-  const state = v.ok ? STATE.works : STATE.broken;
+  // A row that refused because its argument was missing or named nothing real did not break:
+  // it is untested until it has an example. Only a real failure paints the row red.
+  const state = v.ok ? STATE.works : (v.needs_args ? STATE.untested : STATE.broken);
   const recorded = out && out.request_json ? realInvocation(row, out.request_json, { origin, args: args != null ? args : undefined }) : invocation;
   const rec = await recordTest(env, key, { invocation: recorded, transport, response: result == null ? (threw || '') : result, state, at, row });
   await invalidateDirSnapshot(env);

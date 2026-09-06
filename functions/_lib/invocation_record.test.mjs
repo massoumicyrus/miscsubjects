@@ -102,3 +102,12 @@ test('curlFor writes the same request as a command with the vault variable for i
   assert.match(curlFor(wrapper, noArgs), /-H "x-terminal-key: \$TERMINAL_KEY" --data '\{"key":"NOW","body":""\}'$/);
   assert.equal(curlFor(null, noArgs), null);
 });
+
+test('a missing-argument refusal is untested, a provider failure is broken', () => {
+  assert.equal(verdict('ERR:fn:ledger_comment:actor_required:{"error":"actor_required"}').needs_args, true);
+  assert.equal(verdict('{"error":"class key and query required, e.g. leadsDiscoverOrg a|b|12"}').needs_args, true);
+  assert.equal(verdict('{"ok":false,"error":"no_queued_items"}').needs_args, true);
+  assert.equal(verdict('{"ok":false,"error":"not_found"}').needs_args, true);
+  assert.equal(!!verdict('PROVIDER_ERROR: You have no credits remaining. Add credits required.').needs_args, false);
+  assert.equal(!!verdict('ERR:reddit:no_app_credentials').needs_args, false);
+});
