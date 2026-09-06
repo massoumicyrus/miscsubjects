@@ -239,6 +239,31 @@ function evalContext(env, sheet, actor) {
       const res = out && typeof out.result === 'string' ? out.result : JSON.stringify(out && out.result);
       return String(res == null ? '' : res).slice(0, 4000);
     },
+    // A cell that IS an agent's tool call. Parsed by the kernel's own tag regex, run by the same
+    // dispatch(); the envelope is what the agent's loop receives, the result what it reads.
+    async tag(text, want) {
+      const { collectExecutableTags, META_TAGS } = await import('./tag_calls.js');
+      const tags = collectExecutableTags(String(text || '')).filter((t) => !META_TAGS.has(t.key));
+      if (!tags.length) return want === 'verdict' ? 'NO TAG — write [KEY]args[/KEY]' : '#NO_TAG';
+      const t = tags[0];
+      const { dispatch } = await import('../api/dispatch.js');
+      const started = Date.now();
+      let out; let threw = null;
+      try { out = await dispatch(env, t.key, t.body, { actor: actor || 'sheet-tag', noLog: false }); }
+      catch (e) { threw = String(e && e.message || e); out = { result: 'ERR:' + threw, trace: null }; }
+      const ms = Date.now() - started;
+      const result = out && typeof out.result === 'string' ? out.result : JSON.stringify(out && out.result == null ? null : out.result);
+      const ok = !threw && !/^\s*(ERR|ERROR|#)/i.test(result) && !/"error"\s*:/.test(result.slice(0, 200));
+      if (want === 'result') return String(result == null ? '' : result).slice(0, 16000);
+      if (want === 'trace') return String((out && out.trace) || '');
+      if (want === 'verdict') return ok ? 'WORKED — ' + String(result || '').length + ' chars · ' + ms + ' ms' : 'FAILED — ' + String(result || '').replace(/\s+/g, ' ').slice(0, 220);
+      return JSON.stringify({
+        key: t.key, body: t.body, ok, ms, trace: (out && out.trace) || null,
+        cost_usd: out && out.cost != null ? out.cost : undefined, tokens_in: out && out.tokens_in || 0, tokens_out: out && out.tokens_out || 0,
+        event_id: (out && out.event_id) || null, result_chars: String(result || '').length,
+        ledger: out && out.trace ? '/admin/ledger?trace_id=' + out.trace : null,
+      });
+    },
     async query(sql) {
       if (!/^\s*(select|with)\b/i.test(String(sql || ''))) return [];
       const q = await env.DB.prepare(String(sql)).all();

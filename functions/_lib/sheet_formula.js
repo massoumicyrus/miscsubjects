@@ -248,6 +248,21 @@ async function callFn(node, ctx, depth) {
       const body = a.length > 1 ? String(a[1] == null ? '' : a[1]) : '';
       return await ctx.dispatch(key, body);
     }
+    case 'TAG': {
+      // =TAG(A2)            A2 holds the tag exactly as an agent writes it: [KEY]arg|arg[/KEY].
+      //                     The cell gets the dispatch envelope the kernel hands the agent.
+      // =TAG(A2,"result")   the raw result payload the tool returned
+      // =TAG(A2,"verdict")  WORKED — n chars / FAILED — <error>
+      // =TAG(A2,"trace")    the ledger trace of that one invocation
+      // Same parser (tag_calls.TAG_RE) and same dispatch() an agent's turn goes through — this is
+      // not a shortcut; it is the agent path with a cell as the agent.
+      const a = await argVals();
+      if (!ctx.tag) return '#NO_TAG';
+      const text = String(a[0] == null ? '' : a[0]);
+      if (!text.trim()) return '';
+      const want = a.length > 1 ? String(a[1] || 'envelope').toLowerCase() : 'envelope';
+      return await ctx.tag(text, want);
+    }
     case 'LLMCALL': {
       // =LLMCALL(A2,B2)          the response payload, whole
       // =LLMCALL(A2,B2,"status") the HTTP status
