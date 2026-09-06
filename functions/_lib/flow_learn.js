@@ -40,10 +40,21 @@ export function slugKey(name) {
   return /^[A-Z][A-Z0-9_]*$/.test(k) ? k : null;
 }
 
+// Inside a flow body, `>` separates steps and `|` separates fan-out branches, but only at the top
+// level: the flow splitter tracks brace and bracket depth, so a balanced JSON object inside a step
+// body is an ordinary constant. What cannot be written is a top-level `>` or `|`, an unbalanced
+// brace or bracket, or a body that BEGINS with `{` (it would read as a fan-out). Those are refused;
+// the first real candidate the ledger surfaced carried a JSON body and was wrongly refused whole.
 function escapeForFlow(text) {
-  // Inside a flow body, `>` separates steps and `|` separates fan-out branches; a literal that
-  // carries either cannot be written into the DSL safely, so the compiler refuses that step.
-  return /[>{}]/.test(text) || text.includes('|') ? null : text;
+  const t = String(text);
+  if (t.trim().startsWith('{')) return null;
+  let depth = 0;
+  for (const c of t) {
+    if (c === '{' || c === '[') depth++;
+    else if (c === '}' || c === ']') { depth--; if (depth < 0) return null; }
+    else if ((c === '>' || c === '|') && depth === 0) return null;
+  }
+  return depth === 0 ? t : null;
 }
 
 // THE COMPILER. Steps in, flow DSL out, with a record of every decision so the proposal explains
