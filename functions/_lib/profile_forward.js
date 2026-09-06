@@ -113,19 +113,28 @@ export function makeProfileForwardFnMap() {
       const results = {};
 
       if (wanted.includes('meta')) {
-        const token = env.META_CAPI_TOKEN || env.META_PIXEL_TOKEN;
+        // Which pixel and which token are configuration, not code: settings.meta_pixel_id names the
+        // dataset, and every Meta token bound to the build is tried in order until one owns it. The
+        // token that worked is recorded by NAME only.
+        const tokens = [['META_CAPI_TOKEN', env.META_CAPI_TOKEN], ['META_PIXEL_TOKEN', env.META_PIXEL_TOKEN], ['META_ACCESS_TOKEN', env.META_ACCESS_TOKEN]].filter(([, v]) => v);
         const pixel = await setting(env, 'meta_pixel_id', DEFAULT_PIXEL_ID);
         const version = env.META_API_VERSION || DEFAULT_GRAPH_VERSION;
-        if (!token) results.meta = { ok: false, error: 'PROVIDER_UNAVAILABLE', message: 'META_CAPI_TOKEN is not bound' };
+        if (!tokens.length) results.meta = { ok: false, error: 'PROVIDER_UNAVAILABLE', message: 'no Meta token is bound' };
         else {
           const body = await metaEventBody(ev, { pixelTestCode: await setting(env, 'meta_test_event_code', null) });
-          try {
-            const r = await fetch(`https://graph.facebook.com/${version}/${pixel}/events?access_token=${encodeURIComponent(token)}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
-            const j = await r.json().catch(() => ({}));
-            results.meta = r.ok && Number(j.events_received) >= 1
-              ? { ok: true, events_received: j.events_received, fbtrace_id: j.fbtrace_id || null, event_name: body.data[0].event_name, test_event_code: body.test_event_code || null, pixel_id: pixel, identifiers_sent: Object.keys(body.data[0].user_data) }
-              : { ok: false, error: 'PROVIDER_UNAVAILABLE', status: r.status, message: String(j?.error?.message || JSON.stringify(j)).slice(0, 300) };
-          } catch (e) { results.meta = { ok: false, error: 'PROVIDER_UNAVAILABLE', message: e.message }; }
+          const attempts = [];
+          for (const [name, token] of tokens) {
+            try {
+              const r = await fetch(`https://graph.facebook.com/${version}/${pixel}/events?access_token=${encodeURIComponent(token)}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
+              const j = await r.json().catch(() => ({}));
+              if (r.ok && Number(j.events_received) >= 1) {
+                results.meta = { ok: true, events_received: j.events_received, fbtrace_id: j.fbtrace_id || null, event_name: body.data[0].event_name, test_event_code: body.test_event_code || null, pixel_id: pixel, token_used: name, identifiers_sent: Object.keys(body.data[0].user_data) };
+                break;
+              }
+              attempts.push({ token: name, status: r.status, message: String(j?.error?.message || JSON.stringify(j)).slice(0, 200) });
+            } catch (e) { attempts.push({ token: name, message: e.message }); }
+          }
+          if (!results.meta) results.meta = { ok: false, error: 'PROVIDER_UNAVAILABLE', pixel_id: pixel, attempts };
         }
       }
       if (wanted.includes('klaviyo')) {
