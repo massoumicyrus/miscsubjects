@@ -1,4 +1,5 @@
 import { scrubOwnerIdentity } from '../_lib/public_secret_guard.js';
+import { buildNowIso } from '../_lib/build_time.js';
 // Public feedback endpoint — writes a row to the ledger events table.
 // Cloaked by JCI on the way in (the cloaker tells us who sent it).
 export async function onRequest({ request, env }) {
@@ -17,7 +18,7 @@ export async function onRequest({ request, env }) {
       await env.LEDGER.prepare(
         "INSERT INTO events (ts, source, key, route, actor, action, status, request_preview, response_preview) VALUES (?,?,?,?,?,?,?,?,?)"
       ).bind(
-        new Date().toISOString(), 'feedback', 'public_feedback', '/api/feedback',
+        buildNowIso(), 'feedback', 'public_feedback', '/api/feedback',
         scrubOwnerIdentity(ip), kind, 'ok', scrubOwnerIdentity(preview), 'received'
       ).run();
     }

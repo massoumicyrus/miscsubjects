@@ -1,5 +1,6 @@
 
 import { mintShareToken, saveCapability, capFingerprint } from './admin_session.js';
+import { buildNowIso } from './build_time.js';
 import { logEvent } from './event_log.js';
 
 const MAX_BODY = 4000;
@@ -249,7 +250,7 @@ export async function postComment(env, {
     if (dupe) return { ok: true, deduped: true, comment_id: dupe.id, note: 'identical comment already on the thread (same actor, same body, within 7 days) — not inserted twice' };
   } catch { /* a guard failure must not block a legitimate write */ }
 
-  const ts = new Date().toISOString();
+  const ts = buildNowIso();
   const hash = clean.slug === '*' ? null : await articleBodyHash(env, clean.slug);
   const eventId = crypto.randomUUID();
 

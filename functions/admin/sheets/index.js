@@ -68,6 +68,38 @@ header nav.tab-row,header nav.sub-row{display:none}
 
 /* ── formula bar ── */
 .gs-fxbar{display:flex;align-items:center;border-top:1px solid var(--gs-border);border-bottom:1px solid var(--gs-border);height:30px}
+/* pinned object rows — the sticky header band. Same type as the grid; each row is one object field. */
+#gs-pins{display:none;flex-direction:column;border-top:1px solid var(--gs-border);background:#fffdf5;max-height:42vh;overflow:auto;flex:0 0 auto}
+#gs-pins.on{display:flex}
+.gs-pin{display:flex;align-items:stretch;border-bottom:1px solid var(--gs-grid);min-height:24px;font-size:12.5px}
+.gs-pin .tenant{flex:0 0 220px;padding:3px 8px;background:var(--gs-head-bg);color:var(--gs-head-ink);font-weight:600;border-right:1px solid var(--gs-grid);display:flex;flex-direction:column;justify-content:center;gap:2px}
+.gs-pin .tenant small{font-weight:400;font-family:var(--mono,Menlo,monospace);font-size:10.5px;color:#9aa0a6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gs-pin .val{flex:1;padding:3px 8px;font-family:var(--mono,Menlo,monospace);font-size:12px;line-height:1.45;white-space:pre-wrap;word-break:break-word;max-height:66px;overflow:auto;outline:none;border-left:3px solid transparent}
+.gs-pin .val:focus{max-height:40vh;background:#fff;border-left-color:var(--gs-blue)}
+.gs-pin .val.ro{color:#5f6368;background:#f3f4f6}
+.gs-pin .val.err{color:#c5221f}
+.gs-pin .tools{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:0 8px;color:var(--gs-head-ink);font-size:11px;white-space:nowrap}
+.gs-pin .tools a{color:var(--gs-blue);text-decoration:none}
+.gs-pin .tools .x{cursor:pointer;padding:0 4px}
+.gs-pin .tools .x:hover{color:#c5221f}
+.gs-pin .st{min-width:70px;text-align:right}
+.gs-pin .st.ok{color:var(--gs-green)}
+.gs-pin .st.err{color:#c5221f}
+/* dialogs (new sheet, add column, filters, pin) reuse the help modal */
+.gs-dlg label{display:block;font-size:12px;color:var(--gs-head-ink);margin:10px 0 3px}
+.gs-dlg input[type=text],.gs-dlg select,.gs-dlg textarea{width:100%;font-size:13px;padding:6px 8px;border:1px solid var(--gs-border);border-radius:5px;font-family:inherit}
+.gs-dlg textarea{font-family:var(--mono,Menlo,monospace);font-size:12px;min-height:70px}
+.gs-dlg .row{display:flex;gap:10px}
+.gs-dlg .row>*{flex:1}
+.gs-dlg .hint{font-size:11.5px;color:#9aa0a6;margin-top:3px}
+.gs-dlg .opt{border:1px solid var(--gs-border);border-radius:6px;padding:8px 10px;margin:6px 0;cursor:pointer}
+.gs-dlg .opt.on{border-color:var(--gs-blue);background:var(--gs-blue-soft)}
+.gs-dlg .opt b{display:block;font-size:13px}
+.gs-dlg .opt span{font-size:11.5px;color:var(--gs-head-ink)}
+.gs-dlg .frow{display:grid;grid-template-columns:1.2fr .8fr 1.6fr 28px;gap:6px;margin:4px 0}
+.gs-cell.fmt-json{color:#3c4043;font-family:var(--mono,Menlo,monospace);font-size:11.5px}
+.gs-cell.fmt-time{color:#5f6368}
+.gs-cell.fmt-link a{color:var(--gs-blue)}
 #gs-namebox{width:110px;border:none;border-right:1px solid var(--gs-border);height:100%;padding:0 10px;font-size:12.5px;
   color:var(--gs-ink);outline:none;text-align:center;font-family:Roboto,Arial,sans-serif}
 .gs-fx{color:#9aa0a6;font-style:italic;font-family:Georgia,serif;padding:0 10px;font-size:14px;border-right:1px solid #eee;height:100%;display:flex;align-items:center}
@@ -239,6 +271,7 @@ a.gs-tab:hover{color:#202124;text-decoration:none}
   <nav class="gs-menubar" id="gs-menubar"></nav>
   <script type="application/json" id="gs-navtabs-data">${JSON.stringify(navTabs)}</script>
   <div class="gs-toolbar" id="gs-toolbar"></div>
+  <div id="gs-pins"></div>
   <div class="gs-fxbar">
     <input id="gs-namebox" value="A1" spellcheck="false" autocomplete="off">
     <span class="gs-fx">fx</span>
@@ -357,6 +390,7 @@ var LED_W={ts:150,source:110,key:170,action:110,direction:70,status:56,route:170
 // projections), or per-field (non-PATCHable directory columns). Draft rows stay writable.
 function cellRo(st,dr,dc){
   if(st.ro===true) return true;
+  if(st.kind==='view') return true;
   var m=st.meta[dr];
   if(st.kind==='directory'){
     if(st.drafts[dr]){ var f0=st.fields[dc]; return !(DIR_EDITABLE[f0]||f0==='key'); }
@@ -388,6 +422,11 @@ function newState(tab){
     sheet:null,            // user sheets: server meta
     runs:[],               // user sheets: saved run configs
     ledParams:{limit:'500'},
+    viewParams:{limit:'300'},
+    isView:false,          // user sheet whose col_meta.view projects a source (rows never stored)
+    viewDef:null,          // the projection description as the server normalized it
+    formats:{},            // data col index -> text|json|time|number|link|image (persisted per kind)
+    pins:[],               // resolved pinned object rows [{label,ref,value,href,editable,error}]
     loaded:false, loading:false
   };
 }
@@ -460,7 +499,7 @@ function loadTab(st, force){
   }
   if(st.kind==='ledger'){
     var p=st.ledParams, qs=['data=1'];
-    ['limit','key','trace_id','q','status','source'].forEach(function(k){ if(p[k]) qs.push(k+'='+encodeURIComponent(p[k])); });
+    ['limit','key','trace_id','q','status','source','hide_noise'].forEach(function(k){ if(p[k]) qs.push(k+'='+encodeURIComponent(p[k])); });
     return cacheFirstAll(st, ['/admin/ledger?'+qs.join('&')], function(rr){
       var rows=(rr[0]&&rr[0].rows)||[];
       st.fields=LED_FIELDS.slice(); st.ro=true;
@@ -482,6 +521,10 @@ function loadTab(st, force){
     if(!res.ok){ toast('Sheet not found'); st.loading=false; return; }
     st.sheet=res.j.sheet; st.runs=res.j.runs||[];
     st.title=st.sheet.title;
+    var cm0=st.sheet.col_meta||{};
+    st.formats=cm0.formats||{};
+    if(cm0.view){ return loadView(st); }
+    st.kind='user'; st.isView=false;
     var rows=Math.max(st.sheet.used_rows||0, 1);
     var cols=Math.max(st.sheet.used_cols||0, 1);
     // Load a window, not the sheet. Asking for the whole used range was one request for
@@ -507,6 +550,45 @@ function loadTab(st, force){
     });
   });
 }
+// A view sheet: the description lives in col_meta.view, the rows live in the source of record.
+function loadView(st){
+  st.kind='view'; st.isView=true;
+  var t=TABS.filter(function(x){ return x.id===st.id; })[0]; if(t) t.kind='view';
+  var vp=st.viewParams||{};
+  var url='/api/sheets/'+encodeURIComponent(st.id)+'/view?limit='+encodeURIComponent(vp.limit||'300')+(vp.before?'&before='+encodeURIComponent(vp.before):'');
+  return jfetch(url).then(function(vres){
+    if(noteAuthFailure(vres)){ st.loading=false; return; }
+    var j=vres.j||{};
+    if(!vres.ok||j.error){ toast('View failed: '+(j.detail||j.error||vres.status)); st.viewError=j.detail||j.error||('HTTP '+vres.status); }
+    var cols=j.columns||[];
+    st.viewDef=j.view||null;
+    st.fields=cols.map(function(c){ return c.header||c.path; });
+    st.paths=cols.map(function(c){ return c.path; });
+    st.ro=true;
+    st.meta=(j.meta||[]).map(function(m){ return {id:m.id, ro:true, href:m.href||'', trace:m.trace_id||'', ts:m.ts||''}; });
+    var newVals=(j.rows||[]);
+    if(vp.before && st.vals && st.vals.length){ st.vals=st.vals.concat(newVals); st.meta=st._metaPrev.concat(st.meta); }
+    else st.vals=newVals;
+    st._metaPrev=st.meta;
+    st._noMore=newVals.length<Number(vp.limit||300);
+    st.nRows=st.vals.length; st.nCols=Math.max(cols.length,1);
+    st.colOrder=[]; for(var i=0;i<st.nCols;i++) st.colOrder.push(i);
+    st.colW={}; cols.forEach(function(c,i){ st.colW[i]=c.w||DEFAULT_W; });
+    st.formats={}; cols.forEach(function(c,i){ if(c.format&&c.format!=='text') st.formats[i]=c.format; });
+    var meta=(st.sheet&&st.sheet.col_meta)||{};
+    st.freeze={rows:(meta.freeze&&meta.freeze.rows)|0, cols:(meta.freeze&&meta.freeze.cols)|0};
+    st.pins=j.pins||[];
+    finishLoad(st);
+  });
+}
+// The next page of a view: rows older than the oldest on screen.
+function loadMoreView(){
+  if(T.kind!=='view'||T._noMore||T._loadingMore) return;
+  var last=T.meta[T.meta.length-1]; if(!last||!last.ts) return;
+  T._loadingMore=true; T.viewParams.before=last.ts; T.loaded=false;
+  loadTab(T,true).then(function(){ T._loadingMore=false; T.viewParams.before=''; renderAll(); });
+}
+
 // How many rows the grid holds before it pages. Two screens' worth: the first paint is
 // instant and scrolling stays ahead of the reader.
 var WINDOW=400;
@@ -529,7 +611,279 @@ function ensureRows(st, throughRow){
   }).catch(function(){ st._paging=false; });
 }
 
+/* ═══════════════════ formats ═══════════════════ */
+// How a column renders. Persisted with the sheet (col_meta.formats) for stored and view sheets,
+// in this browser for the built-in projections. Keys: data column index, or field name.
+function formatOf(st,dc){
+  var f=st.formats||{};
+  if(f[dc]) return f[dc];
+  var fn=st.fields?st.fields[dc]:null;
+  if(fn&&f[fn]) return f[fn];
+  return '';
+}
+function fmtTime(v){
+  var d=new Date(v); if(isNaN(d.getTime())) return v;
+  var now=new Date(); var sameDay=d.toDateString()===now.toDateString();
+  var t=d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
+  return sameDay ? t : d.toLocaleDateString([], {month:'short',day:'numeric'})+' '+t;
+}
+function fmtJsonPreview(v){
+  var t=String(v).trim(); if(!t) return '';
+  try{ var o=JSON.parse(t); if(o&&typeof o==='object') return JSON.stringify(o); }catch(e){}
+  return t.replace(new RegExp('[ ]{2,}|['+String.fromCharCode(10,13,9)+']+','g'),' ');
+}
+function prettyJson(v){
+  try{ var o=JSON.parse(String(v)); if(o&&typeof o==='object') return JSON.stringify(o,null,2); }catch(e){}
+  return String(v);
+}
+// Returns {html, cls} for one cell body.
+function fmtCell(val, fmt, w){
+  if(val==null||val==='') return {html:'',cls:''};
+  var s=String(val);
+  if(fmt==='json'){ var pj=fmtJsonPreview(s); return {html:esc(pj.length>500?pj.slice(0,500)+'…':pj), cls:' fmt-json'}; }
+  if(fmt==='time'){ return {html:esc(fmtTime(s)), cls:' fmt-time'}; }
+  if(fmt==='number'){ var n=Number(String(s).replace(/,/g,'')); return {html:esc(isFinite(n)?n.toLocaleString():s), cls:' num'}; }
+  if(fmt==='link'){ var h=s.charAt(0)==='/'?s:(s.indexOf('http')===0?s:''); return {html:h?'<a href="'+esc(h)+'" target="_blank" rel="noopener">'+esc(s.length>120?s.slice(0,120)+'…':s)+'</a>':esc(s), cls:' fmt-link'}; }
+  if(fmt==='image'){ return {html:'<img src="'+esc(s)+'" alt="" loading="lazy" title="'+esc(s)+'">', cls:' img', img:true}; }
+  return null;
+}
+function persistFormats(st){
+  if(st.kind==='user'){ var meta=(st.sheet&&st.sheet.col_meta)||{}; meta.formats=st.formats; st.sheet.col_meta=meta;
+    jfetch('/api/sheets/'+encodeURIComponent(st.id),{method:'PATCH',body:{col_meta:meta}}); return; }
+  if(st.kind==='view'){ // a format is part of the column description
+    var v=st.viewDef; if(!v) return;
+    v.columns.forEach(function(c,i){ c.format=st.formats[i]||'text'; });
+    saveViewDef(st, v); return;
+  }
+  try{ var byField={}; Object.keys(st.formats).forEach(function(k){ var fn=st.fields?st.fields[k]:null; if(fn) byField[fn]=st.formats[k]; }); localStorage.setItem('gs_fmt_'+st.kind, JSON.stringify(byField)); }catch(e){}
+}
+function restoreFormats(st){
+  if(st.kind==='user'||st.kind==='view') return;
+  try{ var f=JSON.parse(localStorage.getItem('gs_fmt_'+st.kind)||'null'); if(!f) return; st.formats={}; Object.keys(f).forEach(function(fn){ var i=st.fields?st.fields.indexOf(fn):-1; if(i>=0) st.formats[i]=f[fn]; }); }catch(e){}
+}
+function saveViewDef(st, view){
+  var meta=(st.sheet&&st.sheet.col_meta)||{}; meta.view=view; meta.kind='view';
+  if(st.sheet) st.sheet.col_meta=meta;
+  saveStatus('Saving…');
+  return jfetch('/api/sheets/'+encodeURIComponent(st.id),{method:'PATCH',body:{col_meta:meta}}).then(function(res){
+    if(res.ok&&res.j.ok){ saveStatus('All changes saved'); st.loaded=false; st.viewParams.before=''; return loadTab(st,true).then(function(){ renderAll(); }); }
+    saveStatus('Save failed',true); toast('Save refused: '+((res.j&&res.j.error)||res.status));
+  });
+}
+
+/* ═══════════════════ pinned object rows ═══════════════════ */
+// Pins on stored/view sheets live in col_meta.pins on the server; pins on the built-in
+// projections (directory, ledger, turns, forum) live in this browser.
+function pinList(st){
+  if(st.kind==='user'||st.kind==='view') return ((st.sheet&&st.sheet.col_meta&&st.sheet.col_meta.pins)||[]).slice();
+  try{ return JSON.parse(localStorage.getItem('gs_pins_'+st.kind)||'[]'); }catch(e){ return []; }
+}
+function savePinList(st, pins){
+  if(st.kind==='user'||st.kind==='view'){
+    var meta=(st.sheet&&st.sheet.col_meta)||{}; meta.pins=pins; if(st.sheet) st.sheet.col_meta=meta;
+    return jfetch('/api/sheets/'+encodeURIComponent(st.id),{method:'PATCH',body:{col_meta:meta}}).then(function(){ return refreshPins(st); });
+  }
+  try{ localStorage.setItem('gs_pins_'+st.kind, JSON.stringify(pins)); }catch(e){}
+  return refreshPins(st);
+}
+function refreshPins(st){
+  var pins=pinList(st);
+  if(!pins.length){ st.pins=[]; if(st===T) renderPins(); return Promise.resolve(); }
+  return jfetch('/api/sheets/pins/resolve',{method:'POST',body:{pins:pins}}).then(function(res){
+    st.pins=(res.j&&res.j.pins)||[]; if(st===T) renderPins();
+  });
+}
+function renderPins(){
+  var el=$('gs-pins'); if(!el) return;
+  var pins=T.pins||[];
+  if(!pins.length){ el.className=''; el.innerHTML=''; return; }
+  el.className='on';
+  el.innerHTML=pins.map(function(pn,i){
+    var ro=!pn.editable||pn.error;
+    return '<div class="gs-pin" data-i="'+i+'">'
+      +'<div class="tenant"><span>'+esc(pn.label||pn.ref)+'</span><small title="'+esc(pn.ref)+'">'+esc(pn.ref)+'</small></div>'
+      +'<div class="val'+(ro?' ro':'')+(pn.error?' err':'')+'" '+(ro?'':'contenteditable="plaintext-only" spellcheck="false"')+' data-i="'+i+'" title="'+(ro?'read-only':'Click to edit in place. Blur or Cmd/Ctrl+Enter saves to the object; Escape reverts.')+'">'+esc(pn.error?('⚠ '+pn.error):pn.value)+'</div>'
+      +'<div class="tools"><span class="st" data-i="'+i+'">'+(pn.value?pn.value.length.toLocaleString()+' chars':'')+'</span>'
+      +(pn.href?'<a href="'+esc(pn.href)+'" target="_blank" rel="noopener" title="Open the object at its own address">↗</a>':'')
+      +'<span class="x" data-i="'+i+'" title="Unpin (the object is untouched)">✕</span></div>'
+      +'</div>';
+  }).join('');
+  el.querySelectorAll('.val[contenteditable]').forEach(function(v){
+    var i=Number(v.getAttribute('data-i')); var orig=T.pins[i].value;
+    v.addEventListener('keydown',function(e){
+      if(e.key==='Escape'){ v.textContent=orig; v.blur(); e.preventDefault(); }
+      if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){ v.blur(); e.preventDefault(); }
+    });
+    v.addEventListener('blur',function(){
+      var nv=v.textContent; if(nv===orig) return;
+      var st=el.querySelector('.st[data-i="'+i+'"]'); st.textContent='saving…'; st.className='st';
+      jfetch('/api/sheets/pins',{method:'POST',body:{ref:T.pins[i].ref, value:nv}}).then(function(res){
+        if(res.ok&&res.j.ok){ orig=nv; T.pins[i].value=nv; st.textContent='saved '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); st.className='st ok'; toast('Saved to '+T.pins[i].ref); }
+        else { st.textContent='refused'; st.className='st err'; toast('Write refused: '+((res.j&&(res.j.error||res.j.detail))||res.status)); }
+      });
+    });
+  });
+  el.querySelectorAll('.x').forEach(function(x){ x.onclick=function(){ var i=Number(x.getAttribute('data-i')); var pins=pinList(T); pins.splice(i,1); savePinList(T,pins); }; });
+}
+function addPin(ref,label){
+  var pins=pinList(T);
+  if(pins.some(function(p){ return p.ref===ref; })){ toast('Already pinned'); return; }
+  pins.push({ref:ref,label:label||ref});
+  savePinList(T,pins).then(function(){ toast('Pinned '+ref); });
+}
+
+/* ═══════════════════ dialogs ═══════════════════ */
+function dialog(title, inner, onMount){
+  var hp=$('gs-help-body');
+  hp.innerHTML='<div class="gs-dlg"><h2 style="margin:0 0 6px">'+title+'</h2>'+inner+'</div>';
+  $('gs-help').style.display='flex';
+  var close=function(){ $('gs-help').style.display='none'; };
+  hp.querySelectorAll('[data-close]').forEach(function(b){ b.onclick=close; });
+  if(onMount) onMount(hp, close);
+}
+var VIEWSRC=null;
+function viewSources(){ if(VIEWSRC) return Promise.resolve(VIEWSRC); return jfetch('/api/sheets/view-sources').then(function(r){ VIEWSRC=r.j||{}; return VIEWSRC; }); }
+
+// New sheet: blank, or a projection of a source of record.
+function createNewSheet(){
+  viewSources().then(function(src){
+    var tpl=(src.templates||[]);
+    var opts='<div class="opt on" data-k="blank"><b>Blank sheet</b><span>a stored grid you type into — formulas, model runs, CSV</span></div>'
+      +tpl.map(function(t){ return '<div class="opt" data-k="'+esc(t.id)+'"><b>'+esc(t.title)+'</b><span>'+esc(t.what||'')+'</span></div>'; }).join('');
+    var inner='<div class="hint">A projection stores no rows. It stores what to show and re-reads the source of record on every open. Columns, filters and formats are edited from the grid afterwards.</div>'
+      +'<div class="row"><div style="flex:1.1;max-height:46vh;overflow:auto;padding-right:6px">'+opts+'</div>'
+      +'<div style="flex:1"><label>Sheet name</label><input type="text" id="ns-title" placeholder="leave blank for the default">'
+      +'<div id="ns-param"></div>'
+      +'<div id="ns-custom" style="display:none"><label>Source table</label><select id="ns-src">'+Object.keys(src.sources||{}).map(function(k){ return '<option>'+esc(k)+'</option>'; }).join('')+'</select>'
+      +'<label>WHERE (SQL condition, read-only)</label><textarea id="ns-where" placeholder="source=&#39;blooio&#39; AND request_json LIKE &#39;%How are you%&#39;"></textarea>'
+      +'<div class="hint">Columns of the table are listed after you create it: right-click a header → Add column.</div></div>'
+      +'</div></div>'
+      +'<div class="gs-fbtns"><button class="gs-btn" data-close>Cancel</button><button class="gs-btn pri" id="ns-go">Create</button></div>';
+    dialog('New sheet', inner, function(hp, close){
+      var kind='blank';
+      function pick(k){ kind=k; hp.querySelectorAll('.opt').forEach(function(o){ o.classList.toggle('on', o.getAttribute('data-k')===k); });
+        var t=tpl.filter(function(x){ return x.id===k; })[0];
+        $('ns-param').innerHTML = (t&&t.param) ? '<label>'+esc(t.param.name)+'</label><input type="text" id="ns-pv" placeholder="'+esc(t.param.hint||'')+'">' : '';
+        $('ns-custom').style.display = k==='custom' ? 'block' : 'none';
+        if(k==='custom') $('ns-param').innerHTML='';
+        var pv=$('ns-pv'); if(pv) pv.focus();
+      }
+      hp.querySelectorAll('.opt').forEach(function(o){ o.onclick=function(){ pick(o.getAttribute('data-k')); }; });
+      $('ns-go').onclick=function(){
+        var title=$('ns-title').value.trim();
+        var body;
+        if(kind==='blank') body={title:title||('Sheet '+(TABS.filter(function(t){return t.kind==='user';}).length+1))};
+        else if(kind==='custom'){ var w=$('ns-where').value.trim(); if(!w){ toast('Write a WHERE condition'); return; }
+          body={title:title||('Custom · '+$('ns-src').value), view:{source:$('ns-src').value, where:w}}; }
+        else { var pv=$('ns-pv'); var t=tpl.filter(function(x){ return x.id===kind; })[0];
+          if(t&&t.param&&!(pv&&pv.value.trim())){ toast('Enter the '+t.param.name); return; }
+          body={template:kind, param: pv?pv.value.trim():''}; if(title) body.title=title; }
+        $('ns-go').disabled=true;
+        jfetch('/api/sheets',{method:'POST',body:body}).then(function(res){
+          $('ns-go').disabled=false;
+          if(!res.ok||!res.j.ok){ toast('Create failed: '+((res.j&&(res.j.error||res.j.detail))||res.status)); return; }
+          var sh=res.j.sheet; close();
+          TABS.push({kind:(sh.col_meta&&sh.col_meta.view)?'view':'user',id:sh.id,title:sh.title});
+          switchTab(sh.id);
+        });
+      };
+    });
+  });
+}
+
+// The JSON paths that actually occur in the rows on screen — so a column can be added by
+// picking, not by knowing the payload shape in advance.
+function discoverPaths(st, maxRows){
+  var out={}; var src=(st.viewDef&&st.viewDef.source)||'ledger'; var srcInfo=(VIEWSRC&&VIEWSRC.sources&&VIEWSRC.sources[src])||{fields:[],json_fields:[]};
+  srcInfo.fields.forEach(function(f){ out[f]=1; });
+  var jsonCols=[]; (st.paths||[]).forEach(function(p,i){ var base=p.split(/[.[]/)[0]; if(srcInfo.json_fields.indexOf(base)>=0 && p===base) jsonCols.push({i:i,base:base}); });
+  function walk(o,prefix,depth){ if(depth>5||Object.keys(out).length>600) return;
+    if(Array.isArray(o)){ if(o.length){ out[prefix+'[0]']=1; walk(o[0],prefix+'[0]',depth+1); } return; }
+    if(o&&typeof o==='object'){ Object.keys(o).forEach(function(k){ if(!/^[A-Za-z_][A-Za-z0-9_]*$/.test(k)) return; out[prefix+'.'+k]=1; walk(o[k],prefix+'.'+k,depth+1); }); } }
+  for(var r=0;r<Math.min(st.vals.length,maxRows||60);r++){ jsonCols.forEach(function(jc){ var v=cellVal(st,r,jc.i); if(!v) return; try{ walk(JSON.parse(v), jc.base, 0); }catch(e){} }); }
+  return Object.keys(out);
+}
+function formatSelect(id, cur){ return '<select id="'+id+'">'+['text','json','time','number','link','image'].map(function(f){ return '<option'+(f===cur?' selected':'')+'>'+f+'</option>'; }).join('')+'</select>'; }
+
+// Add or edit one column of a view.
+function columnDialog(atIndex, editIndex){
+  if(T.kind!=='view'||!T.viewDef){ toast('Columns from a source are added on projection sheets — File → New sheet → pick a source'); return; }
+  viewSources().then(function(){
+    var cur = editIndex!=null ? T.viewDef.columns[editIndex] : {path:'',header:'',format:'text',w:160};
+    var paths=discoverPaths(T, 80);
+    var inner='<div class="hint">A path is a column of the source, or a column plus a JSON path into it — request_json.body.messages[0].content is the system prompt that was actually sent.</div>'
+      +'<label>Path</label><input type="text" id="cd-path" list="cd-paths" value="'+esc(cur.path)+'" placeholder="request_json.body.model"><datalist id="cd-paths">'+paths.map(function(p){ return '<option value="'+esc(p)+'">'; }).join('')+'</datalist>'
+      +'<div class="hint">'+paths.length+' paths found in the rows on screen — start typing to pick one.</div>'
+      +'<div class="row"><div><label>Header</label><input type="text" id="cd-head" value="'+esc(cur.header||'')+'" placeholder="what this column is called"></div>'
+      +'<div><label>Format</label>'+formatSelect('cd-fmt',cur.format||'text')+'</div><div><label>Width px</label><input type="text" id="cd-w" value="'+esc(String(cur.w||160))+'"></div></div>'
+      +'<div class="gs-fbtns">'+(editIndex!=null?'<button class="gs-btn" id="cd-del" style="margin-right:auto;color:#c5221f">Remove column</button>':'')+'<button class="gs-btn" data-close>Cancel</button><button class="gs-btn pri" id="cd-go">'+(editIndex!=null?'Save':'Add column')+'</button></div>';
+    dialog(editIndex!=null?'Edit column':'Add column from source', inner, function(hp, close){
+      $('cd-path').focus();
+      $('cd-go').onclick=function(){
+        var path=$('cd-path').value.trim(); if(!path){ toast('Path is required'); return; }
+        var col={path:path, header:$('cd-head').value.trim()||path, format:$('cd-fmt').value, w:parseInt($('cd-w').value,10)||160};
+        var v=T.viewDef; var cols=v.columns.slice();
+        if(editIndex!=null) cols[editIndex]=col; else cols.splice(atIndex==null?cols.length:atIndex, 0, col);
+        v.columns=cols; close(); saveViewDef(T, v);
+      };
+      var del=$('cd-del'); if(del) del.onclick=function(){ var v=T.viewDef; v.columns.splice(editIndex,1); if(!v.columns.length){ toast('A sheet needs one column'); return; } close(); saveViewDef(T, v); };
+    });
+  });
+}
+// The rows a view shows: filters, a raw WHERE, order and page size.
+function filtersDialog(){
+  if(T.kind!=='view'||!T.viewDef) return;
+  viewSources().then(function(src){
+    var v=T.viewDef; var ops=(src.filter_ops||['=','contains']);
+    var fields=(src.sources&&src.sources[v.source]&&src.sources[v.source].fields)||[];
+    function frow(f,i){ return '<div class="frow"><input type="text" list="fd-fields" value="'+esc(f.field||'')+'" placeholder="field or any" data-f="'+i+'"><select data-o="'+i+'">'+ops.map(function(o){ return '<option'+(o===(f.op||'=')?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+'</select><input type="text" value="'+esc(f.value==null?'':String(f.value))+'" placeholder="value" data-v="'+i+'"><span class="x" style="cursor:pointer;padding:6px 4px" data-x="'+i+'">✕</span></div>'; }
+    var inner='<datalist id="fd-fields"><option value="any"><option value="any_key">'+fields.map(function(f){ return '<option value="'+esc(f)+'">'; }).join('')+'</datalist>'
+      +'<div class="hint">Every filter must hold (AND). Field <b>any</b> searches every text column including the raw payloads; <b>any_key</b> searches key, source, action and route.</div>'
+      +'<div id="fd-rows">'+(v.filters||[]).map(frow).join('')+'</div><button class="gs-btn" id="fd-add">+ filter</button>'
+      +'<label>Raw WHERE (SQL, read-only, ANDed with the filters)</label><textarea id="fd-where">'+esc(v.where||'')+'</textarea>'
+      +'<div class="row"><div><label>Order</label><select id="fd-order"><option value="desc"'+(v.order!=='asc'?' selected':'')+'>newest first</option><option value="asc"'+(v.order==='asc'?' selected':'')+'>oldest first</option></select></div><div><label>Rows per page</label><input type="text" id="fd-limit" value="'+esc(String(v.limit||300))+'"></div></div>'
+      +'<div class="gs-fbtns"><button class="gs-btn" data-close>Cancel</button><button class="gs-btn pri" id="fd-go">Apply</button></div>';
+    dialog('Rows of this projection · source: '+esc(v.source), inner, function(hp, close){
+      var n=(v.filters||[]).length;
+      $('fd-add').onclick=function(){ $('fd-rows').insertAdjacentHTML('beforeend', frow({},n++)); wireX(); };
+      function wireX(){ hp.querySelectorAll('[data-x]').forEach(function(x){ x.onclick=function(){ x.parentNode.remove(); }; }); }
+      wireX();
+      $('fd-go').onclick=function(){
+        var rows=[]; hp.querySelectorAll('#fd-rows .frow').forEach(function(r){ var f=r.querySelector('[data-f]').value.trim(), o=r.querySelector('[data-o]').value, val=r.querySelector('[data-v]').value; if(f) rows.push({field:f,op:o,value:val}); });
+        v.filters=rows; v.where=$('fd-where').value.trim(); v.order=$('fd-order').value; v.limit=parseInt($('fd-limit').value,10)||300;
+        close(); saveViewDef(T, v);
+      };
+    });
+  });
+}
+// Pin an object field to the header band.
+function pinDialog(prefill){
+  var pre=prefill||{};
+  var inner='<div class="hint">The pinned row shows one field of one object and edits it in place. Saving writes to the object itself — a pinned directory content field IS that row&#39;s system prompt.</div>'
+    +'<label>What</label><select id="pd-kind"><option value="directory"'+(pre.kind!=='sheet'&&pre.kind!=='settings'?' selected':'')+'>a directory row field (an agent&#39;s prompt, a tool&#39;s contract…)</option><option value="sheet"'+(pre.kind==='sheet'?' selected':'')+'>a cell of a stored sheet</option><option value="settings"'+(pre.kind==='settings'?' selected':'')+'>a setting</option></select>'
+    +'<div id="pd-dir"><div class="row"><div><label>Directory key</label><input type="text" id="pd-key" list="pd-keys" value="'+esc(pre.key||'ROUTER')+'"><datalist id="pd-keys"></datalist></div>'
+    +'<div><label>Field</label><select id="pd-field">'+['content','target','type','auth','category','includes','input_schema','examples','runner','enabled','planner_visible','planner_rank','seq','sensitive','allowed_categories'].map(function(f){ return '<option'+(f===(pre.field||'content')?' selected':'')+'>'+f+'</option>'; }).join('')+'</select></div></div></div>'
+    +'<div id="pd-sheet" style="display:none"><div class="row"><div><label>Sheet id</label><input type="text" id="pd-sid" value="'+esc(pre.sheet_id||'')+'" placeholder="sh_89pbg3gd"></div><div><label>Cell</label><input type="text" id="pd-cell" value="'+esc(pre.cell||'AA7')+'"></div></div></div>'
+    +'<div id="pd-set" style="display:none"><label>Setting key</label><input type="text" id="pd-skey" value="'+esc(pre.skey||'')+'"></div>'
+    +'<label>Label</label><input type="text" id="pd-label" value="'+esc(pre.label||'')+'" placeholder="what to call this row">'
+    +'<div class="gs-fbtns"><button class="gs-btn" data-close>Cancel</button><button class="gs-btn pri" id="pd-go">Pin</button></div>';
+  dialog('Pin an object row to the header', inner, function(hp, close){
+    jfetch('/api/directory?type=agent').then(function(r){ var rows=(r.j&&r.j.rows)||[]; $('pd-keys').innerHTML=rows.map(function(x){ return '<option value="'+esc(x.key)+'">'; }).join(''); });
+    function sw(){ var k=$('pd-kind').value; $('pd-dir').style.display=k==='directory'?'block':'none'; $('pd-sheet').style.display=k==='sheet'?'block':'none'; $('pd-set').style.display=k==='settings'?'block':'none'; }
+    $('pd-kind').onchange=sw; sw();
+    $('pd-go').onclick=function(){
+      var k=$('pd-kind').value, ref='', lab=$('pd-label').value.trim();
+      if(k==='directory'){ var key=$('pd-key').value.trim(), f=$('pd-field').value; if(!key){ toast('Key required'); return; } ref='directory/'+encodeURIComponent(key)+'/'+f; lab=lab||(key+' · '+f); }
+      else if(k==='sheet'){ var sid=$('pd-sid').value.trim(), cell=$('pd-cell').value.trim().toUpperCase(); if(!sid||!cell){ toast('Sheet id and cell required'); return; } ref='sheet/'+sid+'/'+cell; lab=lab||(sid+'!'+cell); }
+      else { var sk=$('pd-skey').value.trim(); if(!sk){ toast('Setting key required'); return; } ref='settings/'+sk; lab=lab||sk; }
+      close(); addPin(ref, lab);
+    };
+  });
+}
+
 function finishLoad(st){
+  restoreFormats(st);
+  refreshPins(st);
   st.loading=false; st.loaded=true;
   rebuildView(st);
   if(st===T){ var ld=$('gs-loading'); if(ld) ld.style.display='none'; clampSel(); renderAll(); saveStatus('All changes saved'); }
@@ -591,6 +945,7 @@ function cellVal(st,dr,dc){ var row=st.vals[dr]; return row? (row[dc]==null?'':S
 // The ledger scrolls forever: near the bottom, page in rows strictly
 // older than the oldest loaded ts and append them. Filters and sorts stay client-side on top.
 function loadMoreLedger(){
+  if(T.kind==='view'){ loadMoreView(); return; }
   if(!T||T.kind!=='ledger'||T._noMore||T._loadingMore||!T.loaded||!T.vals.length) return;
   var tsIdx=0; // LED_FIELDS[0] === 'ts'
   var oldest=cellVal(T,T.nRows-1,tsIdx);
@@ -623,6 +978,7 @@ function restoreViewPrefs(st,tag){ try{ var p=JSON.parse(localStorage.getItem('g
 function commitCell(st, dr, dc, val, onDone){
   if(st.kind==='ledger'){ onDone(false,'The ledger is append-only — cells here are read-only.'); return; }
   if(st.kind==='turns'||st.kind==='forum'){ onDone(false,'This sheet is a read-only projection of the ledger.'); return; }
+  if(st.kind==='view'){ onDone(false,'This sheet is a projection of the '+((st.viewDef&&st.viewDef.source)||'ledger')+' — rows are read from the source of record, not stored here. To change what shows, change the columns or filters (right-click a column header). To edit an object, pin it above the grid.'); return; }
   if(st.kind==='directory'){
     var field=st.fields[dc];
     if(st.drafts[dr]){ setLocal(st,dr,dc,val); maybeCommitDraft(st,dr,onDone); return; }
@@ -880,7 +1236,7 @@ function saveFreeze(){
     jfetch('/api/sheets/'+encodeURIComponent(T.id),{method:'PATCH',body:{col_meta:meta}});
   }
 }
-function renderAll(){ renderColHeads(); renderRows(); renderSel(); renderTabs(); renderStats(); syncTitle(); renderKindTabs(); renderFreeze(); }
+function renderAll(){ renderColHeads(); renderRows(); renderSel(); renderTabs(); renderStats(); syncTitle(); renderKindTabs(); renderFreeze(); renderPins(); }
 function syncTitle(){
   var t=$('gs-title');
   t.textContent=T.title;
@@ -968,8 +1324,10 @@ function renderRows(){
       var dc=T.colOrder[vi], w=T.colW[dc]||DEFAULT_W;
       var val=cellVal(T,dr,dc);
       var ro = cellRo(T,dr,dc);
-      var isImg = isImgUrl(val);
-      var cls='gs-cell'+(ro?' ro':'')+(isNum(val)?' num':'')+(isImg?' img':'');
+      var fmt = formatOf(T,dc);
+      var fx = fmt ? fmtCell(val, fmt, w) : null;
+      var isImg = fx ? !!fx.img : isImgUrl(val);
+      var cls='gs-cell'+(ro?' ro':'')+((fx?false:isNum(val))?' num':'')+(isImg?' img':'')+(fx?fx.cls:'');
       if(FIND.q && val && val.toLowerCase().indexOf(FIND.q)>=0) cls+=' hl';
       // Google Sheets overflow: text longer than its column spills over the empty cells to
       // its right instead of clipping (clicks still land on the cell under the pointer —
@@ -989,15 +1347,15 @@ function renderRows(){
       if(colPinned||rowPinned) cls+=' fz';
       if(colPinned&&rowPinned) cls+=' fzboth';
       var cx = colPinned ? stLeft+x : x;
-      var inner = isImg
+      var inner = fx ? fx.html : (isImg
         ? '<img src="'+esc(val)+'" alt="" loading="lazy" title="'+esc(val)+'">'
-        : esc(val.length>500?val.slice(0,500)+'…':val);
+        : esc(val.length>500?val.slice(0,500)+'…':val));
       frag+='<div class="'+cls+'" data-v="'+v+'" data-vi="'+vi+'" style="left:'+cx+'px;top:'+y+'px;width:'+(isImg?w:spanW)+'px;height:'+ROW_H+'px">'+inner+'</div>';
       x+=w;
     }
   }
   // blank ghost row for adding data (user + directory)
-  if(T.kind!=='ledger'){
+  if(T.kind!=='ledger'&&T.kind!=='view'){
     var vy=T.view.length*ROW_H;
     rh+='<div class="gs-rowhead" data-add="1" style="top:'+vy+'px;height:'+ROW_H+'px" title="Add a row">+</div>';
   }
@@ -1333,6 +1691,7 @@ function moveColumn(fromVi,toVi){
 function roReason(dr,dc){
   if(T.kind==='ledger') return 'the ledger is append-only';
   if(T.kind==='turns'||T.kind==='forum') return 'this sheet is a read-only projection of the ledger';
+  if(T.kind==='view') return 'a projection of the '+((T.viewDef&&T.viewDef.source)||'ledger')+' — the row lives at its own address (id chip above); pin an object to edit it here';
   var m=T.meta[dr]||{};
   if(T.kind==='directory'){
     if(m.ro) return 'a '+(m.kind||'corpus')+' projection — the object lives at its own address (the id chip above links to it)';
@@ -1593,6 +1952,15 @@ function openCellCtx(x,y){
     items.push('-');
     items.push({label:'Open this row&#39;s raw object ↗',fn:function(){ var h=mh; if(TOKQ&&h.charAt(0)==='/') h+=(h.indexOf('?')>=0?'&':'?')+TOKQ; window.open(h,'_blank'); }});
   }
+  var mt=T.meta[T.view[T.activeR]]&&T.meta[T.view[T.activeR]].trace;
+  if(mt){ items.push({label:'New sheet: every payload of this turn ('+mt+')',fn:function(){ jfetch('/api/sheets',{method:'POST',body:{template:'turn',param:mt}}).then(function(res){ if(res.ok&&res.j.ok){ TABS.push({kind:'view',id:res.j.sheet.id,title:res.j.sheet.title}); switchTab(res.j.sheet.id); } }); }}); }
+  items.push('-');
+  if(T.kind==='directory'){
+    var dkey=T.meta[T.view[T.activeR]]&&T.meta[T.view[T.activeR]].key; var dfield=T.fields[T.colOrder[T.activeC]];
+    if(dkey&&DIR_EDITABLE[dfield]) items.push({label:'Pin this cell to the header ('+dkey+' · '+dfield+')',fn:function(){ addPin('directory/'+encodeURIComponent(dkey)+'/'+dfield, dkey+' · '+dfield); }});
+  }
+  if(T.kind==='user'){ var a1=colLetter(T.colOrder[T.activeC]+1)+(T.view[T.activeR]+1); items.push({label:'Pin this cell to the header ('+a1+')',fn:function(){ addPin('sheet/'+T.id+'/'+a1, T.title+'!'+a1); }}); }
+  items.push({label:'Pin an object row to the header…',fn:function(){ pinDialog(); }});
   if(T.kind==='user'){
     items.push('-');
     items.push({label:'Run model on this column…',fn:function(){ openRunPanel(); }});
@@ -1631,6 +1999,18 @@ function openColCtx(vi,x,y){
     {label:'Sort sheet Z → A',fn:function(){ T.sortBy={c:dc,dir:-1}; rebuildView(T); renderAll(); }},
     {label:'Filter…',fn:function(){ openFilterPanel(vi,x,y); }},
   ];
+  items.push('-');
+  items.push({label:'Format column: '+(formatOf(T,dc)||'text')+' …',fn:function(){ formatDialog(dc); }});
+  if(T.kind==='view'){
+    items.push('-');
+    items.push({label:'Add column from source (left)…',fn:function(){ columnDialog(dc,null); }});
+    items.push({label:'Add column from source (right)…',fn:function(){ columnDialog(dc+1,null); }});
+    items.push({label:'Edit this column (path / header / format)…',fn:function(){ columnDialog(null,dc); }});
+    items.push({label:'Move column left',fn:function(){ if(dc<=0) return; var v=T.viewDef; var c=v.columns.splice(dc,1)[0]; v.columns.splice(dc-1,0,c); saveViewDef(T,v); }});
+    items.push({label:'Move column right',fn:function(){ var v=T.viewDef; if(dc>=v.columns.length-1) return; var c=v.columns.splice(dc,1)[0]; v.columns.splice(dc+1,0,c); saveViewDef(T,v); }});
+    items.push('-');
+    items.push({label:'Rows: filters, WHERE, order…',fn:filtersDialog});
+  }
   if(T.kind==='user'){
     items.push('-');
     items.push({label:'Insert 1 column left',fn:function(){ userDim('insert_cols',dc+1,1); }});
@@ -1640,6 +2020,16 @@ function openColCtx(vi,x,y){
     items.push({label:'Run model into columns…',fn:openRunPanel});
   }
   menu(items,x,y);
+}
+function formatDialog(dc){
+  var cur=formatOf(T,dc)||'text';
+  var inner='<div class="hint">How every cell in column '+colLetter(dc+1)+(T.fields?' ('+esc(T.fields[dc])+')':'')+' is shown. The stored value never changes; View full value always shows it whole.</div>'
+    +'<label>Format</label>'+formatSelect('fm-fmt',cur)
+    +'<div class="hint">json = one line, pretty in the viewer · time = your clock · number = thousands separators · link = clickable · image = the picture</div>'
+    +'<div class="gs-fbtns"><button class="gs-btn" data-close>Cancel</button><button class="gs-btn pri" id="fm-go">Apply</button></div>';
+  dialog('Column format', inner, function(hp, close){
+    $('fm-go').onclick=function(){ var f=$('fm-fmt').value; if(f==='text') delete T.formats[dc]; else T.formats[dc]=f; close(); persistFormats(T); renderAll(); };
+  });
 }
 function userDim(op,at,n){
   if(hasActiveFilter(T)&&/rows/.test(op)){ toast('Clear filters and sort before inserting or deleting rows — the view order is not the stored order'); return; }
@@ -1677,7 +2067,8 @@ function showValueViewer(val, href){
   var link='';
   if(href){ var h=href; if(TOKQ&&h.charAt(0)==='/') h+=(h.indexOf('?')>=0?'&':'?')+TOKQ;
     link='<p style="font-size:12.5px;margin:6px 0"><a href="'+esc(h)+'" target="_blank" rel="noopener">Open this row&#39;s raw object ↗</a> <span style="color:#9aa0a6">'+esc(href.split('?')[0])+'</span></p>'; }
-  hp.innerHTML='<h2>Cell value</h2>'+link+'<pre style="max-height:60vh;white-space:pre-wrap">'+esc(val)+'</pre>'
+  var shown=prettyJson(val);
+  hp.innerHTML='<h2>Cell value</h2>'+link+'<pre style="max-height:60vh;white-space:pre-wrap">'+esc(shown)+'</pre>'
     +'<div class="gs-fbtns"><button class="gs-btn" id="gs-vv-copy">Copy</button><button class="gs-btn pri" id="gs-vv-x">Close</button></div>';
   $('gs-help').style.display='flex';
   $('gs-vv-copy').onclick=function(){ navigator.clipboard&&navigator.clipboard.writeText(val); toast('Copied'); };
@@ -1740,13 +2131,13 @@ $('gs-title').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.pre
 /* ═══════════════════ menubar + toolbar ═══════════════════ */
 var MENUS=[
   {label:'File',items:function(){ return [
-    {label:'New sheet',kbd:'',fn:createNewSheet},
+    {label:'New sheet… (blank, or a projection of the ledger / directory)',kbd:'',fn:createNewSheet},
     {label:'Duplicate tab to new sheet',fn:duplicateToSheet},
     {label:'Import CSV → new sheet',fn:importCsv},
     '-',
     {label:'Download as CSV',fn:downloadCsv},
     '-',
-    T.kind==='user'?{label:'Delete this sheet…',fn:deleteThisSheet}:{label:'Classic view',fn:function(){ var h=$('gs-classic').getAttribute('href'); if(h) location.href=h; }},
+    (T.kind==='user'||T.kind==='view')?{label:'Delete this sheet…',fn:deleteThisSheet}:{label:'Classic view',fn:function(){ var h=$('gs-classic').getAttribute('href'); if(h) location.href=h; }},
   ];}},
   {label:'Edit',items:function(){ return [
     {label:'Undo',kbd:'⌘Z',fn:doUndo},
@@ -1756,6 +2147,14 @@ var MENUS=[
     {label:'Clear values',kbd:'⌫',fn:clearSelection,disabled:T.ro===true},
     '-',
     {label:'Find',kbd:'⌘F',fn:openFind},
+  ];}},
+  {label:'Insert',items:function(){ return [
+    {label:'Pin an object row to the header…',fn:function(){ pinDialog(); }},
+    {label:'Pin the ROUTER system prompt (directory/ROUTER/content)',fn:function(){ addPin('directory/ROUTER/content','ROUTER · system prompt'); }},
+    '-',
+    {label:'Add column from source…',fn:function(){ columnDialog(null,null); },disabled:T.kind!=='view'},
+    {label:'Rows: filters, WHERE, order…',fn:filtersDialog,disabled:T.kind!=='view'},
+    {label:'Load older rows',fn:loadMoreView,disabled:T.kind!=='view'},
   ];}},
   {label:'View',items:function(){ return [
     {label:'Refresh data',fn:function(){ loadTab(T,true); }},
@@ -1857,7 +2256,15 @@ function renderToolbar(){
      +'<input id="lq-q" placeholder="text contains" value="'+esc(p.q||'')+'" style="width:130px">'
      +'<input id="lq-trace" placeholder="trace_id" value="'+esc(p.trace_id||'')+'" style="width:110px">'
      +'<select id="lq-limit">'+['100','250','500','1000'].map(function(n){ return '<option'+(p.limit===n?' selected':'')+'>'+n+'</option>'; }).join('')+'</select>'
+     +'<label class="tenant" style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="lq-noise"'+(p.hide_noise==='0'?' checked':'')+'> show traffic classifier rows</label>'
      +'<button class="gs-tb" id="lq-go">Query</button>';
+  }
+  if(T.kind==='view'){
+    h+='<span class="gs-tbsep"></span><span class="tenant">projection of '+esc((T.viewDef&&T.viewDef.source)||'…')+' · '+T.vals.length+' rows'+(T._noMore?'':' (more below)')+'</span>'
+     +'<button class="gs-tb" id="vw-rows" title="Which rows this sheet shows">⏷ Rows…</button>'
+     +'<button class="gs-tb" id="vw-col" title="Add a column from the source">+ Column</button>'
+     +'<button class="gs-tb" id="vw-more" title="Load older rows"'+(T._noMore?' disabled':'')+'>↓ Older</button>'
+     +'<button class="gs-tb" id="vw-pin" title="Pin an object row above the grid">📌 Pin</button>';
   }
   tb.innerHTML=h;
   $('tb-undo').onclick=doUndo; $('tb-redo').onclick=doRedo;
@@ -1869,9 +2276,16 @@ function renderToolbar(){
   $('tb-help').onclick=showHelp;
   if(T.kind==='ledger'){
     $('lq-go').onclick=function(){
-      T.ledParams={key:$('lq-key').value.trim(), q:$('lq-q').value.trim(), trace_id:$('lq-trace').value.trim(), limit:$('lq-limit').value};
+      T.ledParams={key:$('lq-key').value.trim(), q:$('lq-q').value.trim(), trace_id:$('lq-trace').value.trim(), limit:$('lq-limit').value, hide_noise:$('lq-noise').checked?'0':''};
       loadTab(T,true);
     };
+    $('lq-noise').onchange=function(){ $('lq-go').onclick(); };
+  }
+  if(T.kind==='view'){
+    $('vw-rows').onclick=filtersDialog;
+    $('vw-col').onclick=function(){ columnDialog(null,null); };
+    $('vw-more').onclick=loadMoreView;
+    $('vw-pin').onclick=function(){ pinDialog(); };
   }
 }
 
@@ -2134,13 +2548,13 @@ function renderTabs(){
   }).join('');
   el.innerHTML=TABS.map(function(t){
     return '<div class="gs-tab'+(T&&T.id===t.id?' on':'')+'" data-id="'+esc(t.id)+'">'+esc(t.title)
-      +((t.kind==='ledger'||t.kind==='turns'||t.kind==='forum')?'<span class="lock" title="read-only projection">🔒</span>':'')+'</div>';
+      +((t.kind==='ledger'||t.kind==='turns'||t.kind==='forum')?'<span class="lock" title="read-only projection">🔒</span>':(t.kind==='view'?'<span class="lock" title="projection of a source of record — rows are read live">⛁</span>':''))+'</div>';
   }).join('')+(navHtml?'<span class="gs-tabdiv"></span>'+navHtml:'');
   el.querySelectorAll('.gs-tab').forEach(function(tab){
     tab.onclick=function(){ switchTab(tab.getAttribute('data-id')); };
     tab.ondblclick=function(){
       var id=tab.getAttribute('data-id'); var t=TABS.filter(function(x){ return x.id===id; })[0];
-      if(t.kind!=='user') return;
+      if(t.kind!=='user'&&t.kind!=='view') return;
       var name=window.prompt('Rename sheet', t.title); if(name==null||!name.trim()) return;
       t.title=name.trim();
       jfetch('/api/sheets/'+encodeURIComponent(id),{method:'PATCH',body:{title:t.title}});
@@ -2151,7 +2565,7 @@ function renderTabs(){
       e.preventDefault();
       var id=tab.getAttribute('data-id'); var t=TABS.filter(function(x){ return x.id===id; })[0];
       var items=[{label:'Open',fn:function(){ switchTab(id); }}];
-      if(t.kind==='user'){
+      if(t.kind==='user'||t.kind==='view'){
         items.push({label:'Rename',fn:function(){ tab.ondblclick(); }});
         items.push({label:'Delete',fn:function(){ switchTab(id); deleteThisSheet(); }});
       } else {
@@ -2193,6 +2607,9 @@ function showHelp(){
     .map(function(r){ return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td></tr>'; }).join('')
   +'</table>'
   +'<h3>The three sheet kinds</h3><table>'
+  +'<tr><td>Projection sheets</td><td>File → New sheet → pick a source (Blooio, Blooio + a number, one turn, model calls, Klaviyo, BigCommerce, agents, custom WHERE). Rows are read from the ledger or directory on every open; nothing is copied. Right-click a column header: Add column from source (any column, or a JSON path like request_json.body.messages[0].content), Edit, Move, Format. Toolbar: Rows… (filters / WHERE / order), ↓ Older.</td></tr>'
+  +'<tr><td>Pinned object rows</td><td>Insert → Pin an object row (or right-click a directory cell → Pin). The band above the grid shows one field of one object — e.g. directory/ROUTER/content, the router&#39;s live system prompt — and edits in place. Blur or ⌘/Ctrl+Enter saves to the object itself; Escape reverts. Pins on stored/projection sheets are saved with the sheet; pins on Directory/Ledger tabs stay in this browser.</td></tr>'
+  +'<tr><td>Column formats</td><td>Right-click a header → Format column: text · json (one line here, pretty in View full value) · time (your clock) · number · link · image.</td></tr>'
   +'<tr><td>Directory</td><td>One row = one capability. Cells PATCH <code>/api/directory/&lt;key&gt;</code> on commit; a draft row POSTs when key + type are filled; deletes DELETE. <code>key</code> is the primary key (read-only on existing rows).</td></tr>'
   +'<tr><td>Ledger</td><td>Append-only event chain — read-only cells, full filter/sort, server query in the toolbar, right-click a row for the full raw event.</td></tr>'
   +'<tr><td>Your sheets</td><td>A1-addressable grids in D1. Insert/delete/move rows and columns, and run models over rows (▶ Run model).</td></tr>'
@@ -2265,7 +2682,7 @@ if(!TABS.some(function(t){ return t.id===want; })) TABS.push({kind:'user',id:wan
 jfetch('/api/sheets').then(function(res){
   if(noteAuthFailure(res)) return;
   var live=((res.j&&res.j.sheets)||[]);
-  live.forEach(function(s){ if(!TABS.some(function(t){ return t.id===s.id; })) TABS.push({kind:'user',id:s.id,title:s.title}); });
+  live.forEach(function(s){ var ex=TABS.filter(function(t){ return t.id===s.id; })[0]; if(!ex) TABS.push({kind:s.is_view?'view':'user',id:s.id,title:s.title}); else if(s.is_view) ex.kind='view'; });
   try{ localStorage.setItem('gs_user_tabs_v1', JSON.stringify(live.map(function(s){ return {id:s.id,title:s.title}; }))); }catch(e){}
   renderTabs();
 });

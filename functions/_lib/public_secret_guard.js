@@ -1,3 +1,4 @@
+import { buildNowIso } from './build_time.js';
 const SIGNED_CAPABILITY_RE = /\bsh\.\d{9,12}\.[A-Za-z0-9_:,-]{1,120}\.\d+\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{20,}\b/g;
 const SHORT_SHARE_RE = /((?:[?&]|\b)share\s*=\s*["']?|["']share["']\s*[:=]\s*["']?)([a-z0-9]{7})(?=\b|["'&])/gi;
 const PROVIDER_SECRET_RES = [
@@ -61,7 +62,7 @@ export async function publicSecretFindingAndRevoke(value, env, context = {}) {
       if (await revokeCapability(env, fingerprint)) revoked.push(fingerprint);
     }
     if (revoked.length) {
-      const ts = new Date().toISOString();
+      const ts = buildNowIso();
       await env.LEDGER.prepare(
         `INSERT INTO events
          (id,ts,build,source,key,route,actor,action,direction,status,request_preview,response_preview,request_size,response_size,request_json,response_json)

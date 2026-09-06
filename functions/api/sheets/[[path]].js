@@ -1,6 +1,7 @@
 
 import { isBuildAuthed } from '../../_lib/admin_session.js';
 import { logEvent } from '../../_lib/event_log.js';
+import { runView, resolvePins, writePin, describeSources, instantiateTemplate, normalizeView } from '../../_lib/sheet_views.js';
 import {
   listSheets, getSheet, createSheet, patchSheet, deleteSheet,
   getValues, setValues, appendValues, clearRange, batchOps, exportCsv,
@@ -98,6 +99,18 @@ function contract(base) {
       configs: 'GET/POST ' + base + '/api/sheets/<id>/runs · DELETE ' + base + '/api/sheets/<id>/runs/<rid>',
       engine: base + '/api/invoke — aliases (grok|kimi|glm|fast|gpt|opus5|sonnet5) or any gateway model id; every controllable field: GET /api/invoke?fields=1',
     },
+    view_lane: {
+      what: 'A view sheet is a projection of a source of record — the ledger, the directory or another listed table. '
+          + 'It stores a description (source, filters or a raw WHERE, columns with a JSON path and a format), not rows; '
+          + 'every open re-reads the source. Add a column, change a filter, pin an object row: all edits to the description, no code.',
+      sources: 'GET ' + base + '/api/sheets/view-sources',
+      create: 'POST ' + base + '/api/sheets {"template":"blooio_number","param":"[OWNER_PHONE]"}  · or {"title":"…","view":{source, filters, where, columns, order, limit}}',
+      run: 'GET ' + base + '/api/sheets/<id>/view?limit=300&before=<ts>',
+      column: '{"path":"request_json.body.messages[0].content","header":"system prompt sent","format":"text","w":360} — path = column or column.json.path',
+      filter: '{"field":"source","op":"=","value":"blooio"} · field "any" = every text column; ops = != contains starts in > < >= <= empty not_empty',
+      formats: ['text', 'json', 'time', 'number', 'link', 'image'],
+      pins: 'PATCH /api/sheets/<id> {"col_meta":{"pins":[{"label":"ROUTER system prompt","ref":"directory/ROUTER/content"}]}} — shown above the grid, edits write through: POST /api/sheets/<id>/pins {"ref","value"}',
+    },
     sibling_sheets: {
       directory: { grid: base + '/admin/directory', rest: 'GET/POST ' + base + '/api/directory · GET/PUT/PATCH/DELETE ' + base + '/api/directory/<key>' },
       ledger: { grid: base + '/admin/ledger', rest: 'GET ' + base + '/admin/ledger?data=1&limit=100&key=&trace_id=&q= (append-only; no write lane exists)' },
@@ -158,7 +171,13 @@ async function handle(context) {
     // keyless GET. Documenting it only in comments means it is documented for nobody.
     const doc = contract(base);
     if (await sheetsAuthed(request, env, url)) {
-      try { doc.sheets = await listSheets(env); } catch (e) { doc.sheets_error = String(e?.message || e); }
+      try {
+        doc.sheets = await listSheets(env);
+        // which tabs are projections — the grid opens those through /view
+        const vm = await env.DB.prepare("SELECT id FROM user_sheets WHERE col_meta LIKE '%\"view\":%'").all();
+        const views = new Set((vm.results || []).map((r) => r.id));
+        for (const sh of doc.sheets) sh.is_view = views.has(sh.id);
+      } catch (e) { doc.sheets_error = String(e?.message || e); }
     }
     return json(doc);
   }
@@ -174,11 +193,36 @@ async function handle(context) {
       action: method, direction: 'in', status, request: req, response: res,
     }).catch(() => {}));
 
-  // POST /api/sheets — create
+  // GET /api/sheets/view-sources — what a projection can read
+  if (seg.length === 1 && seg[0] === 'view-sources' && method === 'GET') return json(describeSources());
+
+  // Pins addressed without a sheet: the built-in Directory / Ledger tabs keep their pin lists in
+  // the browser, so resolving and writing them cannot depend on a stored sheet.
+  if (seg[0] === 'pins' && method === 'POST') {
+    if (seg[1] === 'resolve') return json({ ok: true, pins: await resolvePins(env, body.pins) });
+    const out = await writePin(env, body.ref, body.value, 'sheet-pin');
+    receipt('SHEET_PIN_WRITE', { ref: body.ref, chars: String(body.value == null ? '' : body.value).length }, out, out.error ? 400 : 200);
+    return json(out, out.error ? 400 : 200);
+  }
+
+  // POST /api/sheets — create (a stored grid, or a view sheet when template/view is given)
   if (!seg.length && method === 'POST') {
-    const sheet = await createSheet(env, body, actor);
-    receipt('SHEET_CREATE', { title: body.title }, { id: sheet.id }, 201);
-    return json({ ok: true, sheet }, 201);
+    let view = null, title = body.title;
+    if (body.template) {
+      const inst = instantiateTemplate(String(body.template), body.param);
+      if (!inst) return json({ error: 'no_such_template', list: base + '/api/sheets/view-sources' }, 400);
+      view = inst.view; title = title || inst.title;
+    } else if (body.view && typeof body.view === 'object') {
+      view = normalizeView(body.view);
+    }
+    let sheet = await createSheet(env, { title, rows: view ? 1 : body.rows, cols: view ? view.columns.length : body.cols }, actor);
+    if (view) {
+      const meta = { ...(sheet.col_meta || {}), view, kind: 'view', freeze: { rows: 1, cols: 0 } };
+      if (body.pins) meta.pins = body.pins;
+      sheet = await patchSheet(env, sheet.id, { col_meta: meta });
+    }
+    receipt('SHEET_CREATE', { title: sheet.title, view: view ? view.source : null, template: body.template || null }, { id: sheet.id }, 201);
+    return json({ ok: true, sheet, open: base + '/admin/sheets?tab=' + sheet.id }, 201);
   }
 
   const id = seg[0];
@@ -201,6 +245,24 @@ async function handle(context) {
       receipt('SHEET_DELETE', { id, title: sheet.title }, { deleted: true });
       return json({ ok: true, deleted: id });
     }
+  }
+
+  // GET /api/sheets/<id>/view — run the projection now
+  if (seg[1] === 'view' && method === 'GET') {
+    const meta = sheet.col_meta || {};
+    const pins = await resolvePins(env, meta.pins);
+    if (!meta.view) return json({ ok: true, sheet: sheet.id, view: null, pins, note: 'not a view sheet — PATCH col_meta.view to make it one' });
+    const out = await runView(env, meta.view, {
+      limit: url.searchParams.get('limit'), before: url.searchParams.get('before'), after: url.searchParams.get('after'),
+    });
+    return json({ ...out, sheet: sheet.id, title: sheet.title, pins, formats: meta.formats || {} }, out.error ? 400 : 200);
+  }
+
+  // POST /api/sheets/<id>/pins — write through one pinned object field
+  if (seg[1] === 'pins' && method === 'POST') {
+    const out = await writePin(env, body.ref, body.value, 'sheet-pin:' + sheet.id);
+    receipt('SHEET_PIN_WRITE', { ref: body.ref, chars: String(body.value == null ? '' : body.value).length }, out, out.error ? 400 : 200);
+    return json(out, out.error ? 400 : 200);
   }
 
   // /api/sheets/<id>/values/<range>

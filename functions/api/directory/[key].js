@@ -1,4 +1,5 @@
 import { isBuildAuthed } from '../../_lib/admin_session.js';
+import { buildNowIso } from '../../_lib/build_time.js';
 import { invalidateDirSnapshot } from '../../_lib/dir_snapshot.js';
 import { logEvent } from '../../_lib/event_log.js';
 import { DIR_SCHEMA, restFor } from '../../_lib/dir_schema.js';
@@ -39,7 +40,7 @@ async function recordContractVersion(env, key, actor) {
     const last = await env.DB.prepare('SELECT version, content_hash FROM directory_versions WHERE key=? ORDER BY version DESC LIMIT 1').bind(key).first();
     if (last && String(last.content_hash) === hash) return; // content unchanged — no version
     await env.DB.prepare('INSERT INTO directory_versions (key,version,content,content_hash,actor,ts) VALUES (?,?,?,?,?,?)')
-      .bind(key, Number(last?.version || 0) + 1, content, hash, actor || null, new Date().toISOString()).run();
+      .bind(key, Number(last?.version || 0) + 1, content, hash, actor || null, buildNowIso()).run();
   } catch {}
 }
 

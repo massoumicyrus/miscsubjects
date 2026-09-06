@@ -1,4 +1,5 @@
 import { scrubOwnerIdentity } from './public_secret_guard.js';
+import { buildNowIso } from './build_time.js';
 // Event-driven hooks on article lifecycle — self-firing recursion brick.
 
 const BASE = "https://miscsubjects.com";
@@ -9,7 +10,7 @@ const BASE = "https://miscsubjects.com";
  */
 export async function onArticleCreated(env, slug, meta = {}) {
   if (!env?.LEDGER || !slug) return { ok: false, reason: "no_ledger_or_slug" };
-  const ts = new Date().toISOString();
+  const ts = buildNowIso();
   const trace = "t_article_" + Math.random().toString(36).slice(2, 10);
   const payload = {
     kind: "article_created",
@@ -59,7 +60,7 @@ export async function onArticleCreated(env, slug, meta = {}) {
 export async function onCliTurnComplete(env, rec = {}) {
   if (!env?.LEDGER) return { ok: false, reason: "no_ledger" };
   const agent = String(rec.agent || "cli");
-  const ts = new Date().toISOString();
+  const ts = buildNowIso();
   const trace = "t_turn_" + Math.random().toString(36).slice(2, 10);
   const payload = {
     kind: "cli_turn_complete",

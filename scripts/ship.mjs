@@ -6,6 +6,17 @@ import { hostname } from 'node:os';
 import { createHash, randomUUID } from 'node:crypto';
 import { PROTOCOL_LAWS } from '../functions/_lib/protocol_laws.js';
 
+function pacificIso(d = new Date()) {
+  const f = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+  const p = {}; for (const { type, value } of f.formatToParts(d)) p[type] = value;
+  const asIfUTC = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+  const diffMin = Math.round((asIfUTC - d.getTime()) / 60000);
+  const sign = diffMin >= 0 ? '+' : '-'; const abs = Math.abs(diffMin);
+  const off = sign + String(Math.floor(abs / 60)).padStart(2, '0') + ':' + String(abs % 60).padStart(2, '0');
+  return p.year + '-' + p.month + '-' + p.day + 'T' + p.hour + ':' + p.minute + ':' + p.second + off;
+}
+
+
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const MIGRATIONS = join(ROOT, 'migrations');
 const KV_NAMESPACE_ID = '58b303e666a8431685624e0cfd2fd63f';
@@ -195,7 +206,7 @@ function readDeployLease() {
 function ledgerLease(action, lease, status = 200) {
   const q = (value) => "'" + String(value == null ? '' : value).replaceAll("'", "''") + "'";
   const id = 'e_deploy_' + randomUUID();
-  const ts = new Date().toISOString();
+  const ts = pacificIso();
   const nonceFingerprint = lease?.nonce ? createHash('sha256').update(String(lease.nonce)).digest('hex').slice(0, 16) : null;
   const response = JSON.stringify({ action, holder: lease?.owner || null, nonce_fingerprint: nonceFingerprint, expires_at: lease?.expires_at || null });
   const sql = `INSERT INTO events (id,ts,build,source,key,actor,action,direction,status,response_preview,response_size,response_json) VALUES (${q(id)},${q(ts)},'miscsubjects','deploy-lease','DEPLOY_LEASE',${q(lease?.owner)},${q(action)},'IN',${Number(status)},${q(response)},${response.length},${q(response)});`;
@@ -480,6 +491,10 @@ try {
     {
       const r = spawnSync(process.execPath, ['scripts/check-coding-law.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
       if (r.status !== 0) throw new Error('CODING_LAW FAILED — a changed file in the executable surface is not covered by a committed lease matching its current contents. Open a lease on what you read and close it with what you are leaving; do not edit the gate.');
+    }
+    {
+      const r = spawnSync(process.execPath, ['--test', 'functions/_lib/ledger_ts_law.test.mjs'], { cwd: ROOT, env, stdio: 'inherit' });
+      if (r.status !== 0) throw new Error('LEDGER_TS_LAW FAILED — a file writes ledger rows with a UTC timestamp. Stamp with buildNowIso() (functions) or pacificIso() (scripts); do not edit the test.');
     }
     {
       const r = spawnSync(process.execPath, ['scripts/check-one-object.mjs'], { cwd: ROOT, env, stdio: 'inherit' });

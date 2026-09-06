@@ -4,6 +4,16 @@ import { homedir } from "os";
 import { join } from "path";
 import { createHash } from "crypto";
 
+function pacificIso(d = new Date()) {
+  const f = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+  const p = {}; for (const { type, value } of f.formatToParts(d)) p[type] = value;
+  const asIfUTC = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+  const diffMin = Math.round((asIfUTC - d.getTime()) / 60000);
+  const sign = diffMin >= 0 ? '+' : '-'; const abs = Math.abs(diffMin);
+  const off = sign + String(Math.floor(abs / 60)).padStart(2, '0') + ':' + String(abs % 60).padStart(2, '0');
+  return p.year + '-' + p.month + '-' + p.day + 'T' + p.hour + ':' + p.minute + ':' + p.second + off;
+}
+
 const ROOT = "/Users/owner/miscsubjects-pages";
 const PHONE = process.env.OWNER_PHONE || "[OWNER_PHONE]";
 const BASE = process.env.MISC_BASE || "https://miscsubjects.com";
@@ -21,7 +31,7 @@ function uuid() {
 }
 async function logEvent(action, path, details, result) {
   const id = uuid();
-  const ts = new Date().toISOString();
+  const ts = pacificIso();
   const reqPreview = path || action;
   const resPreview = JSON.stringify(result).slice(0, 400);
   const reqJson = JSON.stringify({ path, details }).slice(0, 4000);

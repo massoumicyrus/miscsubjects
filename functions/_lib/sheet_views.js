@@ -1,0 +1,353 @@
+// sheet_views — a sheet as a projection of a source of record.
+//
+// The ledger (LEDGER.events) and the directory (DB.directory) are the sources of record. A view
+// sheet stores no rows of its own: it stores a description — which table, which rows, which
+// columns, how each column renders — and every open of the tab re-reads the source. Adding a
+// column, changing a filter or pinning an object row is an edit to that description, made from
+// the grid, and needs no code.
+//
+// Stored in user_sheets.col_meta as:
+//   view:    { source, filters:[{field, op, value}], where, columns:[{path, header, format, w}], limit }
+//   formats: { <field or data-col index>: 'text'|'json'|'time'|'number'|'link'|'image' }
+//   pins:    [{ label, ref }]   ref = 'directory/<KEY>/<field>' | 'sheet/<sheet_id>/<A1>'
+//
+// A column path is a source column, optionally followed by a JSON path into it:
+//   request_json.body.messages[0].content   ->  json_extract(request_json, '$.body.messages[0].content')
+// so the exact text a model was sent is one column away from the row that sent it.
+
+import { buildNowIso } from './build_time.js';
+import { logEvent } from './event_log.js';
+import { getSheet, getValues, setValues, parseCellRef, colToLetter } from './sheets_store.js';
+
+export const EVENT_FIELDS = [
+  'id', 'ts', 'build', 'source', 'key', 'route', 'actor', 'action', 'direction', 'status',
+  'trace_id', 'step', 'parent', 'request_preview', 'response_preview', 'request_size',
+  'response_size', 'request_json', 'response_json', 'r2_request_key', 'r2_response_key',
+  'legacy_table', 'legacy_id',
+];
+
+export const DIRECTORY_FIELDS = [
+  'key', 'type', 'target', 'auth', 'content', 'updated_at', 'category', 'allowed_categories', 'seq',
+  'enabled', 'planner_visible', 'planner_rank', 'input_schema', 'examples', 'sensitive', 'runner',
+  'includes', 'created_at', 'price_usd', 'meter_unit',
+];
+
+// Every table a view may read. `db` names the binding; `ts` the column that orders it.
+export const SOURCES = {
+  ledger:             { db: 'LEDGER', table: 'events',             ts: 'ts',         fields: EVENT_FIELDS, json: ['request_json', 'response_json'] },
+  directory:          { db: 'DB',     table: 'directory',          ts: 'updated_at', fields: DIRECTORY_FIELDS, json: [] },
+  directory_versions: { db: 'DB',     table: 'directory_versions', ts: 'ts',         fields: ['key', 'version', 'content', 'content_hash', 'actor', 'ts'], json: [] },
+  agent_turns:        { db: 'DB',     table: 'agent_turns',        ts: 'ts',         fields: ['id', 'ts', 'agent', 'source', 'session', 'trace_id', 'input_kind', 'user_input', 'assistant_text', 'n_tools', 'tools_json', 'commands_json', 'files_json', 'model_id', 'tokens_in', 'tokens_out', 'cost_usd', 'turn_key'], json: ['tools_json', 'commands_json', 'files_json'] },
+  turn_jobs:          { db: 'DB',     table: 'turn_jobs',          ts: 'created_at', fields: ['id', 'job_json', 'status', 'attempts', 'created_at', 'updated_at'], json: ['job_json'] },
+  pending_deliveries: { db: 'DB',     table: 'pending_deliveries', ts: 'created_at', fields: ['id', 'asset_id', 'kind', 'model', 'chat', 'channel', 'trace_id', 'status', 'created_at', 'updated_at'], json: [] },
+};
+
+export const FORMATS = ['text', 'json', 'time', 'number', 'link', 'image'];
+
+// The full-payload column set: what went down the wire, not a 500-character preview.
+const LEDGER_DEFAULT_COLUMNS = [
+  { path: 'ts', header: 'time', format: 'time', w: 150 },
+  { path: 'source', header: 'source', w: 100 },
+  { path: 'key', header: 'key', w: 150 },
+  { path: 'action', header: 'action', w: 120 },
+  { path: 'direction', header: 'dir', w: 56 },
+  { path: 'status', header: 'status', format: 'number', w: 60 },
+  { path: 'trace_id', header: 'trace', w: 120 },
+  { path: 'actor', header: 'actor', w: 120 },
+  { path: 'request_json', header: 'raw request (in)', format: 'json', w: 420 },
+  { path: 'response_json', header: 'raw response (out)', format: 'json', w: 420 },
+  { path: 'id', header: 'id', w: 260 },
+];
+
+// Ready-made descriptions. `param` names what the person supplies when they pick one.
+export const TEMPLATES = [
+  { id: 'blooio', title: 'Blooio', what: 'every raw payload in and out of the iMessage line',
+    view: { source: 'ledger', filters: [{ field: 'source', op: '=', value: 'blooio' }], columns: LEDGER_DEFAULT_COLUMNS } },
+  { id: 'blooio_number', title: 'Blooio + a number', param: { name: 'number', hint: '[OWNER_PHONE]' },
+    what: 'every Blooio payload that mentions one phone number',
+    view: { source: 'ledger', filters: [{ field: 'source', op: '=', value: 'blooio' }, { field: 'any', op: 'contains', value: '{{number}}' }], columns: LEDGER_DEFAULT_COLUMNS } },
+  { id: 'blooio_chat', title: 'Blooio + a chat / group id', param: { name: 'chat', hint: 'chat_019ec103-…' },
+    what: 'every Blooio payload for one chat or group',
+    view: { source: 'ledger', filters: [{ field: 'source', op: '=', value: 'blooio' }, { field: 'any', op: 'contains', value: '{{chat}}' }], columns: LEDGER_DEFAULT_COLUMNS } },
+  { id: 'turn', title: 'One turn (trace)', param: { name: 'trace', hint: 't_dwrgjg1g' },
+    what: 'every payload that belongs to one turn, in order',
+    view: { source: 'ledger', filters: [{ field: 'trace_id', op: '=', value: '{{trace}}' }], order: 'asc', columns: LEDGER_DEFAULT_COLUMNS } },
+  { id: 'model_calls', title: 'Model calls', what: 'every request sent to a model and what came back',
+    view: { source: 'ledger', filters: [{ field: 'action', op: 'in', value: 'chat_completion,agent,fn_call,invoke' }, { field: 'source', op: 'in', value: 'grok,aig,aigateway,invoke_json,openai,cloudflare' }],
+      columns: LEDGER_DEFAULT_COLUMNS.concat([
+        { path: 'request_json.body.model', header: 'model', w: 120 },
+        { path: 'request_json.body.messages[0].content', header: 'system prompt sent', w: 360 },
+        { path: 'request_json.body.temperature', header: 'temperature', format: 'number', w: 90 },
+        { path: 'response_json.choices[0].message.content', header: 'model text', w: 360 },
+        { path: 'response_json.usage.total_tokens', header: 'tokens', format: 'number', w: 80 },
+      ]) } },
+  { id: 'klaviyo', title: 'Klaviyo', what: 'every Klaviyo call and its response',
+    view: { source: 'ledger', filters: [{ field: 'any_key', op: 'contains', value: 'KLAVIYO' }], columns: LEDGER_DEFAULT_COLUMNS } },
+  { id: 'bigcommerce', title: 'BigCommerce', what: 'every BigCommerce call and its response',
+    view: { source: 'ledger', filters: [{ field: 'any_key', op: 'contains', value: 'BC' }, { field: 'source', op: 'in', value: 'dispatch,bigcommerce,bc,sync' }], columns: LEDGER_DEFAULT_COLUMNS } },
+  { id: 'source', title: 'Ledger — one source', param: { name: 'source', hint: 'grok, dispatch, email, stripe, meta, x, sheets…' },
+    what: 'every payload from one source',
+    view: { source: 'ledger', filters: [{ field: 'source', op: '=', value: '{{source}}' }], columns: LEDGER_DEFAULT_COLUMNS } },
+  { id: 'agents', title: 'Directory — agents', what: 'every agent row: its model and its whole system prompt',
+    view: { source: 'directory', filters: [{ field: 'type', op: '=', value: 'agent' }],
+      columns: [{ path: 'key', header: 'agent', w: 180 }, { path: 'target', header: 'model', w: 200 }, { path: 'content', header: 'system prompt', w: 600 }, { path: 'updated_at', header: 'updated', format: 'time', w: 150 }] } },
+  { id: 'custom', title: 'Custom (write the WHERE)', param: { name: 'where', hint: "source='blooio' AND request_json LIKE '%How are you%'" },
+    what: 'any table, any condition — SQL WHERE clause, read-only',
+    view: { source: 'ledger', where: '{{where}}', columns: LEDGER_DEFAULT_COLUMNS } },
+];
+
+function ident(s) { return /^[A-Za-z_][A-Za-z0-9_]*$/.test(String(s || '')); }
+
+// 'request_json.body.messages[0].content' -> { col:'request_json', json:'$.body.messages[0].content' }
+export function parsePath(path) {
+  const p = String(path || '').trim();
+  const m = p.match(/^([A-Za-z_][A-Za-z0-9_]*)(?:[.[](.*))?$/);
+  if (!m) return null;
+  const col = m[1];
+  if (!m[2]) return { col, json: null };
+  const rest = p.slice(col.length);
+  // SQLite JSON paths: '$' + '.a.b[0].c'. A leading '[' is already valid after '$'.
+  return { col, json: '$' + (rest.charAt(0) === '.' ? rest : rest) };
+}
+
+function colSql(src, path) {
+  const pp = parsePath(path);
+  if (!pp || !src.fields.includes(pp.col)) return null;
+  if (!pp.json) return pp.col;
+  if (!/^\$[A-Za-z0-9_.[\]$-]*$/.test(pp.json)) return null;
+  return "json_extract(" + pp.col + ", '" + pp.json.replace(/'/g, "''") + "')";
+}
+
+const OPS = { '=': '=', '!=': '!=', '>': '>', '<': '<', '>=': '>=', '<=': '<=' };
+
+// Filters become parameterized WHERE terms. Two virtual fields cover "anything about X":
+//   any      — every text column of the row (payloads included)
+//   any_key  — key, source, action and route
+function filterSql(src, f) {
+  const field = String(f.field || '').trim();
+  const op = String(f.op || '=').toLowerCase();
+  const value = f.value == null ? '' : String(f.value);
+  if (!value && op !== 'empty' && op !== 'not_empty') return null;
+  if (field === 'any') {
+    const cols = src.fields.filter((c) => !/size|step|parent|status|version|seq|rank|enabled|sensitive|price/.test(c));
+    return { clause: '(' + cols.map((c) => c + ' LIKE ?').join(' OR ') + ')', binds: cols.map(() => '%' + value + '%') };
+  }
+  if (field === 'any_key') {
+    const cols = ['key', 'source', 'action', 'route'].filter((c) => src.fields.includes(c));
+    return { clause: '(' + cols.map((c) => c + ' LIKE ?').join(' OR ') + ')', binds: cols.map(() => '%' + value + '%') };
+  }
+  const col = colSql(src, field);
+  if (!col) return null;
+  if (op === 'contains' || op === 'like') return { clause: col + ' LIKE ?', binds: ['%' + value.replace(/^%|%$/g, '') + '%'] };
+  if (op === 'starts') return { clause: col + ' LIKE ?', binds: [value + '%'] };
+  if (op === 'in') {
+    const vals = value.split(',').map((s) => s.trim()).filter(Boolean);
+    if (!vals.length) return null;
+    return { clause: col + ' IN (' + vals.map(() => '?').join(',') + ')', binds: vals };
+  }
+  if (op === 'empty') return { clause: '(' + col + " IS NULL OR " + col + " = '')", binds: [] };
+  if (op === 'not_empty') return { clause: '(' + col + " IS NOT NULL AND " + col + " != '')", binds: [] };
+  if (OPS[op]) return { clause: col + ' ' + OPS[op] + ' ?', binds: [/^-?\d+(\.\d+)?$/.test(value) ? Number(value) : value] };
+  return null;
+}
+
+function safeWhere(where) {
+  const w = String(where || '').trim();
+  if (!w) return '';
+  if (/;|--|\/\*/.test(w)) throw new Error('where: no statement breaks or comments');
+  if (/\b(attach|pragma|insert|update|delete|drop|alter|create|replace|vacuum)\b/i.test(w)) throw new Error('where: read-only conditions only');
+  return w;
+}
+
+export function normalizeView(view) {
+  const v = view && typeof view === 'object' ? view : {};
+  const source = SOURCES[v.source] ? v.source : 'ledger';
+  const src = SOURCES[source];
+  const columns = (Array.isArray(v.columns) && v.columns.length ? v.columns : LEDGER_DEFAULT_COLUMNS)
+    .map((c) => (typeof c === 'string' ? { path: c } : c))
+    .filter((c) => c && c.path && parsePath(c.path) && src.fields.includes(parsePath(c.path).col))
+    .map((c) => ({
+      path: String(c.path), header: String(c.header || c.path).slice(0, 80),
+      format: FORMATS.includes(c.format) ? c.format : (parsePath(c.path).json ? 'text' : (src.json.includes(c.path) ? 'json' : (c.path === src.ts ? 'time' : 'text'))),
+      w: Math.max(40, Math.min(1200, parseInt(c.w, 10) || 140)),
+    }));
+  return {
+    source,
+    filters: (Array.isArray(v.filters) ? v.filters : []).filter((f) => f && f.field).slice(0, 12),
+    where: String(v.where || '').slice(0, 2000),
+    columns: columns.length ? columns : LEDGER_DEFAULT_COLUMNS.slice(0, 4),
+    order: v.order === 'asc' ? 'asc' : 'desc',
+    limit: Math.max(1, Math.min(2000, parseInt(v.limit, 10) || 300)),
+  };
+}
+
+// Run one view. Returns the rows as strings (the grid's currency) plus per-row identity.
+export async function runView(env, viewIn, { limit, before, after } = {}) {
+  const view = normalizeView(viewIn);
+  const src = SOURCES[view.source];
+  const db = env[src.db];
+  if (!db) return { error: src.db + '_unbound', columns: view.columns, rows: [], meta: [] };
+  const where = [];
+  const binds = [];
+  for (const f of view.filters) {
+    const t = filterSql(src, f);
+    if (t) { where.push(t.clause); binds.push(...t.binds); }
+  }
+  const raw = safeWhere(view.where);
+  if (raw) where.push('(' + raw + ')');
+  if (before) { where.push(src.ts + ' < ?'); binds.push(String(before)); }
+  if (after) { where.push(src.ts + ' > ?'); binds.push(String(after)); }
+  const selects = view.columns.map((c, i) => colSql(src, c.path) + ' AS c' + i);
+  const idCol = src.fields.includes('id') ? 'id' : (src.fields.includes('key') ? 'key' : src.fields[0]);
+  selects.push(idCol + ' AS __id', src.ts + ' AS __ts');
+  if (src.fields.includes('trace_id')) selects.push('trace_id AS __trace');
+  const lim = Math.max(1, Math.min(2000, parseInt(limit, 10) || view.limit));
+  const sql = 'SELECT ' + selects.join(', ') + ' FROM ' + src.table
+    + (where.length ? ' WHERE ' + where.join(' AND ') : '')
+    + ' ORDER BY ' + src.ts + ' ' + (view.order === 'asc' ? 'ASC' : 'DESC') + ' LIMIT ?';
+  binds.push(lim);
+  let res;
+  try { res = await db.prepare(sql).bind(...binds).all(); }
+  catch (e) { return { error: 'query_failed', detail: String(e && e.message || e), sql, columns: view.columns, rows: [], meta: [] }; }
+  const rows = [];
+  const meta = [];
+  for (const r of (res.results || [])) {
+    rows.push(view.columns.map((c, i) => {
+      const v = r['c' + i];
+      if (v == null) return '';
+      return typeof v === 'string' ? v : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+    }));
+    meta.push({
+      id: r.__id == null ? '' : String(r.__id), ts: r.__ts || '', trace_id: r.__trace || '',
+      href: view.source === 'ledger' ? '/admin/ledger/' + encodeURIComponent(String(r.__id)) + '?data=1'
+        : view.source === 'directory' ? '/admin/directory/' + encodeURIComponent(String(r.__id)) : '',
+    });
+  }
+  return { ok: true, view, columns: view.columns, rows, meta, sql, count: rows.length, source: view.source };
+}
+
+// ── pins: object rows that stick to the top of a sheet ────────────────────────────────────
+//
+// A pin is a reference to one field of one object in a source of record. It is shown in a
+// band above the grid, edits in place, and the edit lands on the object itself — so a system
+// prompt pinned above a turn log is the directory row, not a copy of it.
+
+export function parseRef(ref) {
+  const s = String(ref || '').trim();
+  let m = s.match(/^directory\/([^/]+)\/([A-Za-z_][A-Za-z0-9_]*)$/);
+  if (m) return { kind: 'directory', key: decodeURIComponent(m[1]), field: m[2] };
+  m = s.match(/^sheet\/([A-Za-z0-9_-]+)\/([A-Za-z]{1,3}\d{1,6})$/);
+  if (m) return { kind: 'sheet', sheet_id: m[1], cell: m[2].toUpperCase() };
+  m = s.match(/^settings\/([A-Za-z0-9_.:-]+)$/);
+  if (m) return { kind: 'settings', key: m[1] };
+  return null;
+}
+
+const DIR_PIN_FIELDS = new Set(['content', 'target', 'type', 'auth', 'category', 'includes', 'input_schema', 'examples', 'runner', 'enabled', 'planner_visible', 'planner_rank', 'seq', 'sensitive', 'allowed_categories']);
+
+export async function resolvePins(env, pins) {
+  const out = [];
+  for (const p of (Array.isArray(pins) ? pins : []).slice(0, 24)) {
+    const ref = parseRef(p && p.ref);
+    const item = { label: String((p && p.label) || (p && p.ref) || ''), ref: String((p && p.ref) || ''), value: '', href: '', editable: false, error: '' };
+    if (!ref) { item.error = 'unreadable ref — use directory/<KEY>/<field>, sheet/<id>/<A1> or settings/<key>'; out.push(item); continue; }
+    try {
+      if (ref.kind === 'directory') {
+        if (!DIR_PIN_FIELDS.has(ref.field) && ref.field !== 'key' && ref.field !== 'updated_at') { item.error = 'field not on a directory row'; out.push(item); continue; }
+        const row = await env.DB.prepare('SELECT ' + ref.field + ', updated_at FROM directory WHERE key = ?').bind(ref.key).first();
+        if (!row) { item.error = 'no directory row ' + ref.key; out.push(item); continue; }
+        item.value = row[ref.field] == null ? '' : String(row[ref.field]);
+        item.updated_at = row.updated_at || '';
+        item.href = '/admin/directory/' + encodeURIComponent(ref.key);
+        item.editable = DIR_PIN_FIELDS.has(ref.field);
+      } else if (ref.kind === 'sheet') {
+        const sheet = await getSheet(env, ref.sheet_id);
+        if (!sheet) { item.error = 'no sheet ' + ref.sheet_id; out.push(item); continue; }
+        const got = await getValues(env, sheet, ref.cell);
+        item.value = got && got.values && got.values[0] ? String(got.values[0][0] == null ? '' : got.values[0][0]) : '';
+        item.href = '/admin/sheets?tab=' + encodeURIComponent(ref.sheet_id) + '&cell=' + ref.cell;
+        item.editable = true;
+        item.sheet_title = sheet.title;
+      } else if (ref.kind === 'settings') {
+        const row = await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(ref.key).first();
+        item.value = row && row.value != null ? String(row.value) : '';
+        item.editable = true;
+        item.href = '/admin/vault';
+      }
+    } catch (e) { item.error = String(e && e.message || e); }
+    out.push(item);
+  }
+  return out;
+}
+
+async function sha256Hex(s) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Write through to the object a pin points at. Directory writes version the content the same
+// way /api/directory does, and every write is a ledger row.
+export async function writePin(env, refStr, value, actor) {
+  const ref = parseRef(refStr);
+  if (!ref) return { error: 'bad_ref' };
+  const val = value == null ? '' : String(value);
+  const ts = buildNowIso();
+  if (ref.kind === 'directory') {
+    if (!DIR_PIN_FIELDS.has(ref.field)) return { error: 'field_not_writable', field: ref.field };
+    const cur = await env.DB.prepare('SELECT key FROM directory WHERE key = ?').bind(ref.key).first();
+    if (!cur) return { error: 'no_such_row', key: ref.key };
+    await env.DB.prepare('UPDATE directory SET ' + ref.field + ' = ?, updated_at = ? WHERE key = ?').bind(val, ts, ref.key).run();
+    if (ref.field === 'content') {
+      try {
+        const hash = await sha256Hex(val);
+        const last = await env.DB.prepare('SELECT version, content_hash FROM directory_versions WHERE key=? ORDER BY version DESC LIMIT 1').bind(ref.key).first();
+        if (!last || String(last.content_hash) !== hash) {
+          await env.DB.prepare('INSERT INTO directory_versions (key,version,content,content_hash,actor,ts) VALUES (?,?,?,?,?,?)')
+            .bind(ref.key, Number(last?.version || 0) + 1, val, hash, actor || 'sheet-pin', ts).run();
+        }
+      } catch {}
+    }
+    if (env.KV) { try { await env.KV.delete('directory:snapshot'); } catch {} }
+    await logEvent(env, { source: 'directory', key: 'DIR_PATCH', route: '/api/sheets/pins', actor: actor || 'sheet-pin', action: 'PATCH', direction: 'in', status: 200,
+      request: { key: ref.key, field: ref.field, chars: val.length, via: 'sheet pin' }, response: { ok: true, updated_at: ts } });
+    return { ok: true, ref: refStr, updated_at: ts };
+  }
+  if (ref.kind === 'sheet') {
+    const sheet = await getSheet(env, ref.sheet_id);
+    if (!sheet) return { error: 'no_such_sheet' };
+    const out = await setValues(env, sheet, ref.cell, [[val]], actor || 'sheet-pin');
+    return out && out.error ? out : { ok: true, ref: refStr, updated_at: ts };
+  }
+  if (ref.kind === 'settings') {
+    await env.DB.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind(ref.key, val).run();
+    if (env.KV) { try { await env.KV.put(ref.key, val); } catch {} }
+    await logEvent(env, { source: 'settings', key: 'SET_PUT', route: '/api/sheets/pins', actor: actor || 'sheet-pin', action: 'PUT', direction: 'in', status: 200,
+      request: { key: ref.key, chars: val.length, via: 'sheet pin' }, response: { ok: true } });
+    return { ok: true, ref: refStr, updated_at: ts };
+  }
+  return { error: 'bad_ref' };
+}
+
+// What a person can pick from when adding a column or a filter: the source's own columns, and
+// for the ledger the JSON paths that actually occur in the rows on screen are discovered by
+// the grid — the server only has to say which columns hold JSON.
+export function describeSources() {
+  const out = {};
+  for (const [name, s] of Object.entries(SOURCES)) out[name] = { table: s.table, order_by: s.ts, fields: s.fields, json_fields: s.json };
+  return { sources: out, formats: FORMATS, templates: TEMPLATES.map((t) => ({ id: t.id, title: t.title, what: t.what, param: t.param || null })),
+    virtual_filter_fields: { any: 'every text column of the row, payloads included', any_key: 'key, source, action, route' },
+    filter_ops: ['=', '!=', 'contains', 'starts', 'in', '>', '<', '>=', '<=', 'empty', 'not_empty'],
+    path_syntax: 'column, or column.json.path — request_json.body.messages[0].content' };
+}
+
+// Fill a template's {{param}} with what the person typed.
+export function instantiateTemplate(id, paramValue) {
+  const t = TEMPLATES.find((x) => x.id === id);
+  if (!t) return null;
+  const str = JSON.stringify(t.view);
+  const val = paramValue == null ? '' : String(paramValue);
+  const filled = t.param ? str.replace(new RegExp('\\{\\{' + t.param.name + '\\}\\}', 'g'), () => JSON.stringify(val).slice(1, -1)) : str;
+  return { title: t.title + (t.param && val ? ' · ' + val : ''), view: normalizeView(JSON.parse(filled)) };
+}
+
+export { colToLetter, parseCellRef };

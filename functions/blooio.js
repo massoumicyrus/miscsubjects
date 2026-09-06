@@ -1,4 +1,5 @@
 import { dispatch } from './api/dispatch.js';
+import { buildNowIso } from './_lib/build_time.js';
 import { logEvent } from './_lib/event_log.js';
 import { runDirectExec, sniffPrefix } from './_lib/direct_exec.js';
 import { prepareBlooioReflex, startAsyncReflexDiagnosis, formatReflexReplyForBlooio, isOwnerPhone, triggerIssueReflex, wordBriefForCodingAgents } from './_lib/issue_reflex.js';
@@ -659,12 +660,12 @@ async function finishPhase(env, m, sender) {
   const imgs = reply ? await collectTraceMedia(env, trace) : [];
   if (reply) await deliverReply(env, chat, channel, sender, reply, imgs, sendOpts);
   else await deliverReply(env, chat, channel, sender, fallbackMsg(res, trace), [], sendOpts);
-  await deliverAudioTags(env, chat, channel, sender, res);
-  // Mark done right after the send: a retry re-runs the WHOLE dispatch (model calls,
-  // generations, credits) — keep the double-run window as small as possible.
   if (m.jobId) {
-    try { await env.DB.prepare("UPDATE turn_jobs SET status='done', updated_at=? WHERE id=?").bind(new Date().toISOString(), m.jobId).run(); } catch {}
+    try { await env.DB.prepare("UPDATE turn_jobs SET status='done', updated_at=? WHERE id=?").bind(buildNowIso(), m.jobId).run(); } catch {}
   }
+  await logEvent(env, { source: channel, direction: 'OUT', action: 'turn_done', route: '/api/turn', trace_id: trace || null, actor: agentKey || 'ROUTER',
+    request: JSON.stringify({ jobId: m.jobId || 0, agentKey: agentKey || 'ROUTER', chat, replied: !!reply, chars: (reply || '').length }), response: (reply || '').slice(0, 500) });
+  await deliverAudioTags(env, chat, channel, sender, res);
   const history = await convoLoad(env, chat);
   history.push({ u: turn || '(image)', a: (reply || '(silent)') + (imgs.length ? ` [delivered ${imgs.length}]` : '') });
   await convoSave(env, chat, history);

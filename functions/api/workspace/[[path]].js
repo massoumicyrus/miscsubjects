@@ -1,4 +1,5 @@
 import { isBuildAuthed, verifyTokenAnyTransport } from '../../_lib/admin_session.js';
+import { buildNowIso } from '../../_lib/build_time.js';
 import { loadWorkspace, roleGrant, evaluateMutation, appendMutation, resolvePoolToken, MUTATION_OPS } from '../../_lib/workspace_object.js';
 
 function json(body, status = 200) {
@@ -20,7 +21,7 @@ async function ledgerWorkspaceEvent(env, { slug, action, actor, request, respons
     await env.LEDGER.prepare(
       'INSERT INTO events (id, ts, source, key, action, direction, status, request_json, response_json, trace_id) VALUES (?,?,?,?,?,?,?,?,?,?)'
     ).bind(
-      id, new Date().toISOString(), 'workspace', 'WS_MUTATE', action, 'in', status || 200,
+      id, buildNowIso(), 'workspace', 'WS_MUTATE', action, 'in', status || 200,
       scrubOwnerIdentity(JSON.stringify({ workspace: slug, ...request })), scrubOwnerIdentity(JSON.stringify(response)), 'ws_' + slug,
     ).run();
     return id;

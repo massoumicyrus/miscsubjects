@@ -2,6 +2,7 @@
 import { dispatch, PRICING_PPM } from '../api/dispatch.js';
 import { readTurn, META_TAGS } from './tag_calls.js';
 import { buildNowIso } from './build_time.js';
+import { logEvent } from './event_log.js';
 import { createSheet, getSheet, listSheets, setValues, colToLetter } from './sheets_store.js';
 
 export const SHEET_TITLE = 'MiscOS';
@@ -57,7 +58,7 @@ export const SETTINGS_SCHEMA = [
   { key: 'temperature',        type: 'float', min: 0,   max: 2,      def: '0.7' },
   { key: 'top_p',              type: 'float', min: 0,   max: 1,      def: '',    optional: true },
   { key: 'reasoning_effort',   type: 'enum',  def: '',  optional: true, note: 'none | low | high — model dependent' },
-  { key: 'system_prompt',      type: 'text',  def: '',  note: 'the whole prompt; edit in place' },
+  { key: 'system_prompt',      type: 'text',  def: '',  note: 'the whole prompt; edit in place — mirrored with directory <agent_key>.content' },
   { key: 'memory_turns',       type: 'int',   min: 0,   max: 20,     def: '6',  note: '0 = no history; each turn adds tokens' },
   { key: 'tool_loop_cap',      type: 'int',   min: 0,   max: 20,     def: '8',  note: '0 turns tools off entirely' },
   { key: 'web_search',         type: 'bool',  def: '0' },
@@ -68,7 +69,7 @@ export const SETTINGS_SCHEMA = [
   { key: 'max_inbound_chars',  type: 'int',   min: 200, max: 100000, def: '4000' },
   { key: 'tool_result_cap',    type: 'int',   min: 500, max: 200000, def: '16000' },
   { key: 'daily_cost_cap_usd', type: 'float', min: 0,   max: 1000,   def: '5.00', note: 'the turn halts before the first model call at or over this' },
-  { key: 'agent_key',          type: 'text',  def: '',  optional: true, note: 'empty = this sheet drives the turn; a directory agent key routes it there instead' },
+  { key: 'agent_key',          type: 'text',  def: 'ROUTER', note: 'the directory row this agent IS. system_prompt and model here and content/target on that row are the same text: edit either, the other follows' },
   { key: 'agent_name',         type: 'text',  def: 'MiscOS', note: 'what this agent calls itself' },
   { key: 'identity_at',        type: 'text',  def: '',  optional: true,
     note: 'where this agent\'s identity actually lives — filled in for you, and it follows agent_key' },
@@ -238,10 +239,14 @@ export async function readSettings(env, sheet, { fresh = false } = {}) {
   const seen = new Set();
   for (const [k, v] of SETTINGS) out[k] = v;
   const q = await env.DB.prepare(
-    'SELECT r, c, value FROM sheet_cells WHERE sheet_id=? AND c IN (?,?) AND r>=2 ORDER BY r',
+    'SELECT r, c, value, updated_at FROM sheet_cells WHERE sheet_id=? AND c IN (?,?) AND r>=2 ORDER BY r',
   ).bind(sheet.id, SET_COL_KEY, SET_COL_VAL).all();
   const byRow = {};
-  for (const cell of (q.results || [])) (byRow[cell.r] = byRow[cell.r] || {})[cell.c] = cell.value;
+  for (const cell of (q.results || [])) {
+    const row = (byRow[cell.r] = byRow[cell.r] || {});
+    row[cell.c] = cell.value;
+    if (cell.c === SET_COL_VAL) row.__updated_at = cell.updated_at || '';
+  }
   for (const r of Object.keys(byRow)) {
     const k = String(byRow[r][SET_COL_KEY] || '').trim();
     if (k) { out[k] = String(byRow[r][SET_COL_VAL] == null ? '' : byRow[r][SET_COL_VAL]); seen.add(k); }
@@ -262,11 +267,10 @@ export async function readSettings(env, sheet, { fresh = false } = {}) {
       }
     } catch { /* a panel repair must never take the turn down with it */ }
   }
-  // identity_at is a pointer, not a preference: it says where the words that make this agent
-  // itself are actually stored, so there is one place to look and it is never guesswork.
-  const identityShould = String(out.agent_key || '').trim()
-    ? 'directory row ' + String(out.agent_key).trim() + ' — its content field is the system prompt (/admin/directory)'
-    : SHEET_TITLE + '!' + colToLetter(SET_COL_VAL) + (SETTINGS_SCHEMA.findIndex((x) => x.key === 'system_prompt') + 2);
+  try { await mirrorIdentity(env, sheet, out, byRow); } catch { /* a mirror hiccup must not take the turn down */ }
+  const identityShould = 'directory row ' + (String(out.agent_key || '').trim() || 'ROUTER') + ' (content = system prompt, target = model) ⇄ '
+    + SHEET_TITLE + '!' + colToLetter(SET_COL_VAL) + (SETTINGS_SCHEMA.findIndex((x) => x.key === 'system_prompt') + 2)
+    + ' — the same text; edit either';
   if (String(out.identity_at || '') !== identityShould) {
     out.identity_at = identityShould;
     try {
@@ -280,6 +284,56 @@ export async function readSettings(env, sheet, { fresh = false } = {}) {
     try { await env.KV.put(CFG_CACHE_KEY, JSON.stringify(out), { expirationTtl: CFG_TTL_SECONDS }); } catch {}
   }
   return out;
+}
+
+// Keep directory.<agent_key>.{content,target} and the sheet's {system_prompt,model} cells equal.
+// `byRow` is the settings panel as read, so the cells' own updated_at can be compared with the
+// directory row's updated_at; the newer side is the truth and is copied across.
+async function mirrorIdentity(env, sheet, out, byRow) {
+  const key = String(out.agent_key || '').trim() || 'ROUTER';
+  out.agent_key = key;
+  const dir = await env.DB.prepare('SELECT content, target, updated_at FROM directory WHERE key = ? AND type = ?').bind(key, 'agent').first();
+  if (!dir) return;
+  const pairs = [['system_prompt', 'content'], ['model', 'target']];
+  const cellAt = {};
+  for (const r of Object.keys(byRow)) {
+    const k = String(byRow[r][SET_COL_KEY] || '').trim();
+    if (k) cellAt[k] = byRow[r].__updated_at || '';
+  }
+  const dirAt = Date.parse(String(dir.updated_at || '')) || 0;
+  const dirPatch = {};
+  for (const [cellKey, field] of pairs) {
+    const cellVal = String(out[cellKey] == null ? '' : out[cellKey]);
+    const dirVal = String(dir[field] == null ? '' : dir[field]);
+    if (cellVal === dirVal) continue;
+    const cellTs = Date.parse(String(cellAt[cellKey] || '')) || 0;
+    // A directory row holding a placeholder or nothing never wins over a real prompt.
+    const dirIsPlaceholder = field === 'content' && (dirVal.trim().length < 40 || /^new full content here$/i.test(dirVal.trim()));
+    if (cellVal && (cellTs >= dirAt || dirIsPlaceholder || !dirVal)) dirPatch[field] = cellVal;
+    else if (dirVal) {
+      out[cellKey] = dirVal;
+      await setValues(env, sheet, settingCell(cellKey), [[dirVal]], 'agent-sheet:mirror');
+    }
+  }
+  const fields = Object.keys(dirPatch);
+  if (!fields.length) return;
+  const ts = buildNowIso();
+  await env.DB.prepare('UPDATE directory SET ' + fields.map((f) => f + ' = ?').join(', ') + ', updated_at = ? WHERE key = ?')
+    .bind(...fields.map((f) => dirPatch[f]), ts, key).run();
+  if (dirPatch.content) {
+    try {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(dirPatch.content));
+      const hash = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+      const last = await env.DB.prepare('SELECT version, content_hash FROM directory_versions WHERE key=? ORDER BY version DESC LIMIT 1').bind(key).first();
+      if (!last || String(last.content_hash) !== hash) {
+        await env.DB.prepare('INSERT INTO directory_versions (key,version,content,content_hash,actor,ts) VALUES (?,?,?,?,?,?)')
+          .bind(key, Number(last?.version || 0) + 1, dirPatch.content, hash, 'agent-sheet:mirror', ts).run();
+      }
+    } catch {}
+  }
+  if (env.KV) { try { await env.KV.delete('directory:snapshot'); } catch {} }
+  await logEvent(env, { source: 'directory', key: 'DIR_PATCH', route: '/api/agent-sheet', actor: 'agent-sheet:mirror', action: 'PATCH', direction: 'in', status: 200,
+    request: { key, fields, from: SHEET_TITLE + ' settings cells' }, response: { ok: true, updated_at: ts } });
 }
 
 // Drop both caches. Called whenever settings are applied through the gate, so an intentional
@@ -374,7 +428,19 @@ function replyTextOf(payload) {
 // Send the envelope exactly as the cell wrote it, with the key swapped in at the wire.
 // Exported because the LLM sheet's =LLMCALL() cells send the same envelopes down the same wire:
 // one sender, one key-injection rule, one shape of answer, whoever asked.
-export async function callModel(env, envelope, vars) {
+// Which ledger source a provider host reports under — the same labels the router's own calls use,
+// so one filter (source = grok) shows every call to that provider whichever path made it.
+function sourceForHost(host) {
+  if (/x\.ai$/.test(host)) return 'grok';
+  if (/gateway\.ai\.cloudflare\.com$/.test(host)) return 'aig';
+  if (/openai\.com$/.test(host)) return 'openai';
+  if (/anthropic\.com$/.test(host)) return 'anthropic';
+  if (/moonshot\.ai$/.test(host)) return 'kimi';
+  if (/googleapis\.com$/.test(host)) return 'gemini';
+  return host || 'model';
+}
+
+export async function callModel(env, envelope, vars, meta = {}) {
   const spec = deepSub(envelope, vars);
   const url = String(spec.url || '');
   let host = '';
@@ -401,11 +467,22 @@ export async function callModel(env, envelope, vars) {
       signal: AbortSignal.timeout(45000),
     });
   } catch (e) {
-    return { ok: false, status: 0, error: String(e && e.message || e), ms: Date.now() - started, request: spec };
+    const err = String(e && e.message || e);
+    await logEvent(env, {
+      source: sourceForHost(host), key: meta.key || 'ROUTER', action: 'chat_completion', direction: 'OUT', status: 599,
+      trace_id: meta.trace || null, step: meta.step, actor: meta.actor || 'agent-sheet', route: url,
+      request: spec, response: { error: err },
+    });
+    return { ok: false, status: 0, error: err, ms: Date.now() - started, request: spec };
   }
   const text = await res.text();
   let payload = null;
   try { payload = JSON.parse(text); } catch { payload = { raw: text.slice(0, 8000) }; }
+  await logEvent(env, {
+    source: sourceForHost(host), key: meta.key || 'ROUTER', action: 'chat_completion', direction: 'OUT', status: res.status,
+    trace_id: meta.trace || null, step: meta.step, actor: meta.actor || 'agent-sheet', route: url,
+    request: spec, response: payload,
+  });
   return {
     ok: res.ok,
     status: res.status,
@@ -520,6 +597,9 @@ export async function stampInbound(env, { text, from, channel, raw } = {}) {
 export async function runInbound(env, { text, from, channel, raw, row, resumeInput, loopsSoFar, onReply } = {}) {
   const started = Date.now();
   const ts = buildNowIso();
+  // One trace for the whole turn: the Blooio webhook row, this model call, each tool it runs and
+  // the send all join on it. Provided by the router (raw.trace); minted here for a direct /say.
+  const trace = String((raw && (raw.trace || raw.trace_id)) || '') || ('t_' + Math.random().toString(36).slice(2, 10));
   const sheet = await ensureSheet(env);
   // Settings and the day's spend are independent of each other, so they are read together
   // instead of one after the other.
@@ -688,7 +768,7 @@ export async function runInbound(env, { text, from, channel, raw, row, resumeInp
   let silent = false;
   for (let i = 0; i < thisPass; i++) {
     loops = already + i + 1;
-    const call = await callModel(env, envelope, { SYSTEM: system, INPUT: input });
+    const call = await callModel(env, envelope, { SYSTEM: system, INPUT: input }, { trace, step: loops, actor: from || 'direct', key: String(cfg.agent_key || 'ROUTER').trim() || 'ROUTER' });
     lastCall = call;
     if (!call.ok) {
       await writeCells(env, sheet, rowNum, [
@@ -739,7 +819,7 @@ export async function runInbound(env, { text, from, channel, raw, row, resumeInp
     const results = [];
     for (const t of tools) {
       let out;
-      try { out = await dispatch(env, t.key, t.body, { actor: 'agent-sheet:' + (from || 'direct') }); }
+      try { out = await dispatch(env, t.key, t.body, { actor: 'agent-sheet:' + (from || 'direct'), trace }); }
       catch (e) { out = { result: 'ERR:' + String(e && e.message || e) }; }
       const resStr = String((out && out.result != null ? out.result : out) || '');
       toolKeys.push(t.key);
@@ -792,7 +872,7 @@ export async function runInbound(env, { text, from, channel, raw, row, resumeInp
   if (sending) await sending;
 
   return {
-    ok: true, row: rowNum, sheet_id: sheet.id, reply, reasoning, decision,
+    ok: true, row: rowNum, sheet_id: sheet.id, trace, reply, reasoning, decision,
     unfinished, next_input: unfinished ? input : null, loops_done: loops,
     silent, replied_early: !!sending,
     tools: [...new Set(toolKeys)], tool_calls: payloads.length, loops,

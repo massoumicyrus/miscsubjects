@@ -448,7 +448,7 @@ export async function onRequestGet(context) {
     }
     if (key) { where.push('key = ?'); binds.push(key); }
     if (traceId) { where.push('trace_id = ?'); binds.push(traceId); }
-    if (hideNoise && service !== 'cron') { where.push('key != ?'); binds.push('TODO_RUN'); }
+    if (hideNoise && service !== 'cron') { where.push("key NOT IN ('TODO_RUN','JCI_TRAFFIC','JCI_CLASSIFY')"); }
     if (q) {
       where.push('(key LIKE ? OR action LIKE ? OR request_preview LIKE ? OR response_preview LIKE ?)');
       const like = '%' + q + '%';
@@ -734,7 +734,7 @@ export async function onRequestGet(context) {
     if (traceId) { where.push('trace_id = ?'); binds.push(traceId); }
     if (statusS) { where.push('status = ?');   binds.push(parseInt(statusS, 10)); }
     if (before)  { where.push('ts < ?');       binds.push(before); }
-    if (hideNoise && service !== 'cron') { where.push('key != ?'); binds.push('TODO_RUN'); }
+    if (hideNoise && service !== 'cron') { where.push("key NOT IN ('TODO_RUN','JCI_TRAFFIC','JCI_CLASSIFY')"); }
     if (q)       {
       where.push('(key LIKE ? OR action LIKE ? OR request_preview LIKE ? OR response_preview LIKE ?)');
       const like = '%' + q + '%';
@@ -785,7 +785,7 @@ export async function onRequestGet(context) {
       } else if (initialSource) { where.push('source = ?'); binds.push(initialSource); }
       if (initialKey) { where.push('key = ?'); binds.push(initialKey); }
       if (initialTrace) { where.push('trace_id = ?'); binds.push(initialTrace); }
-      if (initialHideNoise && initialService !== 'cron') { where.push('key != ?'); binds.push('TODO_RUN'); }
+      if (initialHideNoise && initialService !== 'cron') { where.push("key NOT IN ('TODO_RUN','JCI_TRAFFIC','JCI_CLASSIFY')"); }
       const sql =
         'SELECT id, ts, build, source, key, route, action, direction, status, trace_id, step, parent, ' +
         'request_preview, response_preview, request_size, response_size, r2_request_key, r2_response_key ' +
