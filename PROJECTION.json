@@ -2,11 +2,11 @@
  "_what": "This repository is a generated projection of a private operating repository. Every file here was produced by scripts/publish-mirror.mjs from the source commit below, with identity substituted and gates run against the output. See docs/PUBLISHING.md.",
  "source": {
   "repository": "the private operating repository",
-  "commit": "f9bdc4b77738a3d397e94d289d2f35a0e7864b45"
+  "commit": "f9bd26b2b6f1d385037d2c4882fd6353c5de2c6c"
  },
- "generated_at": "2026-09-06T12:52:02.000Z",
+ "generated_at": "2026-09-06T12:54:06.246Z",
  "files": 1213,
- "bytes": 9891244,
+ "bytes": 9891276,
  "tracked_in_source": 6181,
  "dropped": {
   "not in allow-list": 4486,
@@ -4243,5 +4243,5 @@
   }
  ],
  "all_gates_ok": true,
- "content_hash": "5449a2526ea0dcdc74f7c31c9678defc9a1e46ec95e8ff59d294c1319c6066ae"
+ "content_hash": "0a9da3db97a5a6a03274a6b7ff28bd9dfa3006185214d1792d2aaefcb76b10fa"
 }
