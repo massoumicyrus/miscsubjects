@@ -233,7 +233,7 @@ async function handle(context) {
   const actor = authority.level === 'token' ? 'sheet-token:' + (authority.token && authority.token.fingerprint || 'cap') : 'admin';
   const receipt = (key, req, res, status = 200) =>
     context.waitUntil(logEvent(env, {
-      source: 'sheets', key, route: url.pathname, actor: 'sheets-api',
+      source: 'sheets', key, route: url.pathname, actor: authority.level === 'owner' ? 'owner' : actor,
       action: method, direction: 'in', status, request: req, response: res,
     }).catch(() => {}));
 
