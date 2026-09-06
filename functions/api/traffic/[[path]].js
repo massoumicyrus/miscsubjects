@@ -10,8 +10,9 @@
 import { terminalKeyOk } from '../../_lib/admin_session.js';
 import {
   writeConfig, activateRuleset, profileOp, profileView, linkIdentifiers, getDecision,
-  metrics, runRetention, recordAck, tenantOf, ledger, loadSnapshot,
+  metrics, runRetention, recordAck, tenantOf, ledger, loadSnapshot, appendEvent,
 } from '../../_lib/traffic/store.js';
+import { buildNowIso } from '../../_lib/build_time.js';
 import { explain, replay } from '../../_lib/traffic/engine.js';
 import { verifyTurnstile, turnstileCookieValue } from '../../_lib/traffic/turnstile.js';
 import { codeStatus, recordTap, handleInbound } from '../../_lib/traffic/funnel.js';
@@ -55,7 +56,20 @@ async function route(context) {
     if (!v.ok) return json({ ok: false, error: 'turnstile_failed', error_codes: v.error_codes }, 200);
     const ck = await turnstileCookieValue(secret, { deviceId, verifiedAtMs: Date.now(), hostname: url.hostname });
     const tenant = tenantOf(env.TRAFFIC_TENANT || 't_root');
-    await ledger(env, { key: 'TRAFFIC_TURNSTILE', action: 'pass', route: '/api/traffic/turnstile/verify', trace_id: b.decision_id || null, request: { hostname: v.hostname }, response: { ok: true } });
+    // Capture the verification into the visitor's tracked data — the human-check result becomes a
+    // first-party event and stamps the device, so it shows up on the unified profile and next
+    // decision (we keep the verdict/challenge_ts, never the single-use token itself).
+    const now = buildNowIso();
+    let profileId = null;
+    if (deviceId) {
+      try {
+        const dev = await env.DB.prepare('SELECT profile_id FROM traffic_devices WHERE tenant_id=? AND id=?').bind(tenant, deviceId).first();
+        profileId = dev?.profile_id || null;
+        await env.DB.prepare("UPDATE traffic_devices SET last_verification=?, verification_method='turnstile' WHERE tenant_id=? AND id=?").bind(now, tenant, deviceId).run();
+      } catch { /* device row optional */ }
+    }
+    try { await appendEvent(env, { tenant, kind: 'turnstile_pass', event_type: 'TURNSTILE_PASS', profile_id: profileId, device_id: deviceId, decision_id: b.decision_id || null, source: 'turnstile', payload: { hostname: v.hostname, challenge_ts: v.challenge_ts, action: v.action, cdata: v.cdata } }); } catch { /* event optional */ }
+    await ledger(env, { key: 'TRAFFIC_TURNSTILE', action: 'pass', route: '/api/traffic/turnstile/verify', trace_id: b.decision_id || null, request: { hostname: v.hostname, challenge_ts: v.challenge_ts }, response: { ok: true, device_id: deviceId, profile_id: profileId } });
     let redirect = typeof b.return_to === 'string' && b.return_to.startsWith('/') ? b.return_to : '/';
     return json({ ok: true, redirect }, 200, { 'set-cookie': cookie('ms_tsv', ck, Number(env.TURNSTILE_MAX_AGE_S || 86400)) });
   }

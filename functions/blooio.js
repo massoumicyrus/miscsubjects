@@ -1,6 +1,7 @@
 import { dispatch } from './api/dispatch.js';
 import { buildNowIso } from './_lib/build_time.js';
 import { logEvent } from './_lib/event_log.js';
+import { maybeFunnelCode } from './_lib/traffic/inbound_hook.js';
 import { runDirectExec, sniffPrefix } from './_lib/direct_exec.js';
 import { prepareBlooioReflex, startAsyncReflexDiagnosis, formatReflexReplyForBlooio, isOwnerPhone, triggerIssueReflex, wordBriefForCodingAgents } from './_lib/issue_reflex.js';
 import { shouldAutoEscalateReaction } from './_lib/reaction_intake.js';
@@ -293,6 +294,9 @@ export const onRequestPost = (context) => processWebhook(context, 'blooio');
 // more. So the webhook just re-posts the job to /api/turn, which is a FRESH invocation
 // with its own full window. processTurn below does the actual work there.
 export async function routeInbound(env, bg, m) {
+  // SMS squeeze funnel: a live funnel code ("JOIN ABC123") is the second half of the funnel, not an
+  // agent turn. Hand it to the funnel so the visitor's page advances; non-codes fall through.
+  try { if (await maybeFunnelCode(env, m, m.channel || 'blooio', bg)) return; } catch { /* never block routing */ }
   bg(fetch('https://miscsubjects.com/api/turn', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-loop-auth': env.BLOOIO_API_KEY || '' },
