@@ -7,7 +7,9 @@
   session file and demotes anything left `running` to `ready`, because a session nothing is
   holding is not running.
   Install:  launchctl bootstrap gui/$UID bridge/launchd/com.owner.webmodel-worker.plist
-  Restart:  bridge/webmodel/restart.sh   (kills by port, never by command-line match)
+  Restart:  launchctl kickstart -k gui/$UID/com.owner.webmodel-worker
+  run.sh execs node in the foreground so launchd supervises the real process; restart.sh is the
+  hand-run equivalent (kills by port, never by command-line match).
 -->
 <plist version="1.0">
 <dict>
@@ -16,15 +18,12 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/owner/miscsubjects-pages/bridge/webmodel/restart.sh</string>
+    <string>/Users/owner/miscsubjects-pages/bridge/webmodel/run.sh</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
-  <dict>
-    <key>SuccessfulExit</key>
-    <false/>
-  </dict>
+  <true/>
   <key>ThrottleInterval</key>
   <integer>10</integer>
   <key>StandardOutPath</key>

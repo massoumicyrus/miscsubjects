@@ -2,12 +2,12 @@
  "_what": "This repository is a generated projection of a private operating repository. Every file here was produced by scripts/publish-mirror.mjs from the source commit below, with identity substituted and gates run against the output. See docs/PUBLISHING.md.",
  "source": {
   "repository": "the private operating repository",
-  "commit": "520b91302118c9e30a71f657ab2a3739ceac341c"
+  "commit": "40f195d390f1980db120606ea8d8a6ba15f9e090"
  },
- "generated_at": "2026-09-06T17:55:05.609Z",
- "files": 1242,
- "bytes": 10072237,
- "tracked_in_source": 6244,
+ "generated_at": "2026-09-06T17:59:17.763Z",
+ "files": 1243,
+ "bytes": 10073279,
+ "tracked_in_source": 6245,
  "dropped": {
   "not in allow-list": 4517,
   "editor backups of prompts and modules; the live version is the file beside them": 15,
@@ -17,7 +17,7 @@
   "URW DIN is a commercially licensed font; the site serves it but the repository cannot redistribute it": 1,
   "this file lists the identity strings it removes": 1
  },
- "substituted_files": 560,
+ "substituted_files": 561,
  "substitutions": [
   {
    "path": ".claude/hooks/cc-turn-log.js",
@@ -288,7 +288,7 @@
   {
    "path": "bridge/launchd/com.owner.webmodel-worker.plist",
    "substitutions": {
-    "identifier": 3,
+    "identifier": 4,
     "owner_identity": 1
    }
   },
@@ -326,6 +326,12 @@
    "path": "bridge/webmodel/core.mjs",
    "substitutions": {
     "diary_comments": 1
+   }
+  },
+  {
+   "path": "bridge/webmodel/run.sh",
+   "substitutions": {
+    "identifier": 1
    }
   },
   {
@@ -4292,13 +4298,13 @@
  "gates": [
   {
    "name": "forbidden_strings",
-   "examined": 1241,
+   "examined": 1242,
    "hits": 0,
    "ok": true
   },
   {
    "name": "paths",
-   "examined": 1241,
+   "examined": 1242,
    "hits": 0,
    "ok": true
   },
@@ -4311,7 +4317,7 @@
   },
   {
    "name": "size",
-   "examined": 1241,
+   "examined": 1242,
    "hits": 0,
    "ok": true
   },
@@ -4324,18 +4330,18 @@
   },
   {
    "name": "diary",
-   "examined": 1239,
+   "examined": 1240,
    "hits": 0,
    "ok": true
   },
   {
    "name": "gitleaks",
-   "examined": 1242,
+   "examined": 1243,
    "hits": 0,
    "ok": true,
    "note": "8.30.1"
   }
  ],
  "all_gates_ok": true,
- "content_hash": "690689ad4d77955be055d6a88fb364e07e4a4528cea4edf1ce36d1a7fc0335b8"
+ "content_hash": "3ec20ac40053aa07ac516838110f0f068fa81743e5cfcbc2c8ca83ca081deb22"
 }
