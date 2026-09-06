@@ -97,7 +97,7 @@ VALUES
  'cloud','edge','cloud','2026-09-06','2026-09-06',1,1,11),
 
 ('CLOUD_WORKSPACE_NEW','http','POST https://miscsubjects.com/api/cloud/workspace/new','headers:{"x-terminal-key":"$TERMINAL_KEY"}',
- '# WHAT: Create a durable cloud workspace; optionally clone a git repo into it.
+ '# WHAT: Create a durable cloud workspace, optionally cloning a git repo into it.
 # ARGS: $1 = name, $2 = git repo URL (optional), $3 = fixed workspace id (optional).
 # EX: CLOUD_WORKSPACE_NEW review|https://github.com/octocat/Hello-World.git
 # RETURNS: {ok, workspace_id, sandbox_id, cwd, clone:{ok,exit,dir,path}}
@@ -137,7 +137,8 @@ VALUES
  '# WHAT: Start a LONG job that outlives the request that started it (Cloudflare Workflow + Sandbox). Returns a job id immediately.
 # WHEN_TO_USE: builds, test suites, long clones, anything past a normal HTTP lifetime.
 # ARGS: $1 = workspace_id (blank = default), $2+ = the shell script to run.
-# EX: CLOUD_JOB_START |for i in $(seq 1 30); do echo tick $i; sleep 2; done
+# EX: CLOUD_JOB_START |npm ci && npm test
+# EX: CLOUD_JOB_START ws_a1b2|seq 1 60 | xargs -I{} sh -c "echo tick {} && sleep 2"
 {"workspace":"$1","script":"$2+"}','cloud','edge','cloud','2026-09-06','2026-09-06',1,1,19),
 
 ('CLOUD_JOB_STATUS','http','GET https://miscsubjects.com/api/cloud/job/status?id=$1','headers:{"x-terminal-key":"$TERMINAL_KEY"}',
