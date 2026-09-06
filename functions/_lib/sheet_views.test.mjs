@@ -153,3 +153,15 @@ test('a column that SHOWS a call is not a column that MAKES one', async () => {
   const made = await runView(env, { source: 'ledger', columns: [{ path: 'ts' }, { path: '=DISPATCH("NOW","")' }] }, {});
   assert.match(made.rows[0][1], /^#NO_EFFECTS/);
 });
+
+test('articles are a view source: the article list as a grid, rows addressed by slug', async () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(`CREATE TABLE articles (slug TEXT PRIMARY KEY, title TEXT, subject TEXT, published INTEGER, created_at TEXT, updated_at TEXT, body TEXT, meta TEXT);
+    INSERT INTO articles VALUES ('bpc-157','BPC-157','peptide',1,'2026-09-01','2026-09-05','# BPC-157 ...','{"hero":{"url":"https://x/y.png"}}');
+    INSERT INTO articles VALUES ('draft','Draft','x',0,'2026-09-02','2026-09-06','...','{}');`);
+  const view = normalizeView({ source: 'articles', columns: ['slug', 'title', 'published', 'meta.hero.url'], filters: [{ field: 'published', op: '=', value: '1' }] });
+  const out = await runView({ DB: d1(db) }, view);
+  assert.equal(out.ok, true, out.detail);
+  assert.deepEqual(out.rows, [['bpc-157', 'BPC-157', '1', 'https://x/y.png']]);
+  assert.equal(out.meta[0].href, '/admin/articles/bpc-157');
+});

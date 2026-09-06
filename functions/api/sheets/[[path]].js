@@ -1,6 +1,7 @@
 
 import { isBuildAuthed, tokenAllowsSheet, verifyTokenAnyTransport } from '../../_lib/admin_session.js';
 import { sheetSelfMarkdown, sheetSelfPayload } from '../../_lib/sheet_self.js';
+import { writeViewCell } from '../../_lib/sheet_writes.js';
 import { logEvent } from '../../_lib/event_log.js';
 import { runView, resolvePins, writePin, describeSources, instantiateTemplate, normalizeView } from '../../_lib/sheet_views.js';
 import {
@@ -375,6 +376,16 @@ async function handle(context) {
     const updated = await patchSheet(env, id, { col_meta: meta });
     receipt('SHEET_' + seg[1].toUpperCase().replace(/[^A-Z]/g, '_'), body, { id });
     return json({ ok: true, sheet: updated, open: base + '/admin/sheets?tab=' + id, view: updated.col_meta && updated.col_meta.view || null, pins: updated.col_meta && updated.col_meta.pins || [] });
+  }
+
+  // POST /api/sheets/<id>/write {id, field, value} — a view cell writes through to the object it
+  // came from, by that object's own write path (directory PATCH; article PATCH by hash).
+  if (seg[1] === 'write' && method === 'POST') {
+    const meta = sheet.col_meta || {};
+    if (!meta.view) return json({ error: 'not_a_view_sheet' }, 400);
+    const out = await writeViewCell(env, { source: meta.view.source, id: body.id, field: body.field, value: body.value, actor: actor, origin: base });
+    receipt('SHEET_VIEW_WRITE', { source: meta.view.source, id: body.id, field: body.field, chars: String(body.value == null ? '' : body.value).length }, out, out.error ? 400 : 200);
+    return json(out, out.error ? 400 : 200);
   }
 
   // POST /api/sheets/<id>/pins — write through one pinned object field

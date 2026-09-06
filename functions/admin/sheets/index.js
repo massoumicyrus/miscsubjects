@@ -410,7 +410,8 @@ function sessionOf(r){
 // writable table, the row resolved to a real object, and the column is a plain stored field the
 // REST lane will PATCH — not a JSON path, not an expression, not a computed field. The ledger is
 // append-only and stays read-only everywhere.
-var VIEW_WRITABLE_SOURCES={directory:1};
+var VIEW_WRITABLE_SOURCES={directory:1,articles:1};
+var VIEW_EDITABLE={directory:null,articles:{title:1,subject:1,published:1,body:1,meta:1}}; // null = DIR_EDITABLE
 function viewCellWritable(st,dr,dc){
   var v=st.viewDef; if(!v||!VIEW_WRITABLE_SOURCES[v.source]) return false;
   var m=st.meta[dr]; if(!m||!m.id) return false;
@@ -418,7 +419,7 @@ function viewCellWritable(st,dr,dc){
   var path=String(col.path||'');
   if(path.charAt(0)==='=') return false;          // an expression is computed, not stored
   if(/[.[]/.test(path)) return false;             // a JSON path reads inside a payload
-  return !!DIR_EDITABLE[path];
+  var ed=VIEW_EDITABLE[v.source]; return ed ? !!ed[path] : !!DIR_EDITABLE[path];
 }
 
 // One read-only rule for every grid: whole-sheet (ledger/turns/forum), per-row (corpus
@@ -1039,10 +1040,11 @@ function commitCell(st, dr, dc, val, onDone){
   if(st.kind==='turns'||st.kind==='forum'){ onDone(false,'This sheet is a read-only projection of the ledger.'); return; }
   if(st.kind==='view'){
     if(viewCellWritable(st,dr,dc)){
-      var vkey=st.meta[dr].id, vfield=String(st.viewDef.columns[dc].path), vbody={};
-      vbody[vfield]=val;
+      var vkey=st.meta[dr].id, vfield=String(st.viewDef.columns[dc].path);
       saveStatus('Saving…');
-      jfetch('/api/directory/'+encodeURIComponent(vkey),{method:'PATCH',body:vbody}).then(function(res){
+      // One write lane for every view: the server routes it to the object's own write path
+      // (directory PATCH, article PATCH by hash) and receipts it.
+      jfetch('/api/sheets/'+encodeURIComponent(st.id)+'/write',{method:'POST',body:{id:vkey,field:vfield,value:val}}).then(function(res){
         if(res.ok&&res.j.ok){ setLocal(st,dr,dc,val); saveStatus('Saved to '+vkey); onDone(true); }
         else { saveStatus('Save failed',true); onDone(false,(res.j&&(res.j.how_to_fix||res.j.error))||('HTTP '+res.status)); }
       });

@@ -247,6 +247,25 @@ for (const row of db.prepare('SELECT * FROM directory WHERE descriptor_json IS N
   check(manual.includes('SHEET_NEW') && manual.includes('SHEET_PIN'), 'manual: does not name the sheet verbs');
 }
 
+// 12. Articles as a view source with write-through by hash; $PREV.path reads inside a flow step.
+{
+  db.exec("CREATE TABLE IF NOT EXISTS articles (slug TEXT PRIMARY KEY, title TEXT, subject TEXT, published INTEGER, created_at TEXT, updated_at TEXT, body TEXT, meta TEXT); INSERT INTO articles VALUES ('gate-a','Gate A','x',1,'2026-09-01','2026-09-06','body','{}');");
+  const av = await runView(env, normalizeView({ source: 'articles', columns: ['slug', 'title', 'published'] }));
+  check(av.ok && av.rows.length === 1 && av.rows[0][1] === 'Gate A' && av.meta[0].href === '/admin/articles/gate-a', 'articles: not a view source with its own row address: ' + JSON.stringify(av.rows) + (av.detail || ''));
+  const { writeViewCell, fieldWritable } = await import(join(ROOT, 'functions/_lib/sheet_writes.js'));
+  const calls = [];
+  const fetchImpl = async (url, init = {}) => { calls.push({ url, method: init.method || 'GET', body: init.body ? JSON.parse(init.body) : null }); return init.method ? { ok: true, status: 200, json: async () => ({ ok: true }) } : { ok: true, status: 200, json: async () => ({ body_hash: 'h1' }) }; };
+  const w = await writeViewCell({ TERMINAL_KEY: 'k' }, { source: 'articles', id: 'gate-a', field: 'body', value: 'new', fetchImpl, origin: ORIGIN });
+  check(w.ok === true && calls[1].method === 'PATCH' && calls[1].body.expected_hash === 'h1', 'articles write-through: body edit did not carry the hash it read: ' + JSON.stringify(calls));
+  check(fieldWritable('ledger', 'response_json') === false && fieldWritable('articles', 'slug') === false, 'write lane: ledger or a primary key is writable');
+  const dw = await writeViewCell(env, { source: 'directory', id: 'ADD', field: 'category', value: 'gate' });
+  check(dw.ok === true && db.prepare("SELECT category FROM directory WHERE key='ADD'").get().category === 'gate', 'directory write-through via the view lane did not land: ' + JSON.stringify(dw));
+  const { getPath } = await import(join(ROOT, 'functions/_lib/json_path.js'));
+  check(getPath('{"body":{"messages":[{"content":"sys"},{"content":"hi"}]}}', '.body.messages[1].content') === 'hi' && getPath('{}', '.nope') === '', '$PREV.path: JSON path reader is wrong');
+  const dispatchSrc = readFileSync(join(ROOT, 'functions/api/dispatch.js'), 'utf8');
+  check(dispatchSrc.includes("key.startsWith('PREV') && key.length > 4") && dispatchSrc.includes('getPath(prev, key.slice(4))'), 'flows: $PREV.path is not substituted in dispatch');
+}
+
 if (failures.length) {
   console.error(JSON.stringify({ ok: false, law: 'ENVIRONMENT_CONTRACT_LAW', examined, failed: failures.length, failures }, null, 2));
   process.exit(1);

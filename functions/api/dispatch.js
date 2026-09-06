@@ -5,6 +5,7 @@ import { makeConscienceFnMap } from "../_lib/conscience_law.js";
 import { makeConstitutionFnMap } from "../_lib/decision_constitution.js";
 import { publicSecretFindingAndRevoke, publicSecret404 } from '../_lib/public_secret_guard.js';
 import { logEvent, readEventFull } from '../_lib/event_log.js';
+import { getPath } from '../_lib/json_path.js';
 import { buildNowIso, stripClientTime } from '../_lib/build_time.js';
 import { cliActorForKey, logAgentTurnFromDispatch } from '../_lib/agent_turn_log.js';
 import { spawnCliAgent } from '../_lib/cli_agent_spawn.js';
@@ -135,8 +136,12 @@ function subVars(template, args, prev, bindings, env, mode) {
   // first). That only mattered when a raw value literally contained "$N", and
   // not re-interpreting substituted content is the safe behavior.
   return String(template).replace(
-    /(\$\$?)(\d+\+|\d+|PREV|[A-Za-z_][A-Za-z0-9_]*)/g,
+    /(\$\$?)(\d+\+|\d+|PREV(?:[.\[][A-Za-z0-9_.\[\]]*)?|[A-Za-z_][A-Za-z0-9_]*)/g,
     (whole, sigil, key) => {
+      if (key.startsWith('PREV') && key.length > 4) {
+        const v = getPath(prev, key.slice(4));
+        return raw ? v : escFor(mode, v);
+      }
       const raw = sigil.length === 2; // '$$' => raw, '$' => escaped per mode
       // $N+ = args N..end rejoined with | — lets the LAST arg of a tag carry
       // pipes (agent prompts, JSON bodies) without the positional split

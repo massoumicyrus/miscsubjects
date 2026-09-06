@@ -46,6 +46,9 @@ export const SOURCES = {
   directory_versions: { db: 'DB',     table: 'directory_versions', ts: 'ts',         fields: ['key', 'version', 'content', 'content_hash', 'actor', 'ts', 'descriptor_json', 'descriptor_hash'], json: ['descriptor_json'] },
   agent_turns:        { db: 'DB',     table: 'agent_turns',        ts: 'ts',         fields: ['id', 'ts', 'agent', 'source', 'session', 'trace_id', 'input_kind', 'user_input', 'assistant_text', 'n_tools', 'tools_json', 'commands_json', 'files_json', 'model_id', 'tokens_in', 'tokens_out', 'cost_usd', 'turn_key'], json: ['tools_json', 'commands_json', 'files_json'] },
   turn_jobs:          { db: 'DB',     table: 'turn_jobs',          ts: 'created_at', fields: ['id', 'job_json', 'status', 'attempts', 'created_at', 'updated_at'], json: ['job_json'] },
+  // Articles are content objects: a view over them is the article list as a grid, and title, subject,
+  // published, body and meta write through to PATCH /api/articles/<slug> (a body edit by hash).
+  articles:           { db: 'DB',     table: 'articles',           ts: 'updated_at', fields: ['slug', 'title', 'subject', 'published', 'created_at', 'updated_at', 'body', 'meta'], json: ['meta'] },
   pending_deliveries: { db: 'DB',     table: 'pending_deliveries', ts: 'created_at', fields: ['id', 'asset_id', 'kind', 'model', 'chat', 'channel', 'trace_id', 'status', 'created_at', 'updated_at'], json: [] },
 };
 
@@ -327,7 +330,8 @@ export async function runView(env, viewIn, { limit, before, after } = {}) {
     meta.push({
       id: r.__id == null ? '' : String(r.__id), ts: r.__ts || '', trace_id: r.__trace || '',
       href: view.source === 'ledger' ? '/admin/ledger/' + encodeURIComponent(String(r.__id)) + '?data=1'
-        : view.source === 'directory' ? '/admin/directory/' + encodeURIComponent(String(r.__id)) : '',
+        : view.source === 'directory' ? '/admin/directory/' + encodeURIComponent(String(r.__id))
+        : view.source === 'articles' ? '/admin/articles/' + encodeURIComponent(String(r.__id)) : '',
     });
   }
   return { ok: true, view, columns: view.columns, rows, meta, sql, count: rows.length, source: view.source };
