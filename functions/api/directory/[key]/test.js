@@ -1,7 +1,7 @@
 import { isBuildAuthed } from '../../../_lib/admin_session.js';
 import { invalidateDirSnapshot } from '../../../_lib/dir_snapshot.js';
 import { logEvent } from '../../../_lib/event_log.js';
-import { buildInvocation, realInvocation, recordTest, STATE, testPlan, transportRecord, verdict } from '../../../_lib/invocation_record.js';
+import { buildInvocation, placeholderArgs, realInvocation, recordTest, STATE, testPlan, transportRecord, verdict } from '../../../_lib/invocation_record.js';
 
 function json(obj, status = 200) {
   return new Response(JSON.stringify(obj, null, 2), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
@@ -46,10 +46,20 @@ export async function onRequestPost({ request, env, params }) {
     return json({ key, recorded: 'invocation', test_state: row.test_state || STATE.untested, invocation });
   }
   if (!plan.runnable && !body.force && body.args == null) {
+    // Not run — but the row still shows its REAL request: dispatch shapes the outbound call
+    // (URL, headers, body with <arg> placeholders) without sending it. Nothing leaves the build.
+    let shaped = invocation;
+    if (row.type === 'http' || row.type === 'agent') {
+      try {
+        const { dispatch } = await import('../../dispatch.js');
+        const s = await dispatch(env, key, placeholderArgs(row), { actor: 'directory-test', shapeOnly: true, noLog: true });
+        if (s && s.request_json) shaped = realInvocation(row, s.request_json, { origin });
+      } catch {}
+    }
     const transport = { skipped: true, reason: plan.reason, at };
-    await recordTest(env, key, { invocation, transport, response: null, state: STATE.untested, at });
+    await recordTest(env, key, { invocation: shaped, transport, response: null, state: STATE.untested, at });
     await invalidateDirSnapshot(env);
-    return json({ key, test_state: STATE.untested, skipped: plan.reason, invocation, how_to_run_anyway: 'POST …/test {"force":true}  or  {"args":"…"}' });
+    return json({ key, test_state: STATE.untested, skipped: plan.reason, invocation: shaped, how_to_run_anyway: 'POST …/test {"force":true}  or  {"args":"…"}' });
   }
 
   const { dispatch } = await import('../../dispatch.js');

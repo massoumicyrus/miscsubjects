@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { STATE, buildInvocation, credentialEnvFor, describeInvocation, outwardSideEffect, realInvocation, recordTest, testPlan, verdict } from './invocation_record.js';
+import { STATE, buildInvocation, credentialEnvFor, describeInvocation, outwardSideEffect, placeholderArgs, realInvocation, recordTest, testPlan, verdict } from './invocation_record.js';
 
 const addRow = { key: 'ADD', type: 'fn', target: '', content: '# WHAT: Add two numbers.\n# $1 a — first\n# $2 b — second\n# EXAMPLE: [ADD]2|3[/ADD]\n$1 + $2', enabled: 1 };
 const agentRow = { key: 'ROUTER', type: 'agent', target: '', content: '# WHAT: routes.\nYou are the router.', enabled: 1 };
@@ -85,4 +85,10 @@ test('a call that went through the Cloudflare AI Gateway is written as the provi
   assert.equal(inv.url, 'https://api.x.ai/v1/chat/completions');
   assert.equal(inv.body.model, 'grok-4.3');
   assert.equal(inv.headers.Authorization, 'Bearer INJECTED_BY_WORKER');
+});
+
+test('placeholder args name each declared positional so a row can be shaped without being sent', () => {
+  assert.equal(placeholderArgs(addRow), '<a>|<b>');
+  assert.equal(placeholderArgs(needsArgs), '<arg1>');
+  assert.equal(placeholderArgs(agentRow), '<your message>');
 });

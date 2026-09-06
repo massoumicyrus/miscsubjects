@@ -100,6 +100,14 @@ export function realInvocation(row, requestJson, { origin = 'https://miscsubject
   return out;
 }
 
+// Placeholder args for shaping a call without sending it: <name> per declared positional arg.
+export function placeholderArgs(row) {
+  const spec = deriveInvoke(row);
+  if (String(row.type) === 'agent') return '<your message>';
+  if (spec.ops) return '<op>|<arg1>';
+  return spec.args.map((a) => '<' + (/^[A-Za-z_][\w-]*$/.test(String(a.name || '')) ? a.name : 'arg' + a.pos) + '>').join('|');
+}
+
 // Args to test with, in this order: an entry of the row's `examples` column, the EXAMPLE in the
 // row's doc lines, a one-line prompt for an agent, or nothing when the row takes no args.
 export function defaultArgs(row, spec) {
