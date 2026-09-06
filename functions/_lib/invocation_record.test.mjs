@@ -111,3 +111,13 @@ test('a missing-argument refusal is untested, a provider failure is broken', () 
   assert.equal(!!verdict('PROVIDER_ERROR: You have no credits remaining. Add credits required.').needs_args, false);
   assert.equal(!!verdict('ERR:reddit:no_app_credentials').needs_args, false);
 });
+
+test('a placeholder that names nothing real is untested, whatever shape the refusal takes', () => {
+  for (const r of ['task not found: 999999', 'ERR:http:404:{"error":"not found"}', 'ERR:fn:no_agent_id', 'ERR:fn:bad_url', 'ERR:fn:r2_miss:arg1',
+    'ERR:fn:VOICE_TRANSCRIBE:Invalid URL: arg1', 'ERR:mcp:{"code":-32602,"message":"Invalid method parameters: Unknown tool"}', 'ERR:fn:WAI_EMBED:5007: No such model arg2 or task',
+    'ERR:http:404:{"error":"no row for short_id","short_id":"a"}', 'ERR:fn:content_not_array', 'ERR:flow:bad_step:arg2']) {
+    assert.equal(verdict(r).needs_args, true, r);
+  }
+  assert.equal(!!verdict('ERR:http:500:error code: 1101').needs_args, false);
+  assert.equal(!!verdict('overpass HTTP 521').needs_args, false);
+});

@@ -174,7 +174,7 @@ export function testPlan(row) {
 // A result is a failure when it is an ERR:/ERROR: string, a JSON with an error field, or empty.
 // The row answered "give me a real argument" — a missing/placeholder argument, an id that names
 // nothing, an empty queue. The tool ran; it is untested, not broken.
-export const NEEDS_ARGS = /_required\b|\brequired\b|needs? (an? )?(arg|argument|example)|not_found|no_queued_items|e\.g\.|placeholder|unknown (key|id|slug)/i;
+export const NEEDS_ARGS = /_required\b|\brequired\b|needs? (an? )?(arg|argument|example)|not[_ ]found|no_queued_items|e\.g\.|placeholder|unknown (key|id|slug)|no_[a-z_]*(id|url|slug|agent)\b|bad_(url|json|step|content_json)|(content_)?not_array|r2_miss|Invalid URL|Invalid (method )?parameters|No such model|fetch_audio_404|Invalid data for input|no row for|unknown_target|missing (arg|argument|param)/i;
 export function needsArgs(text) { return NEEDS_ARGS.test(String(text || '').slice(0, 600)); }
 
 export function verdict(result, threw) {

@@ -1,0 +1,59 @@
+# miscsubjects-sandbox — the build's cloud execution plane.
+#
+# Private: reachable only through the SANDBOX service binding on the Pages
+# project (functions/api/cloud/[[path]].js is the front door that resolves the
+# tenant and enforces the workspace boundary). workers_dev = false so no
+# unauthenticated public origin exists for arbitrary shell execution.
+name = "miscsubjects-sandbox"
+main = "src/index.js"
+compatibility_date = "2026-03-24"
+compatibility_flags = ["nodejs_compat_v2"]
+account_id = "<CLOUDFLARE_ACCOUNT_ID>"
+workers_dev = false
+
+[observability]
+enabled = true
+
+# One container per sandbox id. A sandbox id is <tenant>--<workspace slug>, so a
+# tenant's workspace is a different container — and a different Durable Object —
+# from every other tenant's.
+[[containers]]
+class_name = "Sandbox"
+# Public Docker Hub image, pulled by Cloudflare at deploy — no local Docker build
+# and no push to the account registry. Extra tooling a job needs is installed by
+# the job itself (the container has network); see Dockerfile for the variant to
+# build once the deploy token carries Workers Containers Write.
+image = "docker.io/cloudflare/sandbox:0.12.9"
+instance_type = "standard-1"
+max_instances = 10
+
+[[durable_objects.bindings]]
+name = "Sandbox"
+class_name = "Sandbox"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Sandbox"]
+
+# Durable job orchestration: a job outlives the request that started it.
+[[workflows]]
+name = "cloud-job-workflow"
+binding = "CLOUD_JOB_WF"
+class_name = "CloudJobWorkflow"
+
+# The canonical work record. Workspaces and jobs are rows here, never container
+# state: destroying a container must not destroy the record of what it did.
+[[d1_databases]]
+binding = "DB"
+database_name = "miscsubjects-content"
+database_id = "298eb858-37fb-4c73-8be4-135e8feb73fe"
+
+# Job artifacts (full stdout/stderr, diffs) spill here; the API returns bounded
+# excerpts plus the R2 key and a sha256 so evidence stays checkable.
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "miscsubjects-ledger"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "58b303e666a8431685624e0cfd2fd63f"

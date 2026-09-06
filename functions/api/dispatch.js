@@ -62,6 +62,7 @@ import { appendMirrorContribution, getMirrorFeed, resolveMirrorContribution } fr
 import { buildOperatorPriorities, prioritiesMarkdown } from '../_lib/operator_priorities.js';
 import { TAG_RE, META_TAGS, executableTagSurface, collectExecutableTags } from '../_lib/tag_calls.js';
 import { makeMcpArgsFnMap } from '../_lib/mcp_args.js';
+import { routeExecution, stampSubstrate } from '../_lib/execution_routing.js';
 
 function dispatchHeaders(env) {
   const h = { 'content-type': 'application/json' };
@@ -419,7 +420,7 @@ export async function loadDirectory(env) {
   }
   const r = await env.DB.prepare(
     'SELECT key, type, target, auth, content, includes, category, allowed_categories, seq, ' +
-    'IFNULL(sensitive,0) AS sensitive, runner, input_schema, examples, IFNULL(enabled,1) AS enabled, ' +
+    'IFNULL(sensitive,0) AS sensitive, runner, execution, input_schema, examples, IFNULL(enabled,1) AS enabled, ' +
     'IFNULL(planner_rank,100) AS planner_rank, IFNULL(planner_visible,1) AS planner_visible, ' +
     'price_usd, meter_unit FROM directory',
   ).all();
@@ -1255,6 +1256,13 @@ function deadHostRefusal(key, target) {
 
 async function runHttp(row, args, ctx) {
   let target = String(row.target || '');
+  // EXECUTION ROUTING. A row says what it does; directory.execution says where it
+  // may run. Deciding here — inside the one canonical http path — is what makes
+  // cron, flows, agents and REST all inherit the cloud plane without any of them
+  // knowing it exists. See functions/_lib/execution_routing.js.
+  const routeDecision = await routeExecution(row, ctx);
+  if (routeDecision.refusal) return { result: routeDecision.refusal, requestJson: '' };
+  if (routeDecision.routed && routeDecision.target) target = routeDecision.target;
   {
     const dead = deadHostRefusal(row.key || 'http', target);
     if (dead) return { result: dead, requestJson: '' };
@@ -1391,7 +1399,7 @@ async function runHttp(row, args, ctx) {
     }
     if (!verdict.ok) result = 'ERR:apps_script:' + verdict.error;
   }
-  return { result, requestJson };
+  return { result: stampSubstrate(result, routeDecision), requestJson };
 }
 
 const BREAKER_EXEMPT = new Set(['HTTP_FETCH']);   // generic multi-target row: shared key ≠ one credential

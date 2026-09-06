@@ -56,6 +56,14 @@ service = "miscsubjects-storage"
 binding = "META_BRIDGE"
 service = "miscsubjects-meta-bridge"
 
+# Cloud execution plane (workers/sandbox): shell, git, tests, coding workspaces and
+# long jobs inside a Cloudflare Container. Private worker, no public origin — the
+# only door is functions/api/cloud/[[path]].js over this binding. Deploy that
+# Worker BEFORE the next Pages deploy or this binding errors (script must exist).
+[[services]]
+binding = "SANDBOX"
+service = "miscsubjects-sandbox"
+
 
 # Secrets live as per-Pages env vars (wrangler 4.99 rejects [[secrets_store_secrets]] for Pages).
 
@@ -103,3 +111,7 @@ service = "miscsubjects-storage"
 [[env.preview.services]]
 binding = "META_BRIDGE"
 service = "miscsubjects-meta-bridge"
+
+[[env.preview.services]]
+binding = "SANDBOX"
+service = "miscsubjects-sandbox"

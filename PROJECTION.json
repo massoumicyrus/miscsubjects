@@ -2,12 +2,12 @@
  "_what": "This repository is a generated projection of a private operating repository. Every file here was produced by scripts/publish-mirror.mjs from the source commit below, with identity substituted and gates run against the output. See docs/PUBLISHING.md.",
  "source": {
   "repository": "the private operating repository",
-  "commit": "1b642c37d1d7a4f52f2c3550c5d798e6b05dd623"
+  "commit": "1d9203794d12335df29055ecdc58a663022be246"
  },
- "generated_at": "2026-09-06T15:47:21.432Z",
- "files": 1230,
- "bytes": 9987656,
- "tracked_in_source": 6220,
+ "generated_at": "2026-09-06T15:52:19.863Z",
+ "files": 1238,
+ "bytes": 10048447,
+ "tracked_in_source": 6228,
  "dropped": {
   "not in allow-list": 4505,
   "editor backups of prompts and modules; the live version is the file beside them": 15,
@@ -17,7 +17,7 @@
   "URW DIN is a commercially licensed font; the site serves it but the repository cannot redistribute it": 1,
   "this file lists the identity strings it removes": 1
  },
- "substituted_files": 552,
+ "substituted_files": 558,
  "substitutions": [
   {
    "path": ".claude/hooks/cc-turn-log.js",
@@ -625,6 +625,13 @@
    "path": "functions/_lib/execution_case.test.mjs",
    "substitutions": {
     "email": 1,
+    "diary_comments": 1
+   }
+  },
+  {
+   "path": "functions/_lib/execution_routing.js",
+   "substitutions": {
+    "literal": 1,
     "diary_comments": 1
    }
   },
@@ -1372,6 +1379,12 @@
    "path": "functions/api/chain/[[path]].js",
    "substitutions": {
     "diary_comments": 1
+   }
+  },
+  {
+   "path": "functions/api/cloud/[[path]].js",
+   "substitutions": {
+    "literal": 2
    }
   },
   {
@@ -3628,6 +3641,33 @@
    }
   },
   {
+   "path": "workers/sandbox/package.json",
+   "substitutions": {
+    "literal": 1
+   }
+  },
+  {
+   "path": "workers/sandbox/README.md",
+   "substitutions": {
+    "literal": 3,
+    "diary_paragraphs": 1,
+    "markdown_words": 1
+   }
+  },
+  {
+   "path": "workers/sandbox/src/index.js",
+   "substitutions": {
+    "literal": 3,
+    "diary_comments": 1
+   }
+  },
+  {
+   "path": "workers/sandbox/wrangler.toml",
+   "substitutions": {
+    "literal": 4
+   }
+  },
+  {
    "path": "workers/sheet-do/src/index.js",
    "substitutions": {
     "literal": 2,
@@ -3689,7 +3729,7 @@
   {
    "path": "wrangler.toml",
    "substitutions": {
-    "literal": 18
+    "literal": 20
    }
   }
  ],
@@ -4219,10 +4259,10 @@
    "functions/_lib/send_proof.js",
    "functions/_lib/x_oauth1.js"
   ],
-  "comments_removed": 810,
-  "markdown_blocks_removed": 75,
+  "comments_removed": 812,
+  "markdown_blocks_removed": 76,
   "narrative_phrases_removed": 153,
-  "dated_strings_remaining": 243,
+  "dated_strings_remaining": 244,
   "comment_strip_skipped": [],
   "gates_pruned_from_manifest": [
    "check-owner-bcc.mjs",
@@ -4239,13 +4279,13 @@
  "gates": [
   {
    "name": "forbidden_strings",
-   "examined": 1229,
+   "examined": 1237,
    "hits": 0,
    "ok": true
   },
   {
    "name": "paths",
-   "examined": 1229,
+   "examined": 1237,
    "hits": 0,
    "ok": true
   },
@@ -4258,31 +4298,31 @@
   },
   {
    "name": "size",
-   "examined": 1229,
+   "examined": 1237,
    "hits": 0,
    "ok": true
   },
   {
    "name": "syntax",
-   "examined": 679,
+   "examined": 682,
    "hits": 0,
    "ok": true,
    "note": "20 stubs included"
   },
   {
    "name": "diary",
-   "examined": 1227,
+   "examined": 1235,
    "hits": 0,
    "ok": true
   },
   {
    "name": "gitleaks",
-   "examined": 1230,
+   "examined": 1238,
    "hits": 0,
    "ok": true,
    "note": "8.30.1"
   }
  ],
  "all_gates_ok": true,
- "content_hash": "6163b2108bdb14395c1aa543c698925928801f2ccdb61647c3e10a25577755c4"
+ "content_hash": "25e30eaae22cb68f9ca61414e21f4f1b10c2a8d96cab0bdf26e704f767f70365"
 }
