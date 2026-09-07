@@ -13,8 +13,11 @@ refuses the usual names. At run time:
   secret is missing rather than failing obscurely.
 
 The build's own admin and API are gated by one key, `TERMINAL_KEY`, presented as the header
-`x-terminal-key`. Reads of public surfaces need no key. Scoped, time-bounded capability tokens can
-be minted for agents that should hold less than the whole key.
+`x-terminal-key`. Reads of public surfaces need no key. Scoped, time-bounded, use-counted capability
+tokens can be minted for agents that should hold less than the whole key, and a server-side
+capability context can bind a token to a profile, a device, a browser-model session, an origin and a
+recent human verification; a token presented outside its context fails with a named code, never a
+bare `403`, and every decision is a ledger row. `docs/AUTHORITY.md` describes the model.
 
 ## Configuration names the code expects
 
@@ -24,18 +27,29 @@ stubs out are still listed, because the function-runner module reads them by nam
 
 | Group | Names |
 |---|---|
-| Build | `TERMINAL_KEY`, `ADMIN_SESSION_SECRET`, `MCP_TOKEN`, `INVOKE_TOKEN`, `PHONE_TOKEN`, `VAULT_UNLOCK_TOKEN`, `TENANT_SYNC_KEY`, `TENANT_VIEWER_PASS`, `DELIVER_TOKEN`, `STORE_KEY`, `BUILD_URL`, `EMAIL`, `EMAIL_FORWARD` |
+| Build | `TERMINAL_KEY`, `ADMIN_SESSION_SECRET`, `MCP_TOKEN`, `INVOKE_TOKEN`, `PHONE_TOKEN`, `VAULT_UNLOCK_TOKEN`, `TENANT_SYNC_KEY`, `TENANT_VIEWER_PASS`, `DELIVER_TOKEN`, `STORE_KEY`, `BUILD_URL`, `EMAIL`, `EMAIL_FORWARD`, `SHEET_BRIDGE_ID` |
+| Authority and traffic | `TURNSTILE_SITEKEY`, `TURNSTILE_SECRET_KEY`, `TURNSTILE_MAX_AGE_S`, `TRAFFIC_GRANT_SECRET`, `TRAFFIC_SMS_WEBHOOK_KEY`, `TRAFFIC_TENANT` |
 | Cloudflare | `CF_ACCOUNT_ID`, `CLOUDFLARE_ACCOUNT_ID`, `CF_API_TOKEN`, `CLOUDFLARE_API_TOKEN`, `CF_TOKEN`, `CLOUDFLARE_EMAIL`, `CLOUDFLARE_GLOBAL_KEY`, `SECRETS_STORE_ID`, `AIG_GATEWAY_ID`, `AIG_TOKEN`, `AIG_RUN_TOKEN`, `AIG_SHIM_TOKEN`, `AIG_DEFAULT_MODEL` |
 | Models | `GROK_API_KEY`, `OPENAI_API_KEY`, `OPENAI_KEY`, `ANTHROPIC_API_KEY`, `ANTHROPIC_KEY`, `GEMINI_API_KEY`, `GEMINI_KEY`, `MOONSHOT_API_KEY`, `KIMI_API_KEY` |
 | Messaging | `BLOOIO_API_KEY`, `BLOOIO_FROM_NUMBER`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TWOCHAT_API_KEY` |
 | Code and data | `GITHUB_TOKEN`, `GITHUB_TAIL_TOKEN`, `GH_API_KEY`, `AIRUNNER_WEB_APP_URL`, `GOOGLE_MAPS_KEY`, `GOOGLE_PLACES_KEY` |
-| Commerce and marketing | `STRIPE_SECRET_KEY`, `META_ACCESS_TOKEN`, `META_BUSINESS_ID`, `META_API_VERSION`, `ARCADS_API_KEY`, `ARCADS_BASIC_AUTH`, `ARCADS_BASE_URL`, `JCI_API_BASE`, `JCI_USER_ID` |
+| Commerce and marketing | `STRIPE_SECRET_KEY`, `META_ACCESS_TOKEN`, `META_CAPI_TOKEN`, `META_PIXEL_TOKEN`, `META_BUSINESS_ID`, `META_API_VERSION`, `KLAVIYO_KEY`, `ARCADS_API_KEY`, `ARCADS_BASIC_AUTH`, `ARCADS_BASE_URL`, `JCI_API_BASE`, `JCI_USER_ID` |
 | Social | `X_API_KEY`, `X_API_SECRET`, `X_ACCESS_TOKEN`, `X_ACCESS_SECRET`, `X_CONSUMER_KEY`, `X_CONSUMER_SECRET`, `REDDIT_CLIENT_ID`, `REDDIT_SECRET`, `REDDIT_USERNAME`, `REDDIT_PASSWORD` |
 | Federation | `PEER_DOMAIN`, `OIP_PEER_KEYS`, `OIP_HOME_KEY`, `OIP_HOME_AGENT`, `HOME_BASE`, `HOME_AGENT` |
 
 Bindings (not secrets) are declared in `wrangler.toml`: `DB`, `LEDGER`, `KV`, `R2`, `AI`,
-`DIRECTORY_DO`, `SHEET_DO`, `TASKS`, `STORE`, `META_BRIDGE`, and in the sibling Worker
+`DIRECTORY_DO`, `SHEET_DO`, `TASKS`, `STORE`, `SANDBOX`, `META_BRIDGE`, and in the sibling Worker
 `CF_EXPERT_DO`, `AGENT_DO`, `DELIVER_WF`, `SELFTEST_WF`.
+
+## Identifiers and devices
+
+Visitor and presenter identifiers (phone numbers, e-mail addresses, device and cookie ids) are stored
+hashed with a keyed hash and masked for display; the raw value is never written. Device keys are EC
+P-256 public keys; proof of possession is an ECDSA signature over the request with a single-use
+nonce, verified with WebCrypto. Human verification is Cloudflare Turnstile, checked server-side.
+Browser-model sessions run in one dedicated Chrome profile on the operator's machine, and only the
+narrow session verbs cross the bridge: no debugging protocol, no arbitrary JavaScript, no arbitrary
+navigation.
 
 ## What the public ledger will never show
 

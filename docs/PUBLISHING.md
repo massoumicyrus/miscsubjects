@@ -69,6 +69,11 @@ Substitution runs on every text file, in this order:
 
 1. **Specific literals** — the account subdomain, the Cloudflare account id, non-secret Google
    identifiers, possessive forms of the owner's name.
+2. **E-mail addresses** — kept only when the domain is on an allow-list of build and vendor
+   domains; an operator domain becomes an operator-email placeholder, anything else a redacted-email
+   placeholder.
+3. **Phone numbers** — the operator's and the system's numbers in every formatting, then any `+1`
+   number, become an operator-phone, build-phone or generic phone placeholder.
 4. **The owner-identity table the site itself uses** at ledger ingest
    (`functions/_lib/public_secret_guard.js`): names, handles, home directory, machine name. One
    table, two consumers, so the two can never disagree.
@@ -127,8 +132,8 @@ allow-list, the exporter applies a profile that decides what the repository is:
 | Tenant integrations dropped | Modules, routes, migrations, workers, gates and spreadsheet automations for the operator's businesses (commerce, ads, leads, outreach, reporting) are excluded by name | `profile.dropped_by_profile`, `profile.dropped_paths` |
 | Stubs where the kernel imports them | For every relative import from a kept module to a dropped one, a stub is written at the dropped path. It exports the same names and throws with its path when used, so the import graph stays whole and the boundary is visible | `profile.stubbed_modules` |
 | Content data dropped | Migrations with no schema statement and more than 30 KB of literals, the protocol primer bodies, content inventories, session reports | `profile.dropped_by_profile` |
-| One-off scripts dropped | `scripts/` keeps the deploy path, the gates and the exporter; everything else was a one-time content or outreach run | same |
-| Plans, visions, inventories, doctrine dropped | `docs/` keeps the documents that describe the system as it is: `ARCHITECTURE.md`, `OIP.md`, `SITE_DESIGN_SCHEMA.md`, this document and `REPO_MAP.md`. Dated inventories and surveys are dropped. `.claude/skills/` keeps the engineering procedures and drops the business, sales, copy and operator-doctrine skills | same |
+| One-off scripts dropped | `scripts/` keeps the deploy path, the gates, the subsystem tests and the exporter; everything else was a one-time content or outreach run | same |
+| Plans, visions, inventories, doctrine dropped | `docs/` keeps the documents that describe the system as it is: the index, `ARCHITECTURE.md`, `OIP.md`, `AUTHORITY.md`, `FLOWS.md`, `WEB_MODELS.md`, `SHEETS.md`, `TRAFFIC.md`, `SITE_DESIGN_SCHEMA.md`, this document and `REPO_MAP.md`. Dated inventories, surveys and plans are dropped. `.claude/skills/` keeps the engineering procedures and drops the business, sales, copy and operator-doctrine skills | same |
 | Diary comments removed | A comment that records who ordered what and when, or narrates the day something failed, is removed from JavaScript, SQL, shell, YAML and TOML. Code, strings and regex literals are never touched. JavaScript is scanned with a state machine (strings, template literals, regex literals, both comment kinds); every altered file is re-parsed by Node and kept unaltered if it would no longer parse | `profile.comments_removed`, `profile.comment_strip_skipped` |
 | Diary paragraphs removed from Markdown | Blank-line-delimited blocks that match the same class of narrative are dropped; list items individually; fenced code never | `profile.markdown_blocks_removed` |
 | JSON artifacts transformed | `failure-vault.json` loses the quoted words that named each failure and keeps the mechanism; `scripts/gates.manifest.json` loses its narrative and is pruned to the gate scripts present | `profile.gates_pruned_from_manifest` |

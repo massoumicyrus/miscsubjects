@@ -293,6 +293,7 @@ async function log(env, ts, direction, payload, response, trace, source = 'blooi
 import { processWebhook } from './_lib/webhook_intake.js';
 import { sheetClaims, stampInbound, claimMessage, runInbound as runSheetInbound } from './_lib/agent_sheet.js';
 import { funnelPreRoute } from './_lib/traffic/inbound_hook.js';
+import { paidLanePreRoute } from './_lib/market_lane.js';
 
 export const onRequestPost = async (context) => {
   // Cloaker/funnel vs admin separation happens here, at the webhook entry, before the shared router:
@@ -302,6 +303,8 @@ export const onRequestPost = async (context) => {
     const raw = await context.request.clone().text();
     const bg = (p) => { try { context.waitUntil(p); } catch {} };
     if (await funnelPreRoute(context.env, raw, bg)) return new Response(null, { status: 200 });
+    // The paid lane: a sender holding a live paid capability runs its row here; nobody else is touched.
+    if (await paidLanePreRoute(context.env, raw, bg)) return new Response(null, { status: 200 });
   } catch { /* never let the funnel filter block normal routing */ }
   return processWebhook(context, 'blooio');
 };
