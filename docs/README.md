@@ -6,6 +6,8 @@ Start with the [README](../README.md), then read in this order.
 |---|---|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How a request becomes a receipt: the directory, dispatch and its three gates, execution routing, flows, the ledger and event bridge, the work object, agents in code and in browsers, sheets, the environment, storage, Workers, the traffic engine, content, laws as gates, the coding law, public surfaces |
 | [OIP.md](OIP.md) | The Object Invocation Protocol every row answers to: identify, explain, invoke, ledger, yield |
+| [SIX_WAYS.md](SIX_WAYS.md) | One capability, six ways to call it — the door, REST, MCP, the agent, a spreadsheet, a browser model |
+| [COLD_MODELS.md](COLD_MODELS.md) | Operable by strangers: the token drop, sheets as inboxes, and how well cold models operate the build |
 | [AUTHORITY.md](AUTHORITY.md) | The two halves of authority: signed capability tokens and server-side capability contexts; profiles, devices, proof of possession, Turnstile step-up; the fifteen denial codes |
 | [FLOWS.md](FLOWS.md) | The flow DSL (`>`, `|`, `$1`, `$PREV`, `JSON:`, `EACH:`, `MERGE:`) and learned flows compiled from ledger traces |
 | [WEB_MODELS.md](WEB_MODELS.md) | Logged-in web ChatGPT, Claude, Grok, Gemini and Kimi as execution substrates; receipts; `state://` handles; the relay lane; the sheet bridge |

@@ -277,6 +277,8 @@ right now. Start with the doc, read the code, then watch it run.
 
 | Feature | Read | Code | Live |
 |---|---|---|---|
+| One capability, six ways to call it | [docs/SIX_WAYS.md](docs/SIX_WAYS.md) | `functions/api/dispatch.js` | [a row, six surfaces](https://miscsubjects.com/api/dispatch?key=NOW) |
+| Operable by strangers — token drop, cold models | [docs/COLD_MODELS.md](docs/COLD_MODELS.md) | `functions/api/sheet-bridge.js` | [the one-call manual](https://miscsubjects.com/api/environment?format=markdown) |
 | Object Invocation Protocol — self-describing capabilities | [docs/OIP.md](docs/OIP.md) | `functions/_lib/object_contract.js` | [a row describing itself](https://miscsubjects.com/api/dispatch?key=NOW) |
 | Authority — tokens + capability contexts | [docs/AUTHORITY.md](docs/AUTHORITY.md) | `functions/_lib/capability_context.js` | [the step-up](https://miscsubjects.com/verify-device) |
 | Flows & learned-from-the-ledger flows | [docs/FLOWS.md](docs/FLOWS.md) | `functions/_lib/flow_learn.js` | [the directory](https://miscsubjects.com/api/directory?brief=1) |
