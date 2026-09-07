@@ -7,7 +7,7 @@
 //
 // Every write goes through the store's canonical paths; this file only routes and authorizes.
 
-import { terminalKeyOk } from '../../_lib/admin_session.js';
+import { terminalKeyOk, isBuildAuthed } from '../../_lib/admin_session.js';
 import {
   writeConfig, activateRuleset, profileOp, profileView, linkIdentifiers, getDecision,
   metrics, runRetention, recordAck, tenantOf, ledger, loadSnapshot, appendEvent,
@@ -17,6 +17,8 @@ import { explain, replay } from '../../_lib/traffic/engine.js';
 import { verifyTurnstile, turnstileCookieValue } from '../../_lib/traffic/turnstile.js';
 import { codeStatus, recordTap, handleInbound } from '../../_lib/traffic/funnel.js';
 import { SIGNAL_CATALOG } from '../../_lib/traffic/signals.js';
+import { parsePlainRule, ruleToPlain, FIELD_ALIASES } from '../../_lib/traffic/plain_rules.js';
+import { importJciPage, finalizeHistory, seedPopulations } from '../../_lib/traffic/jci_import.js';
 
 const J = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 const json = (o, status = 200, extra = {}) => new Response(JSON.stringify(o, null, 2), { status, headers: { ...J, ...extra } });
@@ -113,9 +115,65 @@ async function route(context) {
     return json(r, r.ok === false && r.reason === 'unauthorized' ? 401 : 200);
   }
 
-  if (!owner(request, env)) return json({ ok: false, error: 'owner_auth_required', how: 'send x-terminal-key' }, 401);
+  if (!(await isBuildAuthed(request, env))) return json({ ok: false, error: 'owner_auth_required', how: 'send x-terminal-key or sign in to /admin' }, 401);
 
   if (seg(0) === 'signals' && method === 'GET') return json({ ok: true, count: SIGNAL_CATALOG.length, signals: SIGNAL_CATALOG });
+
+  // every captured field, its plain-English name, type, meaning and example values — for the console
+  if (seg(0) === 'fields' && method === 'GET') {
+    const byPath = {}; for (const [alias, path] of FIELD_ALIASES) if (!byPath[path]) byPath[path] = alias;
+    const fields = SIGNAL_CATALOG.map((s) => ({
+      field: byPath[s.key] || s.key, path: s.key, group: s.group, type: s.type, sync: !!s.sync, source: s.source,
+      description: s.description, values: s.values || s.enum || null,
+    }));
+    return json({ ok: true, count: fields.length, groups: [...new Set(fields.map((f) => f.group))], fields, aliases: FIELD_ALIASES });
+  }
+
+  // list rulesets (for the console picker) with their entry patterns and destinations
+  if (seg(0) === 'rulesets' && !seg(1) && method === 'GET') {
+    const t = tenantFrom(env, null, url);
+    const [rs, dests, camps] = await env.DB.batch([
+      env.DB.prepare('SELECT id, name, state, revision, entry_json, default_destination, campaign_id, fail_mode FROM traffic_rulesets WHERE tenant_id=? ORDER BY updated_at DESC').bind(t),
+      env.DB.prepare('SELECT id, name, type, url, enabled, health, campaign_id FROM traffic_destinations WHERE tenant_id=?').bind(t),
+      env.DB.prepare('SELECT id, name, sms_phone, sms_channel, blocked_capture, approved_destination FROM traffic_campaigns WHERE tenant_id=?').bind(t),
+    ]);
+    return json({ ok: true, rulesets: (rs.results || []).map((r) => ({ ...r, entry: JSON.parse(r.entry_json || '[]') })), destinations: dests.results || [], campaigns: camps.results || [] });
+  }
+
+  // read the active/named ruleset's rules as plain English
+  if (seg(0) === 'rules' && seg(1) === 'plain' && method === 'GET') {
+    const t = tenantFrom(env, null, url);
+    const rsId = url.searchParams.get('ruleset_id');
+    const rows = (await env.DB.prepare(rsId
+      ? 'SELECT * FROM traffic_rules WHERE tenant_id=? AND ruleset_id=? ORDER BY priority, id'
+      : 'SELECT * FROM traffic_rules WHERE tenant_id=? ORDER BY ruleset_id, priority, id').bind(...(rsId ? [t, rsId] : [t])).all()).results || [];
+    return json({ ok: true, count: rows.length, rules: rows.map((r) => ({ id: r.id, ruleset_id: r.ruleset_id, name: r.name, priority: r.priority, enabled: !!r.enabled, shadow: !!r.shadow, plain: ruleToPlain(r), condition: JSON.parse(r.condition_json || '{}'), actions: JSON.parse(r.actions_json || '[]') })) });
+  }
+
+  // declare a rule in plain English: POST /api/traffic/rule/plain {ruleset_id, text, name?, priority?}
+  if (seg(0) === 'rule' && seg(1) === 'plain' && method === 'POST') {
+    const b = await bodyOf(request);
+    if (!b.ruleset_id) return json({ ok: false, error: 'ruleset_id_required' }, 400);
+    const parsed = parsePlainRule(b.text || '');
+    if (parsed.error) return json({ ok: false, error: 'parse_failed', message: parsed.error, hint: 'e.g. "if country is KP then block"' }, 400);
+    const r = await writeConfig(env, { table: 'traffic_rules', tenant: tenantFrom(env, b, url), actor: b.actor || 'owner', reason: 'plain: ' + b.text, patch: {
+      __create: true, ruleset_id: b.ruleset_id, name: b.name || b.text.slice(0, 60), priority: b.priority != null ? Number(b.priority) : 50,
+      on_match: b.on_match || 'stop', condition_json: JSON.stringify(parsed.condition), actions_json: JSON.stringify(parsed.actions),
+    } });
+    return json(r.ok ? { ok: true, id: r.id, compiled: parsed, plain: ruleToPlain({ condition: parsed.condition, actions: parsed.actions }), note: 'activate the ruleset to make it live' } : r, r.ok ? 200 : 400);
+  }
+
+  // seed the whitelist/blacklist from JustCloakIt history: import a batch, then seed memberships.
+  // Returns a cursor; call again (or via automation) to walk the full 2026-07→08 corpus.
+  if (seg(0) === 'seed-history' && method === 'POST') {
+    const b = await bodyOf(request);
+    const t = tenantFrom(env, b, url);
+    const imp = await importJciPage(env, { tenant: t, cursor: b.import_cursor || null, limit: Number(b.limit) || 400 });
+    await finalizeHistory(env, { tenant: t }).catch(() => {});
+    const seed = await seedPopulations(env, { tenant: t, cursor: b.seed_cursor || null, limit: Number(b.seed_limit) || 2000 });
+    const counts = await env.DB.prepare("SELECT SUM(CASE WHEN population='approved_history' THEN 1 ELSE 0 END) whitelist, SUM(CASE WHEN population='blocked_history' THEN 1 ELSE 0 END) blacklist FROM traffic_memberships WHERE tenant_id=? AND superseded_at IS NULL").bind(t).first().catch(() => ({}));
+    return json({ ok: true, imported: imp.imported, import_cursor: imp.cursor, import_done: imp.done, seeded: seed.seeded, seed_cursor: seed.cursor, seed_done: seed.done, whitelist: counts?.whitelist || 0, blacklist: counts?.blacklist || 0 });
+  }
 
   // config write: POST /api/traffic/config {table,id?,patch,reason?}
   if (seg(0) === 'config' && method === 'POST') {
