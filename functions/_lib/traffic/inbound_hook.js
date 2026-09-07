@@ -9,6 +9,35 @@
 import { handleInbound, extractCode } from './funnel.js';
 import { logEvent } from '../event_log.js';
 
+/** Minimal Blooio-inbound parse (from/text/to), independent of the protected router. */
+function parseInbound(raw) {
+  let p; try { p = JSON.parse(raw); } catch { return null; }
+  if (!p || typeof p !== 'object') return null;
+  const d = (p.data && typeof p.data === 'object') ? p.data : {};
+  const event = String(p.event || p.type || d.kind || '').toLowerCase();
+  if (event && !/received|inbound|incoming|message/.test(event)) return null; // not an inbound message
+  if ((p.direction || d.direction) && String(p.direction || d.direction).toLowerCase() === 'outbound') return null;
+  const from = p.external_id || p.from || p.sender || d.sender || d.from || (d.contact && d.contact.identifier) || '';
+  const text = p.text || p.body || p.message || d.text || '';
+  const toNumber = p.internal_id || p.to || p.receiver || p.destination || p.channel_phone_number || d.channel_phone_number || d.recipient || d.channel_address || '';
+  const messageId = p.message_id || d.message_id || p.id || '';
+  if (!from || !text) return null;
+  return { from, messageBody: text, toNumber, messageId };
+}
+
+/**
+ * The clean separation between the cloaker funnel and admin/agent use: a webhook payload whose text
+ * is a LIVE funnel code is the funnel's, handled here at the webhook entry (before the shared
+ * router). Everything else — every admin/agent message — is left untouched for normal routing.
+ * Returns true when it handled the message.
+ */
+export async function funnelPreRoute(env, raw, waitUntil = null) {
+  const m = parseInbound(raw);
+  if (!m) return false;
+  if (!extractCode(m.messageBody)) return false;           // no code-shaped token → not the funnel's
+  return maybeFunnelCode(env, m, 'blooio', waitUntil);     // only returns true for a live code
+}
+
 /** True when the message was a live funnel code and was handled here. */
 export async function maybeFunnelCode(env, m, channel, waitUntil = null) {
   try {

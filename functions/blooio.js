@@ -14,10 +14,16 @@ const FROM_NUMBER = '[BUILD_PHONE]';
 
 function safeParse(s) { try { return JSON.parse(s); } catch { return {}; } }
 
+const SILENCED_GROUPS = new Set(['grp_98e1acc03a3148f3', 'grp_bf3156c4514448d3']);
+
 export async function sendBlooio(env, to, text, media, opts = {}) {
   // to = chat id: E.164 phone, grp_*, or chat_* (chat_* needs Blooio MCP — v2 REST 404s on text).
   // Blooio `text` may be a string or string[] — array sends separate iMessage bubbles (max 3).
   const chatId = String(to || '').trim();
+  if (SILENCED_GROUPS.has(chatId)) {
+    try { await logEvent(env, { source: 'blooio', key: 'BLOOIO_SEND', action: 'silenced_group_skip', direction: 'out', trace_id: opts.trace_id || null, request: { chat_id: chatId, preview: String(text || '').slice(0, 80) }, response: 'skipped: group with Will is silenced permanently' }); } catch { /* ignore */ }
+    return { ok: true, skipped: 'silenced_group' };
+  }
   const ownerChat = chatId === 'chat_019ec103-256e-7475-82da-cda3aa268d1c';
   const ownerInbound = !!(opts.owner_inbound || opts.explicit_owner || opts.allow_owner_when_autorun_off);
   if ((isOwnerPhone(chatId) || ownerChat) && env.KV && !ownerInbound) {
@@ -286,8 +292,19 @@ async function log(env, ts, direction, payload, response, trace, source = 'blooi
 
 import { processWebhook } from './_lib/webhook_intake.js';
 import { sheetClaims, stampInbound, claimMessage, runInbound as runSheetInbound } from './_lib/agent_sheet.js';
+import { funnelPreRoute } from './_lib/traffic/inbound_hook.js';
 
-export const onRequestPost = (context) => processWebhook(context, 'blooio');
+export const onRequestPost = async (context) => {
+  // Cloaker/funnel vs admin separation happens here, at the webhook entry, before the shared router:
+  // a payload whose text is a LIVE funnel code belongs to the SMS squeeze funnel and is handled now;
+  // every other message (all admin/agent traffic) falls through to processWebhook untouched.
+  try {
+    const raw = await context.request.clone().text();
+    const bg = (p) => { try { context.waitUntil(p); } catch {} };
+    if (await funnelPreRoute(context.env, raw, bg)) return new Response(null, { status: 200 });
+  } catch { /* never let the funnel filter block normal routing */ }
+  return processWebhook(context, 'blooio');
+};
 
 // Shared inbound path for both channels (Blooio + 2chat). The webhook invocation only
 // has ~30s of background wall time — agent chains (router → sub-agent → render) need
