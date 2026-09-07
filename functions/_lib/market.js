@@ -57,7 +57,7 @@ function receiptResult(rec) {
 }
 function insightsTotals(result) {
   // Meta insights shape: {ok, data:[{spend, clicks, impressions, ...}]} or {data:[...]}; sum the rows.
-  const rows = Array.isArray(result?.data) ? result.data : Array.isArray(result?.insights?.data) ? result.insights.data : Array.isArray(result) ? result : [];
+  const rows = Array.isArray(result?.data) ? result.data : Array.isArray(result?.data?.data) ? result.data.data : Array.isArray(result?.insights?.data) ? result.insights.data : Array.isArray(result) ? result : [];
   let spend = 0, clicks = 0, impressions = 0, n = 0;
   for (const r of rows) { spend += num(r.spend) || 0; clicks += num(r.clicks) || 0; impressions += num(r.impressions) || 0; n++; }
   return { rows: n, spend, clicks, impressions };
@@ -298,7 +298,7 @@ export function makeMarketFnMap(deps) {
       const res = await env.DB.prepare('SELECT * FROM market_resources WHERE id = ?').bind(String(b.resource_id || '')).first();
       if (!res) return err('RESOURCE_NOT_FOUND', `no resource ${b.resource_id}`);
       if (!res.snapshot_key) return err('BAD_REQUEST', 'this resource declares no snapshot capability');
-      const out = await dispatch(env, res.snapshot_key, res.snapshot_body || '', { actor: 'market:snapshot' });
+      const out = await dispatch(env, res.snapshot_key, res.snapshot_body || '', { actor: 'owner:market:snapshot:' + res.id });
       let data = out?.result ?? out; if (typeof data === 'string') { const s = data.replace(/^HTTP \d+:/, '').trim(); try { data = JSON.parse(s); } catch { data = { raw: s }; } }
       const fields = j(res.snapshot_fields_json, []);
       const picked = {}; for (const f of fields) picked[f] = pick(data, f) ?? pick(data?.account || data?.data || {}, f);
@@ -383,7 +383,7 @@ export function makeMarketFnMap(deps) {
         const amt = cents(nums.length ? Math.max(...nums) : 0);   // the largest number in a spend body is the spend
         if (amt > Number(L.spend_ceiling_cents)) { await ledger(env, 'LEASE_ACT', 'spend_ceiling_refused', { lease_id: L.id, key, amount_cents: amt }, { ok: false, error: 'SPEND_CEILING' }, 403); return err('SPEND_CEILING', `${amt} cents exceeds the lease ceiling of ${L.spend_ceiling_cents} cents`); }
       }
-      const out = await dispatch(env, key, String(b.body || ''), { actor: 'lease:' + L.id });
+      const out = await dispatch(env, key, String(b.body || ''), { actor: 'owner:lease:' + L.id });
       try { await env.DB.prepare('UPDATE market_leases SET uses = uses + 1, updated_at = ? WHERE id = ?').bind(now(), L.id).run(); } catch (e) { return err('DURABLE_WRITE_FAILED', e.message); }
       const ev = await ledger(env, 'LEASE_ACT', 'lease_action_ran', { lease_id: L.id, key, body_chars: String(b.body || '').length }, { ok: out?.ok !== false, invocation_id: out?.invocation?.id || out?.proof?.invocation_id || null });
       return ok({ lease_id: L.id, key, result: out?.result ?? out, invocation_id: out?.invocation?.id || out?.proof?.invocation_id || null, ledger_event_id: ev });

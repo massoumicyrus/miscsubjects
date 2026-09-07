@@ -9,7 +9,7 @@ const KEYS = 'NOW,TIME_NOW,QUAKE_FEED,QUAKE_PLACE,WIKIPEDIA_SUMMARY,GOLD_SPOT,WE
 export async function onRequestGet({ request, env }) {
   const origin = new URL(request.url).origin;
   const key = (new URL(request.url).searchParams.get('key') || 'QUAKE_FEED').toUpperCase().replace(/[^A-Z0-9_]/g, '');
-  let recent = [];
+  let recent = []; let ledgerFailed = null;
   try {
     const caps = (await env.LEDGER.prepare("SELECT fingerprint FROM capabilities WHERE purpose = 'challenge' ORDER BY ts DESC LIMIT 40").all()).results || [];
     if (caps.length) {
@@ -17,9 +17,9 @@ export async function onRequestGet({ request, env }) {
       const ph = actors.map(() => '?').join(',');
       recent = (await env.LEDGER.prepare(`SELECT id, ts, object_id, actor, material FROM invocations WHERE actor IN (${ph}) ORDER BY ts DESC LIMIT 25`).bind(...actors).all()).results || [];
     }
-  } catch {}
+  } catch (e) { ledgerFailed = String(e?.message || e); }
   const mint = `${origin}/api/dispatch?self_scope=1&keys=${KEYS}&purpose=challenge&actor=challenger`;
-  const rows = recent.map((r) => `<tr><td>${esc(r.ts)}</td><td>${esc(r.object_id)}</td><td>${esc(String(r.actor).slice(0, 20))}…</td><td>${r.material ? 'material' : 'attempt'}</td><td><a href="${origin}/api/dispatch?confirm=${esc(r.id)}">${esc(r.id)}</a></td></tr>`).join('') || '<tr><td colspan="5">No challenger has fired yet. Be the first receipt on this page.</td></tr>';
+  const rows = recent.map((r) => `<tr><td>${esc(r.ts)}</td><td>${esc(r.object_id)}</td><td>${esc(String(r.actor).slice(0, 20))}…</td><td>${r.material ? 'material' : 'attempt'}</td><td><a href="${origin}/api/dispatch?confirm=${esc(r.id)}">${esc(r.id)}</a></td></tr>`).join('') || (ledgerFailed ? '<tr><td colspan="5">LEDGER_LOOKUP_FAILED: the ledger did not answer this read, so nothing is known about earlier challengers. Reload in a moment; it never means nobody fired.</td></tr>' : '<tr><td colspan="5">No challenger has fired yet. Be the first receipt on this page.</td></tr>');
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>The Challenge</title>
 <style>body{font:16px/1.55 -apple-system,system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1rem;color:#1a1a1a;background:#fbfaf7}h1{font-size:2rem;margin:.2rem 0}h2{margin-top:2rem;font-size:1.2rem}code,pre{background:#f0ede6;border-radius:6px;padding:.15rem .35rem;font-size:.92em}pre{padding:.8rem;overflow:auto}table{width:100%;border-collapse:collapse;font-size:.9em}td,th{border-bottom:1px solid #ddd;padding:.4rem;text-align:left;vertical-align:top}a{color:#1d4ed8}.door{display:inline-block;background:#111;color:#fff;padding:.7rem 1.1rem;border-radius:8px;text-decoration:none;font-weight:600}.muted{color:#555}</style></head><body>
 <p class="muted">miscsubjects · the challenge</p>
