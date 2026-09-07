@@ -140,6 +140,35 @@ async function route(context) {
     return json({ ok: true, rulesets: (rs.results || []).map((r) => ({ ...r, entry: JSON.parse(r.entry_json || '[]') })), destinations: dests.results || [], campaigns: camps.results || [] });
   }
 
+  // THE DATA GRID: one row per decision (visitor hit), a column for every captured field, populated
+  // from the ledger (traffic_decisions.signals_json). This is the JCI-style populated-columns view.
+  if (seg(0) === 'grid' && method === 'GET') {
+    const t = tenantFrom(env, null, url);
+    const per = Math.min(200, Math.max(10, Number(url.searchParams.get('per_page')) || 50));
+    const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
+    const getPath = (o, p) => { const parts = String(p).split(/\.|\[|\]/).filter(Boolean); let v = o; for (const k of parts) { if (v == null) return null; v = v[k]; } return v; };
+    const flat = (v) => v == null ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+    // leading decision columns, then every signal field from the catalog
+    const decisionCols = [
+      ['ts', 'time'], ['mode', 'mode'], ['host', 'host'], ['path', 'path'], ['entry', 'entry'],
+      ['experience', 'experience'], ['outcome', 'outcome'], ['destination_id', 'destination'], ['reason', 'reason'],
+      ['profile_id', 'profile'], ['device_id', 'device id'], ['ruleset_id', 'ruleset'],
+    ];
+    const byPath = {}; for (const [alias, p] of FIELD_ALIASES) if (!byPath[p]) byPath[p] = alias;
+    const signalCols = SIGNAL_CATALOG.map((s) => [s.key, byPath[s.key] || s.key]);
+    const columns = [...decisionCols.map(([k, l]) => ({ key: k, label: l, group: 'decision' })), ...signalCols.map(([k, l], i) => ({ key: 'sig:' + k, label: l, group: SIGNAL_CATALOG[i].group }))];
+    const total = (await env.DB.prepare('SELECT COUNT(*) n FROM traffic_decisions WHERE tenant_id=?').bind(t).first())?.n || 0;
+    const rows = (await env.DB.prepare('SELECT * FROM traffic_decisions WHERE tenant_id=? ORDER BY ts DESC LIMIT ? OFFSET ?').bind(t, per, (page - 1) * per).all()).results || [];
+    const out = rows.map((d) => {
+      const sig = (() => { try { return JSON.parse(d.signals_json || '{}'); } catch { return {}; } })();
+      const r = {};
+      for (const [k] of decisionCols) r[k] = flat(d[k]);
+      for (const s of SIGNAL_CATALOG) r['sig:' + s.key] = flat(getPath(sig, s.key));
+      return r;
+    });
+    return json({ ok: true, columns, rows: out, total, page, per_page: per, pages: Math.max(1, Math.ceil(total / per)) });
+  }
+
   // read the active/named ruleset's rules as plain English
   if (seg(0) === 'rules' && seg(1) === 'plain' && method === 'GET') {
     const t = tenantFrom(env, null, url);
