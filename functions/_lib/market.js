@@ -8,6 +8,7 @@
 import { identifierHash, ensureProfile, recordProfileEvent } from './identity_fns.js';
 import { bindContext } from './capability_context.js';
 import { createTask } from './work_object.js';
+import { tierDenials } from './market_gov.js';
 
 const ORIGIN = 'https://miscsubjects.com';
 const DAY = 86400;
@@ -122,6 +123,21 @@ export const METHODOLOGIES = {
     },
     compare(a, b) { return a && b && a.roas != null && b.roas != null && Math.abs(a.roas - b.roas) <= 0.005; },
   },
+};
+METHODOLOGIES.CPC_LIFT_V1 = {
+  version: 1, causal: true,
+  statement: 'difference-in-differences lift in cost per click: (test after − test before) − (control after − control before), from four Meta insights receipts over a test cohort and a control cohort',
+  evidence: ['META_ADS_INSIGHTS receipt: test cohort, before window', 'META_ADS_INSIGHTS receipt: test cohort, after window', 'META_ADS_INSIGHTS receipt: control cohort, before window', 'META_ADS_INSIGHTS receipt: control cohort, after window'],
+  exclusions: 'any window with zero clicks makes the claim EVIDENCE_MISSING; the control must be named in the commitment or the grade stays method-reproducible',
+  grade_ceiling: 'causally-supported when the commitment named the control cohort before the windows were read',
+  compute(receipts) {
+    const [tb, ta, cb, ca] = receipts.map((r) => insightsTotals(receiptResult(r, r._full)));
+    if ([tb, ta, cb, ca].some((w) => !w.clicks)) return { error: 'EVIDENCE_MISSING', detail: 'a window has no clicks', windows: { tb, ta, cb, ca } };
+    const cpc = (w) => w.spend / w.clicks;
+    const testDelta = cpc(ta) - cpc(tb), controlDelta = cpc(ca) - cpc(cb);
+    return { test_before_cpc: +cpc(tb).toFixed(4), test_after_cpc: +cpc(ta).toFixed(4), control_before_cpc: +cpc(cb).toFixed(4), control_after_cpc: +cpc(ca).toFixed(4), lift_cpc: +(testDelta - controlDelta).toFixed(4), lift_pct_of_test_before: +(((testDelta - controlDelta) / cpc(tb)) * 100).toFixed(2) };
+  },
+  compare(a, b) { return a && b && a.lift_cpc != null && b.lift_cpc != null && Math.abs(a.lift_cpc - b.lift_cpc) <= 0.005; },
 };
 export const EVIDENCE_GRADES = ['self-attested', 'execution-receipted', 'source-authenticated', 'method-reproducible', 'causally-supported', 'privacy-preserving'];
 
@@ -305,12 +321,12 @@ export function makeMarketFnMap(deps) {
     // RESOURCE_NEW — kind|label|snapshot_key|snapshot_body|snapshot_fields|collateral_usd|risk_premium_usd
     async resourceNew(env, raw) {
       if (!isOwnerCall(env)) return err('OWNER_ONLY', 'resources are declared by their owner');
-      const b = parseFields(raw, ['kind', 'label', 'snapshot_key', 'snapshot_body', 'snapshot_fields', 'collateral_usd', 'risk_premium_usd']);
+      const b = parseFields(raw, ['kind', 'label', 'snapshot_key', 'snapshot_body', 'snapshot_fields', 'collateral_usd', 'risk_premium_usd', 'state_changing']);
       if (!b.kind || !b.label) return err('BAD_REQUEST', 'kind and label required');
       const id = newId('res'); const t = now();
       try {
         await env.DB.prepare('INSERT INTO market_resources (id, kind, label, owner_profile_id, state, snapshot_key, snapshot_body, snapshot_fields_json, collateral_cents, risk_premium_cents, quarantine_reason, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
-          .bind(id, String(b.kind), String(b.label), null, 'available', b.snapshot_key || null, b.snapshot_body || null, JSON.stringify(j(b.snapshot_fields, [])), cents(b.collateral_usd), cents(b.risk_premium_usd), null, t, t).run();
+          .bind(id, String(b.kind), String(b.label), null, 'available', b.snapshot_key || null, b.snapshot_body || null, JSON.stringify(j(b.snapshot_fields, [])), cents(b.collateral_usd), cents(b.risk_premium_usd), /^(1|true|yes)$/i.test(String(b.state_changing || '')) ? 'STATE_CHANGING' : null, t, t).run();
       } catch (e) { return err('DURABLE_WRITE_FAILED', e.message); }
       const ev = await ledger(env, 'RESOURCE_NEW', 'resource_declared', { id, kind: b.kind, label: b.label }, { ok: true });
       return ok({ resource_id: id, state: 'available', ledger_event_id: ev });
@@ -375,6 +391,11 @@ export function makeMarketFnMap(deps) {
       if (L.expires_at <= now()) { await env.DB.prepare("UPDATE market_leases SET state = 'expired', updated_at = ? WHERE id = ?").bind(now(), id).run(); return err('LEASE_EXPIRED', 'the reservation window passed'); }
       let pre = null;
       const res = await env.DB.prepare('SELECT * FROM market_resources WHERE id = ?').bind(L.resource_id).first();
+      // A state-changing resource is only leased to a lessee with a trusted device on record.
+      if (res?.quarantine_reason === 'STATE_CHANGING') {
+        const dev = await env.DB.prepare('SELECT id FROM traffic_devices WHERE profile_id = ? AND trusted = 1 AND revoked_at IS NULL LIMIT 1').bind(L.lessee_profile_id).first().catch(() => null);
+        if (!dev) return err('DEVICE_NOT_APPROVED', 'this resource can change state; the lessee needs a trusted device (DEVICE_REGISTER, then DEVICE_TRUST) before the lease opens');
+      }
       if (res?.snapshot_key) { const s = await MAP.resourceSnapshot(env, `${L.resource_id}|${id}|before`); try { pre = JSON.parse(s).state_hash || null; } catch { return s; } }
       const t = now(); const receipt = newId('chk');
       try {
@@ -445,7 +466,9 @@ export function makeMarketFnMap(deps) {
       if (!L) return err('LEASE_NOT_FOUND', `no lease ${id}`);
       const res = await env.DB.prepare('SELECT id, kind, label, state FROM market_resources WHERE id = ?').bind(L.resource_id).first();
       const snaps = (await env.DB.prepare('SELECT id, phase, state_hash, taken_at FROM market_snapshots WHERE lease_id = ? ORDER BY taken_at').bind(id).all()).results || [];
-      return ok({ lease: { ...L, allowed_actions: j(L.allowed_actions_json, []), forbidden_actions: j(L.forbidden_actions_json, []) }, resource: res, snapshots: snaps, denials: { not_allowed: 'FORBIDDEN_ACTION', over_ceiling: 'SPEND_CEILING', after_expiry: 'LEASE_EXPIRED', another_token: 'NOT_THE_LESSEE' } });
+      const party = isOwnerCall(env) || env?.TRACE_CTX?.authContext?.capFingerprint === L.fingerprint;
+      const view = party ? { ...L } : { id: L.id, resource_id: L.resource_id, state: L.state, expires_at: L.expires_at, exclusive: L.exclusive, projection: 'reference' };
+      return ok({ lease: { ...view, allowed_actions: j(L.allowed_actions_json, []), forbidden_actions: j(L.forbidden_actions_json, []) }, resource: res, snapshots: party ? snaps : snaps.map((x) => ({ phase: x.phase, taken_at: x.taken_at })), denials: { not_allowed: 'FORBIDDEN_ACTION', over_ceiling: 'SPEND_CEILING', after_expiry: 'LEASE_EXPIRED', another_token: 'NOT_THE_LESSEE' } });
     },
 
     // ── CLAIMS, COMMITMENTS, VERIFICATION, DISPUTES ───────────────────────────────────────
@@ -482,6 +505,8 @@ export function makeMarketFnMap(deps) {
       let commit = null;
       if (b.commit_id) { commit = await env.DB.prepare('SELECT * FROM market_claim_commits WHERE id = ?').bind(String(b.commit_id)).first(); if (!commit) return err('BAD_REQUEST', `no commitment ${b.commit_id}`); }
       const preregistered = !!(commit && recs.every((r) => String(r.ts) > String(commit.created_at)));
+      // A causal grade needs a control named before the windows were read, under a methodology built for one.
+      if (M.causal && preregistered && commit?.control && !/^(none|no|null|-)?$/i.test(String(commit.control).trim())) grade = 'causally-supported';
       const id = newId('clm'); const t = now();
       try {
         await env.DB.prepare('INSERT INTO market_claims (id, provider_profile_id, statement, period_from, period_to, methodology_key, methodology_version, evidence_receipts_json, dataset_commitment, evidence_grade, commit_id, preregistered, value_json, state, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
@@ -610,7 +635,8 @@ export function makeMarketFnMap(deps) {
         const rights = (await env.DB.prepare('SELECT row_key FROM market_rights WHERE resale_allowed = 1').all()).results || [];
         const sellable = rights.map((r) => dir[r.row_key]).filter(Boolean).filter((r) => cents(r.price_usd) > 0);
         const words = String(W.text).toLowerCase().split(/\W+/).filter((w) => w.length > 3);
-        const scored = sellable.map((r) => { const hay = (r.key + ' ' + (r.content || '')).toLowerCase(); const hits = words.filter((w) => hay.includes(w)).length; return { key: r.key, price_cents: cents(r.price_usd), meter_unit: r.meter_unit, relevance: hits }; }).filter((x) => x.relevance > 0 && x.price_cents <= Number(M.budget_cents));
+        const mandated = j(M.allowed_actions_json, []);
+        const scored = sellable.map((r) => { const hay = (r.key + ' ' + (r.content || '')).toLowerCase(); const hits = words.filter((w) => hay.includes(w)).length; return { key: r.key, price_cents: cents(r.price_usd), meter_unit: r.meter_unit, relevance: hits + (mandated.includes(r.key) ? 1 : 0), named_by_mandate: mandated.includes(r.key) }; }).filter((x) => x.relevance > 0 && x.price_cents <= Number(M.budget_cents));
         const byRel = [...scored].sort((a, b2) => b2.relevance - a.relevance)[0];
         const byPrice = [...scored].sort((a, b2) => a.price_cents - b2.price_cents)[0];
         matches = { best_match: byRel || null, cheapest: byPrice || null, all: scored.slice(0, 10), note: 'a set, not a winner; evidence grade would rank providers, price ranks rows' };
@@ -673,7 +699,8 @@ export function makeMarketFnMap(deps) {
       const S = await env.DB.prepare('SELECT * FROM market_settlements WHERE id = ? OR ref_id = ?').bind(id, id).first();
       if (!S) return err('SETTLEMENT_NOT_FOUND', `no settlement for ${id}`);
       const final = !!(S.finality_state === 'final' || (S.reversible_until && S.reversible_until <= now()));
-      return ok({ settlement: S, final, note: final ? 'final' : 'SETTLEMENT_NOT_FINAL: inside the reversal window' });
+      const view = isOwnerCall(env) ? S : { id: S.id, kind: S.kind, ref_id: S.ref_id, rail: S.rail, state: S.state, finality_state: S.finality_state, dispute_window_days: S.dispute_window_days, projection: 'redacted: amounts and fees are the parties\' business' };
+      return ok({ settlement: view, final, note: final ? 'final' : 'SETTLEMENT_NOT_FINAL: inside the reversal window' });
     },
 
     // METHODOLOGY — key : the versioned definition a claim is computed by.
@@ -684,5 +711,5 @@ export function makeMarketFnMap(deps) {
       return ok({ key: k, version: M.version, statement: M.statement, evidence: M.evidence, exclusions: M.exclusions, grade_ceiling: M.grade_ceiling, grades: EVIDENCE_GRADES });
     },
   };
-  return MAP;
+  return tierDenials(MAP);
 }

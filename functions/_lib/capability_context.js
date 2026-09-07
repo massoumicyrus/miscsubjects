@@ -366,14 +366,54 @@ async function loadProfile(env, id) {
 
 // Decide, then record the decision, then answer. Returns { ok:true, applied } or
 // { ok:false, status, reason:<CODE>, note, checks, ledger_event_id }. Every denial is a receipt.
+// POLICY ROWS — the policies themselves are directory rows (key POLICY_*, type fn, content ending in a
+// JSON object), so they are versioned, visible in the tool-status board, and switched without a deploy.
+// A policy tightens: it can raise the verification window, demand proof of possession, or require a bound
+// context for the rows it matches. It never loosens a binding.
+let POLICY_CACHE = { at: 0, rows: [] };
+export async function loadPolicyRows(env, nowMs = Date.now()) {
+  if (nowMs - POLICY_CACHE.at < 30000) return POLICY_CACHE.rows;
+  let rows = [];
+  try {
+    const r = (await env.DB.prepare("SELECT key, content FROM directory WHERE key LIKE 'POLICY_%' AND enabled = 1").all()).results || [];
+    for (const x of r) {
+      const lines = String(x.content || '').trim().split('\n'); const last = lines[lines.length - 1] || '';
+      try { const pol = JSON.parse(last); if (pol && pol.match) rows.push({ key: x.key, ...pol, re: new RegExp(pol.match) }); } catch {}
+    }
+  } catch { rows = POLICY_CACHE.rows; }
+  POLICY_CACHE = { at: nowMs, rows };
+  return rows;
+}
+export function applyPolicyRows(ctx, key, policies) {
+  const applied = [];
+  let c = ctx ? { ...ctx } : null;
+  let requireContext = false;
+  for (const p of policies) {
+    if (!p.re.test(String(key || ''))) continue;
+    applied.push(p.key);
+    if (p.require_context) requireContext = true;
+    if (c) {
+      if (p.require_verification_s != null) c.require_verification_s = c.require_verification_s == null ? Number(p.require_verification_s) : Math.min(Number(c.require_verification_s), Number(p.require_verification_s));
+      if (p.require_pop) c.require_pop = 1;
+    }
+  }
+  return { ctx: c, applied, requireContext };
+}
+
 export async function contextGateCheck(env, cap, presenter, { key, body, row } = {}) {
   if (!cap?.fingerprint) return { ok: true, applied: false };
+  const policies = await loadPolicyRows(env);
   const got = await getContext(env, cap.fingerprint);
   if (!got.ok) {
     const ev = await logEvent(env, { source: 'authz', key: key || 'CAPABILITY', action: 'context_decision', direction: 'in', status: 503, actor: 'cap:' + cap.fingerprint, request: { fingerprint: cap.fingerprint, attempted_key: key }, response: { decision: 'deny', code: 'CONTEXT_STORE_UNAVAILABLE', detail: got.error } });
     return { ok: false, status: 503, reason: 'CONTEXT_STORE_UNAVAILABLE', note: 'the capability context could not be read; authority alone is not enough when a context exists', ledger_event_id: ev };
   }
-  const ctx = got.ctx;
+  const pol = applyPolicyRows(got.ctx, key, policies);
+  if (!got.ctx && pol.requireContext) {
+    const ev = await logEvent(env, { source: 'authz', key: key || 'CAPABILITY', action: 'context_decision', direction: 'in', status: 403, actor: 'cap:' + cap.fingerprint, request: { fingerprint: cap.fingerprint, attempted_key: key, policies_applied: pol.applied }, response: { decision: 'deny', code: 'POLICY_DENIED', detail: 'this row requires a bound context and the token has none', checks: [], policies_applied: pol.applied } });
+    return { ok: false, status: 403, reason: 'POLICY_DENIED', note: `policy ${pol.applied.join(',')} requires a bound context for ${key}; bind one with CAP_CONTEXT_BIND`, ledger_event_id: ev };
+  }
+  const ctx = pol.ctx;
   if (!ctx) return { ok: true, applied: false };
   const device = presenter?.device_id ? await loadDevice(env, presenter.device_id) : null;
   const profile = ctx.profile_id ? await loadProfile(env, ctx.profile_id) : (device?.profile_id ? await loadProfile(env, device.profile_id) : null);
@@ -382,7 +422,7 @@ export async function contextGateCheck(env, cap, presenter, { key, body, row } =
   const verdict = evaluateContext({ ctx, presenter, device, profile, popResult, rowSensitive: Number(row?.sensitive) === 1 });
   const decision = {
     decision: verdict.ok ? 'allow' : 'deny', code: verdict.code, detail: verdict.detail || null, checks: verdict.checks,
-    fingerprint: cap.fingerprint, attempted_key: key || null, policy_rev: ctx.policy_rev,
+    fingerprint: cap.fingerprint, attempted_key: key || null, policy_rev: ctx.policy_rev, policies_applied: pol.applied,
     profile_id: ctx.profile_id || profile?.id || null, device_id: presenter?.device_id || null,
     session_id: presenter?.session_id || presenter?.webmodel_session_id || null, state_handle: presenter?.state_handle || null,
     origin: presenter?.origin || null, verification_at: device?.last_verification || null,

@@ -244,9 +244,16 @@ export function makeFlowLearnFnMap({ loadDirectory, logEvent, readEventFull, get
       const row = await env.DB.prepare("SELECT key, type, enabled, category FROM directory WHERE key = ?").bind(key).first();
       if (!row) return err('SESSION_NOT_FOUND', `no row ${key}`);
       if (row.type !== 'flow' || row.category !== 'learned') return err('BAD_REQUEST', `${key} is not a learned flow`);
+      const force = /\|\s*force\s*$/i.test(String(raw || ''));
+      const full = await env.DB.prepare('SELECT content FROM directory WHERE key = ?').bind(key).first();
+      const SECRET_RE = /(sk_(live|test)_[A-Za-z0-9]{8,}|whsec_[A-Za-z0-9]{8,}|Bearer\s+[A-Za-z0-9._-]{16,}|\b[0-9a-f]{40,}\b|sh\.\d{9,}\.|x-terminal-key)/i;
+      if (SECRET_RE.test(String(full?.content || ''))) return err('SECRET_LITERAL', `${key} carries a secret-shaped literal in a step; strip it before promotion`);
+      let runs = 0;
+      try { runs = Number((await env.LEDGER.prepare('SELECT COUNT(*) n FROM invocations WHERE object_id = ? AND material = 1').bind(key).first())?.n || 0); } catch {}
+      if (!runs && !force) return err('NO_GENERALIZATION_EVIDENCE', `${key} has no successful run of its own yet; run it once with a new argument (FLOW_LEARN replays on creation), or promote with ${key}|force`);
       try { await env.DB.prepare('UPDATE directory SET enabled = 1, updated_at = ? WHERE key = ?').bind(new Date().toISOString(), key).run(); } catch (e) { return err('DURABLE_WRITE_FAILED', e.message); }
       try { await invalidateDirSnapshot(env); } catch {}
-      const ev = await logEvent(env, { source: 'flow_learn', key: 'FLOW_PROMOTE', action: 'flow_promoted', direction: 'in', status: 200, actor: 'owner', request: { key }, response: { enabled: true } });
+      const ev = await logEvent(env, { source: 'flow_learn', key: 'FLOW_PROMOTE', action: 'flow_promoted', direction: 'in', status: 200, actor: 'owner', request: { key, forced: force, runs }, response: { enabled: true } });
       if (!ev) return err('LEDGER_WRITE_FAILED', 'promoted but the ledger refused the receipt');
       return ok({ key, enabled: true, ledger_event_id: ev });
     },

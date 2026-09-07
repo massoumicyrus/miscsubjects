@@ -10,6 +10,8 @@ import { makeIdentityFnMap } from "../_lib/identity_fns.js";
 import { makeFlowLearnFnMap } from "../_lib/flow_learn.js";
 import { makeProfileForwardFnMap } from "../_lib/profile_forward.js";
 import { makeMarketFnMap } from "../_lib/market.js";
+import { makeMarketGovFnMap } from "../_lib/market_gov.js";
+import { signAsHome as signConfirmationAsHome } from "../_lib/oip_federation.js";
 import { readEventFull as readEventFullForLearn } from "../_lib/event_log.js";
 import { invalidateDirSnapshot as invalidateDirSnapshotForLearn } from "../_lib/dir_snapshot.js";
 import { publicSecretFindingAndRevoke, publicSecret404 } from '../_lib/public_secret_guard.js';
@@ -2474,6 +2476,22 @@ export async function tenantGateCheck(env, cap, key) {
 // OIP v0.8.1 — one authorization path for composite objects. A trail may reuse
 // the caller's verified context, but it never acquires the wrapper's authority:
 // every nested key is independently gated and consumes the same caller budget.
+
+// ATTESTATION LINEAGE on a public confirmation: which policy revision allowed the call (when a
+// capability with a context ran it) and the node's own ES256 signature over the confirmation fields, so
+// a stranger can check the proof against /.well-known/oip.json without trusting the transport.
+async function confirmationAttestation(env, rec) {
+  const out = { predicate: 'oip/confirmation/1', subject: rec.id, object_id: rec.object_id, observed_at: rec.ts, actor: rec.actor, policy_rev: null, signature: null };
+  try {
+    const m = String(rec.actor || '').match(/^cap:(cap_[0-9a-f]+)$/);
+    if (m) { const ctx = await env.LEDGER.prepare('SELECT policy_rev FROM capability_contexts WHERE fingerprint = ?').bind(m[1]).first(); out.policy_rev = ctx?.policy_rev ?? null; }
+  } catch { out.policy_rev = 'LEDGER_LOOKUP_FAILED'; }
+  try {
+    const signed = await signConfirmationAsHome(env, { protocol: 'oip-confirmation/1', subject: out.subject, object_id: out.object_id, observed_at: out.observed_at, actor: out.actor, policy_rev: out.policy_rev });
+    out.signature = signed.signature; out.verify_with = 'https://miscsubjects.com/.well-known/oip.json';
+  } catch (e) { out.signature = null; out.unsigned_because = String(e?.message || e); }
+  return out;
+}
 async function dispatchNestedAuthorized(env, key, body, authContext) {
   const auth = authContext || env?.TRACE_CTX?.authContext || null;
   if (!auth) return { denied: true, reason: 'nested_authority_missing', status: 401 };
@@ -2855,6 +2873,15 @@ async function onRequestGetInner(context) {
   if (p.get('confirm') != null) {
     const invId = p.get('confirm');
     if (!invId) return dispatchJson({ error: 'confirm id required' }, 400);
+    // Federation: node:<domain>:inv_… asks that node's own confirm endpoint and relays its answer.
+    const fed = invId.match(/^node:([a-z0-9.-]+):(inv_[A-Za-z0-9_-]+)$/i);
+    if (fed) {
+      try {
+        const r = await fetch('https://' + fed[1] + '/api/dispatch?confirm=' + encodeURIComponent(fed[2]), { headers: { accept: 'application/json' } });
+        const t = await r.text(); let jn; try { jn = JSON.parse(t); } catch { jn = { raw: t.slice(0, 400) }; }
+        return dispatchJson({ protocol: 'OIP', kind: 'confirmation', federated_from: fed[1], remote_status: r.status, remote: jn }, r.status === 200 ? 200 : 502);
+      } catch (e) { return dispatchJson({ protocol: 'OIP', kind: 'confirmation', confirmed: null, id: invId, error: 'REMOTE_UNREACHABLE', note: 'the remote node did not answer: ' + e.message }, 502); }
+    }
     const look = await lookupInvocation(env, invId);
     if (!look.ok) return dispatchJson({ protocol: 'OIP', kind: 'confirmation', confirmed: null, id: invId, error: 'LEDGER_LOOKUP_FAILED', note: 'The ledger did not answer, so nothing is known about this invocation; it may exist. Retry.', detail: look.error }, 503);
     const rec = look.rec;
@@ -2871,6 +2898,7 @@ async function onRequestGetInner(context) {
         material: !!rec.material,
         statement: 'This invocation is recorded and really happened' + (rec.material ? ' with material output.' : ', but produced no material output.'),
       },
+      attestation: await confirmationAttestation(env, rec),
     });
   }
   // MAP — the capability documentation tree (backend mirror of the content system-map): ?map=1 is
@@ -3920,6 +3948,7 @@ Object.assign(FN_MAP, makeProfileForwardFnMap());
 // THE CAPABILITY MARKET — rights, pay-to-token, leases, claims and their verification, wants →
 // mandates → offers → agreements, settlement terms. Every verb is an ordinary fn row.
 Object.assign(FN_MAP, makeMarketFnMap({ dispatch, mintCapability, loadDirectory, logEvent, buildNowIso, getInvocation, getCapabilityByFingerprint, revokeCapability, sendBlooio: blooioSend }));
+Object.assign(FN_MAP, makeMarketGovFnMap({ dispatch, mintCapability, loadDirectory, logEvent, buildNowIso, getInvocation, revokeCapability, sendBlooio: blooioSend }));
 Object.assign(FN_MAP, makeFlowLearnFnMap({
   loadDirectory, logEvent, getInvocation, dispatchNestedAuthorized,
   readEventFull: readEventFullForLearn, invalidateDirSnapshot: invalidateDirSnapshotForLearn,

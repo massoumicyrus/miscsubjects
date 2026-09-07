@@ -6,6 +6,9 @@ import { dispatch } from '../api/dispatch.js';
 import { sendBlooio } from '../blooio.js';
 import { logEvent } from './event_log.js';
 import { buildNowIso } from './build_time.js';
+import { getContext, bindContext } from './capability_context.js';
+
+const PROTECTED_NUMBERS = ['[OWNER_PHONE]', '[BUILD_PHONE]', '12065711028', '13104069604'];
 
 const ORIGIN = 'https://miscsubjects.com';
 
@@ -31,6 +34,8 @@ function parseOut(r) { let v = r?.result ?? r; if (typeof v === 'string') { cons
 export async function paidLanePreRoute(env, raw, waitUntil = null) {
   const m = parseInbound(raw);
   if (!m || m.isGroup) return false;
+  const digits = String(m.from).replace(/\D/g, '');
+  if (PROTECTED_NUMBERS.some((n) => digits.endsWith(n))) return false;
   let look;
   try { look = parseOut(await dispatch(env, 'PAID_LANE_LOOKUP', m.from, { actor: 'market:lane' })); } catch { return false; }
   if (!look || !look.profile_id) return false;                       // never bought: not this lane's message
@@ -48,6 +53,19 @@ export async function paidLanePreRoute(env, raw, waitUntil = null) {
   const first = m.messageBody.trim().split(/\s+/)[0].toUpperCase().replace(/[^A-Z0-9_]/g, '');
   const cap = caps.find((c) => c.row_key === first) || caps[0];
   const body = cap.row_key === first ? m.messageBody.trim().slice(first.length).trim() : m.messageBody.trim();
+  // Session binding: the first paid text binds the token's context to this chat; a later text from a
+  // different chat is refused by name. A stolen token cannot be spent from a stranger's phone.
+  try {
+    const got = await getContext(env, cap.fingerprint);
+    const ctx = got?.ctx || null;
+    const chatId = String(m.chat || m.from);
+    if (ctx && Array.isArray(ctx.session_ids) && ctx.session_ids.length && !ctx.session_ids.includes(chatId)) {
+      bg(sendBlooio(env, m.chat, `SESSION_NOT_APPROVED: this token is bound to another conversation.`));
+      await logEvent(env, { source: 'market', key: 'PAID_LANE', action: 'session_not_approved', direction: 'in', status: 401, request: { profile_id: look.profile_id, fingerprint: cap.fingerprint, chat: chatId }, response: { replied: true } });
+      return true;
+    }
+    if (ctx && (!Array.isArray(ctx.session_ids) || !ctx.session_ids.length)) await bindContext(env, cap.fingerprint, { profile_id: look.profile_id, session_ids: [chatId] }, { by: 'market:lane' }).catch(() => {});
+  } catch { /* a context read failure never blocks the paid run; the profile match already holds */ }
   const started = buildNowIso();
   let out; try { out = await dispatch(env, cap.row_key, body, { actor: 'cap:' + cap.fingerprint }); } catch (e) { out = { ok: false, error: e.message }; }
   const invId = out?.invocation?.id || out?.proof?.invocation_id || null;
