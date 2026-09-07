@@ -3,7 +3,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { colToLetter, letterToCol, parseCellRef, parseRange, rangeToA1 } from "./sheets_store.js";
+import { MAX_COLS, colToLetter, letterToCol, parseCellRef, parseRange, rangeToA1 } from "./sheets_store.js";
 
 test("column letters round-trip like Google Sheets", () => {
   assert.equal(colToLetter(1), "A");
@@ -18,6 +18,12 @@ test("column letters round-trip like Google Sheets", () => {
   assert.equal(letterToCol("a"), 1);
   assert.equal(letterToCol("!"), null);
   assert.equal(letterToCol(""), null);
+});
+
+test("a native sheet can address the full Google Sheets column span", () => {
+  assert.equal(MAX_COLS, 18278);
+  assert.equal(colToLetter(MAX_COLS), "ZZZ");
+  assert.equal(letterToCol("ZZZ"), MAX_COLS);
 });
 
 test("cell refs parse: B3, bare column, bare row", () => {
@@ -45,4 +51,31 @@ test("ranges parse: single cell, rectangle, whole columns, whole rows, open bott
 test("rangeToA1 collapses single cells", () => {
   assert.equal(rangeToA1(1, 1, 1, 1), "A1");
   assert.equal(rangeToA1(3, 2, 10, 4), "B3:D10");
+});
+
+test("a private native sheet grants access only for its password and signed sheet cookie", async () => {
+  const page = await import("../sheet/[id].js");
+  assert.equal(typeof page.hashSheetPassword, "function");
+  assert.equal(typeof page.issueSheetAccessCookie, "function");
+  assert.equal(typeof page.hasSheetAccess, "function");
+  const passwordHash = await page.hashSheetPassword("owner-chosen-password");
+  const sheet = { id: "sh_daily", col_meta: { access: { password_sha256: passwordHash } } };
+  assert.equal(await page.sheetPasswordMatches(sheet, "owner-chosen-password"), true);
+  assert.equal(await page.sheetPasswordMatches(sheet, "wrong-password"), false);
+  const setCookie = await page.issueSheetAccessCookie(sheet, "server-signing-secret", 1_000_000);
+  const cookie = setCookie.split(";", 1)[0];
+  const request = new Request("https://miscsubjects.com/sheet/sh_daily", { headers: { cookie } });
+  assert.equal(await page.hasSheetAccess(request, sheet, "server-signing-secret", 1_000_001), true);
+  assert.equal(await page.hasSheetAccess(request, { ...sheet, id: "sh_other" }, "server-signing-secret", 1_000_001), false);
+  assert.equal(await page.hasSheetAccess(request, sheet, "server-signing-secret", 1_000_000 + 86_400_001), false);
+});
+
+test("the native sheet link pages to the last column without dropping it", async () => {
+  const page = await import("../sheet/[id].js");
+  assert.equal(typeof page.sheetWindow, "function");
+  const window = page.sheetWindow(new URL("https://miscsubjects.com/sheet/sh_daily?row_start=202&column_start=6101"), {
+    used_rows: 439,
+    used_cols: 6157,
+  });
+  assert.deepEqual(window, { rowStart: 202, rowEnd: 401, colStart: 6101, colEnd: 6157, rowLimit: 200, colLimit: 100 });
 });

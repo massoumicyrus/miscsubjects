@@ -46,7 +46,7 @@ async function ensureAdopted(env, sheetId) {
 import { isFormula, evaluate, referencesOf, MAX_FANOUT } from './sheet_formula.js';
 
 export const MAX_ROWS = 100000;
-export const MAX_COLS = 104; // A..CZ — twice Google Sheets' default 26, before Insert grows it
+export const MAX_COLS = 18278; // A..ZZZ — the full Google Sheets column span
 export const MAX_RUN_ROWS_PER_CALL = 20;
 
 // ── A1 math ───────────────────────────────────────────────────────────────────────────────
