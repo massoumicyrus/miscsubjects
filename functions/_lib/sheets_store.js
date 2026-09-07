@@ -620,13 +620,45 @@ export async function importSparseValues(env, sheet, input, actor) {
   if (normalized.error) return normalized;
   if (!normalized.cells.length) return { error: 'empty_import' };
   const ts = buildNowIso();
-  const statements = normalized.cells.map(([r, c, value]) => value === ''
-    ? env.DB.prepare('DELETE FROM sheet_cells WHERE sheet_id=? AND r=? AND c=?').bind(sheet.id, r, c)
-    : env.DB.prepare(
-      'INSERT INTO sheet_cells (sheet_id,r,c,value,updated_at,updated_by) VALUES (?,?,?,?,?,?) ' +
-      'ON CONFLICT(sheet_id,r,c) DO UPDATE SET value=excluded.value, formula=NULL, updated_at=excluded.updated_at, updated_by=excluded.updated_by',
-    ).bind(sheet.id, r, c, value, ts, actor || 'admin'));
-  await runChunkedBatch(env, statements);
+  const statements = [];
+  const groups = [];
+  let group = [];
+  let bytes = 2;
+  for (const cell of normalized.cells) {
+    const cellBytes = new TextEncoder().encode(JSON.stringify(cell)).length + 1;
+    if (group.length && bytes + cellBytes > 400000) {
+      groups.push(group);
+      group = [];
+      bytes = 2;
+    }
+    group.push(cell);
+    bytes += cellBytes;
+  }
+  if (group.length) groups.push(group);
+  for (const cells of groups) {
+    const upserts = cells.filter((cell) => cell[2] !== '');
+    const deletes = cells.filter((cell) => cell[2] === '').map(([r, c]) => [r, c]);
+    if (upserts.length) {
+      statements.push(env.DB.prepare(
+        `INSERT INTO sheet_cells (sheet_id,r,c,value,updated_at,updated_by)
+         SELECT ?, CAST(json_extract(j.value,'$[0]') AS INTEGER), CAST(json_extract(j.value,'$[1]') AS INTEGER),
+                CAST(json_extract(j.value,'$[2]') AS TEXT), ?, ?
+         FROM json_each(?) AS j WHERE true
+         ON CONFLICT(sheet_id,r,c) DO UPDATE SET value=excluded.value, formula=NULL,
+           updated_at=excluded.updated_at, updated_by=excluded.updated_by`,
+      ).bind(sheet.id, ts, actor || 'admin', JSON.stringify(upserts)));
+    }
+    if (deletes.length) {
+      statements.push(env.DB.prepare(
+        `DELETE FROM sheet_cells WHERE sheet_id=? AND EXISTS (
+           SELECT 1 FROM json_each(?) AS j
+           WHERE sheet_cells.r=CAST(json_extract(j.value,'$[0]') AS INTEGER)
+             AND sheet_cells.c=CAST(json_extract(j.value,'$[1]') AS INTEGER)
+         )`,
+      ).bind(sheet.id, JSON.stringify(deletes)));
+    }
+  }
+  await env.DB.batch(statements);
   const maxR = Math.max(...normalized.cells.map((x) => x[0]));
   const maxC = Math.max(...normalized.cells.map((x) => x[1]));
   await env.DB.prepare('UPDATE user_sheets SET rows=MAX(rows,?), cols=MAX(cols,?), updated_at=? WHERE id=?')

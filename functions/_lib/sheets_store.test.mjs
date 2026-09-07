@@ -89,3 +89,26 @@ test("sparse imports accept wide coordinates and refuse any silent truncation", 
   assert.equal(normalizeSparseCells([[1, 18279, "outside"]]).error, "cell_out_of_bounds");
   assert.equal(normalizeSparseCells(Array.from({ length: 2001 }, (_, i) => [i + 1, 1, "x"])).error, "too_many_cells");
 });
+
+test("a full sparse import reaches D1 in one bounded batch call", async () => {
+  const { importSparseValues } = await import("./sheets_store.js");
+  const batches = [];
+  const DB = {
+    prepare(sql) {
+      return {
+        bind(...args) {
+          return { sql, args, run: async () => ({ success: true }) };
+        },
+      };
+    },
+    batch: async (statements) => {
+      batches.push(statements);
+      return statements.map(() => ({ success: true }));
+    },
+  };
+  const cells = Array.from({ length: 2000 }, (_, index) => [index + 1, 6157, `value-${index}`]);
+  const result = await importSparseValues({ DB }, { id: "sh_daily" }, cells, "importer");
+  assert.equal(result.imported, 2000);
+  assert.equal(batches.length, 1);
+  assert.ok(batches[0].length <= 25);
+});
