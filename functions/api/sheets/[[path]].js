@@ -6,7 +6,7 @@ import { logEvent } from '../../_lib/event_log.js';
 import { runView, resolvePins, writePin, describeSources, instantiateTemplate, normalizeView } from '../../_lib/sheet_views.js';
 import {
   listSheets, getSheet, createSheet, patchSheet, deleteSheet,
-  getValues, setValues, appendValues, clearRange, batchOps, exportCsv,
+  getValues, setValues, appendValues, importSparseValues, clearRange, batchOps, exportCsv,
   listRunConfigs, saveRunConfig, deleteRunConfig, runRows, cellHistory, parseCellRef,
   MAX_RUN_ROWS_PER_CALL,
 } from '../../_lib/sheets_store.js';
@@ -412,6 +412,14 @@ async function handle(context) {
   if (seg[1] === 'values:append' && method === 'POST') {
     const out = await appendValues(env, sheet, body.values, actor);
     receipt('SHEET_VALUES_APPEND', { rows: (body.values || []).length }, out, out.error ? 400 : 200);
+    return json(out, out.error ? 400 : 200);
+  }
+
+  // POST /api/sheets/<id>/cells:import {cells:[[row,column,value], ...]}
+  // Bounded owner/scoped-sheet bulk lane for sparse source unions; no blank matrix expansion.
+  if (seg[1] === 'cells:import' && method === 'POST') {
+    const out = await importSparseValues(env, sheet, body.cells, actor);
+    receipt('SHEET_VALUES_IMPORT', { cells: Array.isArray(body.cells) ? body.cells.length : 0 }, out, out.error ? 400 : 200);
     return json(out, out.error ? 400 : 200);
   }
 

@@ -79,3 +79,13 @@ test("the native sheet link pages to the last column without dropping it", async
   });
   assert.deepEqual(window, { rowStart: 202, rowEnd: 401, colStart: 6101, colEnd: 6157, rowLimit: 200, colLimit: 100 });
 });
+
+test("sparse imports accept wide coordinates and refuse any silent truncation", async () => {
+  const { normalizeSparseCells } = await import("./sheets_store.js");
+  assert.equal(typeof normalizeSparseCells, "function");
+  assert.deepEqual(normalizeSparseCells([[2, 6157, "last daily field"], { r: 3, c: 18278, value: 9 }]), {
+    cells: [[2, 6157, "last daily field"], [3, 18278, "9"]],
+  });
+  assert.equal(normalizeSparseCells([[1, 18279, "outside"]]).error, "cell_out_of_bounds");
+  assert.equal(normalizeSparseCells(Array.from({ length: 2001 }, (_, i) => [i + 1, 1, "x"])).error, "too_many_cells");
+});

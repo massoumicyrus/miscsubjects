@@ -596,6 +596,48 @@ export async function appendValues(env, sheet, values, actor) {
   return setValues(env, sheet, 'A' + startRow, values, actor);
 }
 
+export function normalizeSparseCells(input) {
+  if (!Array.isArray(input)) return { error: 'cells_must_be_array' };
+  if (input.length > 2000) return { error: 'too_many_cells', max: 2000, got: input.length };
+  const cells = [];
+  for (let i = 0; i < input.length; i++) {
+    const item = input[i];
+    const r = Number(Array.isArray(item) ? item[0] : item?.r);
+    const c = Number(Array.isArray(item) ? item[1] : item?.c);
+    const value = Array.isArray(item) ? item[2] : item?.value;
+    if (!Number.isInteger(r) || !Number.isInteger(c) || r < 1 || r > MAX_ROWS || c < 1 || c > MAX_COLS) {
+      return { error: 'cell_out_of_bounds', index: i, r, c, max_rows: MAX_ROWS, max_cols: MAX_COLS };
+    }
+    cells.push([r, c, value == null ? '' : String(value).slice(0, 100000)]);
+  }
+  return { cells };
+}
+
+// Bulk loaders already know the exact occupied coordinates. Accepting sparse triples avoids
+// manufacturing millions of blank-cell deletes while preserving the same bounded sheet grid.
+export async function importSparseValues(env, sheet, input, actor) {
+  const normalized = normalizeSparseCells(input);
+  if (normalized.error) return normalized;
+  if (!normalized.cells.length) return { error: 'empty_import' };
+  const ts = buildNowIso();
+  const statements = normalized.cells.map(([r, c, value]) => value === ''
+    ? env.DB.prepare('DELETE FROM sheet_cells WHERE sheet_id=? AND r=? AND c=?').bind(sheet.id, r, c)
+    : env.DB.prepare(
+      'INSERT INTO sheet_cells (sheet_id,r,c,value,updated_at,updated_by) VALUES (?,?,?,?,?,?) ' +
+      'ON CONFLICT(sheet_id,r,c) DO UPDATE SET value=excluded.value, formula=NULL, updated_at=excluded.updated_at, updated_by=excluded.updated_by',
+    ).bind(sheet.id, r, c, value, ts, actor || 'admin'));
+  await runChunkedBatch(env, statements);
+  const maxR = Math.max(...normalized.cells.map((x) => x[0]));
+  const maxC = Math.max(...normalized.cells.map((x) => x[1]));
+  await env.DB.prepare('UPDATE user_sheets SET rows=MAX(rows,?), cols=MAX(cols,?), updated_at=? WHERE id=?')
+    .bind(maxR, maxC, ts, sheet.id).run();
+  if (env.SHEET_DO) {
+    adopted.delete(sheet.id);
+    await doFetch(env, sheet.id, 'reset', {});
+  }
+  return { ok: true, imported: normalized.cells.length, max_row: maxR, max_col: maxC };
+}
+
 export async function clearRange(env, sheet, rangeStr) {
   const parsed = parseRange(rangeStr);
   if (!parsed) return { error: 'bad_range', range: rangeStr };
