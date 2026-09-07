@@ -270,6 +270,27 @@ A snapshot at the time this document was written. The live figures are one reque
 is the long-form description from request to receipt; bindings are authoritative in `wrangler.toml`
 and the `workers/*/wrangler.toml` files.
 
+## Deep dives — the major features
+
+Each significant subsystem has a focused document, a code path, and a live surface you can open
+right now. Start with the doc, read the code, then watch it run.
+
+| Feature | Read | Code | Live |
+|---|---|---|---|
+| Object Invocation Protocol — self-describing capabilities | [docs/OIP.md](docs/OIP.md) | `functions/_lib/object_contract.js` | [a row describing itself](https://miscsubjects.com/api/dispatch?key=NOW) |
+| Authority — tokens + capability contexts | [docs/AUTHORITY.md](docs/AUTHORITY.md) | `functions/_lib/capability_context.js` | [the step-up](https://miscsubjects.com/verify-device) |
+| Flows & learned-from-the-ledger flows | [docs/FLOWS.md](docs/FLOWS.md) | `functions/_lib/flow_learn.js` | [the directory](https://miscsubjects.com/api/directory?brief=1) |
+| Browser models as capabilities + the relay | [docs/WEB_MODELS.md](docs/WEB_MODELS.md) | `functions/_lib/webmodel_gateway.js` | [/api/manual](https://miscsubjects.com/api/manual) |
+| Sheets as live projections of the record | [docs/SHEETS.md](docs/SHEETS.md) | `functions/_lib/sheet_views.js` | [a sheet as an object](https://miscsubjects.com/api/sheets/sh_urmt4xfs/self) |
+| Traffic engine — explainable, replayable | [docs/TRAFFIC.md](docs/TRAFFIC.md) | `functions/_lib/traffic/` | [a splitter entry](https://miscsubjects.com/go/gateoxza) |
+| The work object — work the infra grades | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §7 | `functions/_lib/work_object.js` | [/api/work](https://miscsubjects.com/api/work) |
+| The ledger — every action a receipt | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §6 | `functions/_lib/event_log.js` | [/ledger](https://miscsubjects.com/ledger) |
+| The projection that produced this repo | [docs/PUBLISHING.md](docs/PUBLISHING.md) | `scripts/publish-mirror.mjs` | [the manifest](https://miscsubjects.com/img/projection/latest.json) |
+
+This repository is one monorepo, not many packages: the features above share the dispatch door, the
+directory and the ledger, so they are documented and cross-linked here rather than split into
+sub-repositories that could not run on their own.
+
 ## Storage and infrastructure
 
 | Binding | Service | Holds |
