@@ -142,13 +142,14 @@ export async function onRequestGet({ request, env, params }) {
     const [got, headerGot] = await Promise.all([getValues(env, sheet, range), getValues(env, sheet, headerRange)]);
     const values = (got && got.values) || [];
     const headers = (headerGot && headerGot.values && headerGot.values[0]) || [];
+    const download = `<nav class="links" aria-label="Download"><a href="/api/sheets/${encodeURIComponent(sheet.id)}/export.csv" download="${esc(sheet.id)}.csv">\u2913 Download this sheet as CSV</a></nav>`;
     const pager = '<nav class="links" aria-label="Sheet pages">'
       + (w.rowStart > 2 ? `<a href="${esc(pageHref(url, { row_start: Math.max(2, w.rowStart - w.rowLimit) }))}">← earlier rows</a>` : '')
       + (w.rowEnd < sheet.used_rows ? `<a href="${esc(pageHref(url, { row_start: w.rowEnd + 1 }))}">later rows →</a>` : '')
       + (w.colStart > 1 ? `<a href="${esc(pageHref(url, { column_start: Math.max(1, w.colStart - w.colLimit) }))}">← earlier columns</a>` : '')
       + (w.colEnd < sheet.used_cols ? `<a href="${esc(pageHref(url, { column_start: w.colEnd + 1 }))}">later columns →</a>` : '')
       + '</nav>';
-    table = pager + '<div class="grid"><table><thead><tr><th class="n">#</th>'
+    table = download + pager + '<div class="grid"><table><thead><tr><th class="n">#</th>'
       + Array.from({ length: w.colEnd - w.colStart + 1 }, (_, c) => `<th>${esc(headers[c] || colLetter(w.colStart + c))}</th>`).join('')
       + '</tr></thead><tbody>'
       + values.map((row, r) => `<tr><td class="n">${w.rowStart + r}</td>` + Array.from({ length: w.colEnd - w.colStart + 1 }, (_, c) => `<td>${esc(row[c])}</td>`).join('') + '</tr>').join('')
