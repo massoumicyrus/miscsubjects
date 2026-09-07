@@ -52,8 +52,32 @@ function ttlForMeter(meter) {
 // returns the number the methodology defines. The claim is verified when the recompute matches.
 function num(x) { const n = Number(x); return Number.isFinite(n) ? n : null; }
 function pick(obj, path) { return path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj); }
-function receiptResult(rec) {
-  try { const inv = JSON.parse(rec.invocation_json || '{}'); let r = inv.result ?? inv.response ?? inv.output; if (typeof r === 'string') { const s = r.replace(/^HTTP \d+:/, '').trim(); try { r = JSON.parse(s); } catch { return { _raw: r }; } } return r; } catch { return null; }
+function parseLoose(r) {
+  if (r == null) return null;
+  if (typeof r !== 'string') return r;
+  const s = r.replace(/^HTTP \d+:/, '').trim();
+  try { return JSON.parse(s); } catch { return { _raw: r, _truncated: true }; }
+}
+// The receipt row stores an output preview; the full response lives on the ledger event it names.
+// Read the preview first, and when it does not parse whole, read the event's full response.
+function receiptResult(rec, fullResponse = null) {
+  try {
+    const inv = JSON.parse(rec.invocation_json || '{}');
+    const preview = parseLoose(inv.result ?? inv.response ?? inv.output ?? inv.output_preview);
+    if (preview && !preview._truncated) return preview;
+    if (fullResponse) { const full = parseLoose(fullResponse); if (full && !full._truncated) return full; }
+    return preview;
+  } catch { return null; }
+}
+async function loadReceipts(env, ids, getInvocation) {
+  const recs = [];
+  for (const id of ids) {
+    const r = await getInvocation(env, id); if (!r) return { missing: id };
+    let full = null;
+    try { if (r.event_id) { const ev = await env.LEDGER.prepare('SELECT response_json FROM events WHERE id = ?').bind(r.event_id).first(); full = ev?.response_json || null; } } catch {}
+    recs.push({ ...r, _full: full });
+  }
+  return { recs };
 }
 function insightsTotals(result) {
   // Meta insights shape: {ok, data:[{spend, clicks, impressions, ...}]} or {data:[...]}; sum the rows.
@@ -77,7 +101,7 @@ export const METHODOLOGIES = {
     grade_ceiling: 'method-reproducible; a causal grade needs a declared control in the commitment',
     compute(receipts) {
       const [base, test] = receipts;
-      const b = insightsTotals(receiptResult(base)); const t = insightsTotals(receiptResult(test));
+      const b = insightsTotals(receiptResult(base, base._full)); const t = insightsTotals(receiptResult(test, test._full));
       if (!b.clicks || !t.clicks) return { error: 'EVIDENCE_MISSING', detail: 'a window has no clicks', baseline: b, test: t };
       const bc = b.spend / b.clicks, tc = t.spend / t.clicks;
       return { baseline_cpc: +bc.toFixed(4), test_cpc: +tc.toFixed(4), delta_pct: +(((tc - bc) / bc) * 100).toFixed(2), baseline: b, test: t };
@@ -92,7 +116,7 @@ export const METHODOLOGIES = {
     grade_ceiling: 'method-reproducible; attribution of revenue to spend is not claimed',
     compute(receipts) {
       const [meta, stripe] = receipts;
-      const m = insightsTotals(receiptResult(meta)); const s = chargesTotal(receiptResult(stripe));
+      const m = insightsTotals(receiptResult(meta, meta._full)); const s = chargesTotal(receiptResult(stripe, stripe._full));
       if (!m.spend) return { error: 'EVIDENCE_MISSING', detail: 'no spend in the window', spend: m, revenue: s };
       return { spend: +m.spend.toFixed(2), revenue: +s.revenue.toFixed(2), roas: +(s.revenue / m.spend).toFixed(4), charges: s.charges };
     },
@@ -449,7 +473,7 @@ export function makeMarketFnMap(deps) {
       if (!M) return err('METHODOLOGY_UNKNOWN', `no methodology ${mk}`);
       const ids = j(b.evidence_receipts, []).map(String).filter((x) => /^inv_/.test(x));
       if (ids.length < M.evidence.length) return err('EVIDENCE_MISSING', `${mk} needs ${M.evidence.length} receipts: ${M.evidence.join('; ')}`);
-      const recs = []; for (const id of ids) { const r = await getInvocation(env, id); if (!r) return err('EVIDENCE_MISSING', `receipt ${id} not found`); recs.push(r); }
+      const loaded = await loadReceipts(env, ids, getInvocation); if (loaded.missing) return err('EVIDENCE_MISSING', `receipt ${loaded.missing} not found`); const recs = loaded.recs;
       const value = M.compute(recs); if (value?.error) return err(value.error, value.detail || 'compute failed', { value });
       const commitment = 'sha256:' + await sha256Hex(recs.map((r) => r.id + ':' + (JSON.parse(r.invocation_json || '{}').fingerprints?.response || r.event_id || '')).join('|'));
       let grade = 'execution-receipted';
@@ -475,8 +499,8 @@ export function makeMarketFnMap(deps) {
       const C = await env.DB.prepare('SELECT * FROM market_claims WHERE id = ?').bind(id).first();
       if (!C) return err('CLAIM_NOT_FOUND', `no claim ${id}`);
       const M = METHODOLOGIES[C.methodology_key]; if (!M) return err('METHODOLOGY_UNKNOWN', C.methodology_key);
-      const ids = j(C.evidence_receipts_json, []); const recs = [];
-      for (const rid of ids) { const r = await getInvocation(env, rid); if (!r) return err('EVIDENCE_MISSING', `receipt ${rid} not found`); recs.push(r); }
+      const ids = j(C.evidence_receipts_json, []);
+      const loaded = await loadReceipts(env, ids, getInvocation); if (loaded.missing) return err('EVIDENCE_MISSING', `receipt ${loaded.missing} not found`); const recs = loaded.recs;
       const commitment = 'sha256:' + await sha256Hex(recs.map((r) => r.id + ':' + (JSON.parse(r.invocation_json || '{}').fingerprints?.response || r.event_id || '')).join('|'));
       const recomputed = M.compute(recs);
       const claimed = j(C.value_json, {});
