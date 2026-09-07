@@ -129,6 +129,16 @@ async function route(context) {
     return json({ ok: true, count: fields.length, groups: [...new Set(fields.map((f) => f.group))], fields, aliases: FIELD_ALIASES });
   }
 
+  // list squeeze-page variants (for version testing) — optionally by campaign
+  if (seg(0) === 'squeeze' && method === 'GET') {
+    const t = tenantFrom(env, null, url);
+    const cid = url.searchParams.get('campaign_id');
+    const rows = (await env.DB.prepare(cid
+      ? 'SELECT id, campaign_id, name, enabled, version, weight, status, headline, cta_text, message_template, updated_at FROM traffic_squeeze_pages WHERE tenant_id=? AND campaign_id=? ORDER BY weight DESC, id'
+      : 'SELECT id, campaign_id, name, enabled, version, weight, status, headline, cta_text, message_template, updated_at FROM traffic_squeeze_pages WHERE tenant_id=? ORDER BY campaign_id, id').bind(...(cid ? [t, cid] : [t])).all()).results || [];
+    return json({ ok: true, count: rows.length, squeeze_pages: rows });
+  }
+
   // list rulesets (for the console picker) with their entry patterns and destinations
   if (seg(0) === 'rulesets' && !seg(1) && method === 'GET') {
     const t = tenantFrom(env, null, url);

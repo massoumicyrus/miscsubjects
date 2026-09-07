@@ -109,7 +109,20 @@ code{background:#f2f0ea;padding:1px 5px;border-radius:4px;font-size:12px}
 </div>
 
 <div id="p-versions" class="tc-panel">
-  <div class="tc-card"><h3>Squeeze / destination versions</h3><div style="overflow:auto"><table class="tc"><thead><tr><th>ID</th><th>Name</th><th>Type</th><th>URL / health</th></tr></thead><tbody id="v-dst"></tbody></table></div><p class="muted">A <code>group</code> destination splits weighted across members (sticky per visitor). Squeeze pages split by version weight. That is version testing of both pages.</p></div>
+  <div class="tc-card"><h3>Squeeze page versions (A/B by weight, sticky per visitor)</h3>
+    <div style="overflow:auto"><table class="tc"><thead><tr><th>ID</th><th>Name</th><th>Ver</th><th>Weight</th><th>Status</th><th>Headline</th></tr></thead><tbody id="v-sqz"></tbody></table></div>
+    <div class="tc-row" style="margin-top:10px"><input id="sq-name" placeholder="variant name"><input id="sq-head" placeholder="headline"><input id="sq-cta" placeholder="CTA text"><input id="sq-weight" placeholder="weight (e.g. 1)"></div>
+    <button class="go" id="sq-add">Add squeeze variant</button> <span id="sq-out" class="muted"></span>
+  </div>
+  <div class="tc-card"><h3>Destination versions</h3>
+    <div style="overflow:auto"><table class="tc"><thead><tr><th>ID</th><th>Name</th><th>Type</th><th>URL / members</th><th>Health</th></tr></thead><tbody id="v-dst"></tbody></table></div>
+    <div class="tc-row" style="margin-top:10px"><input id="dn-name" placeholder="name"><select id="dn-type"><option>redirect</option><option>inline</option><option>group</option></select><input id="dn-url" placeholder="url (redirect) — https://…"><input id="dn-hosts" placeholder="allowed hosts (example.com)"></div>
+    <button class="go" id="dn-add">Add destination</button> <span id="dn-out" class="muted"></span>
+    <p class="muted" style="margin-top:12px"><b>Destination-page A/B:</b> make a <code>group</code> destination whose members are two destinations with weights — the engine splits weighted and sticks each visitor to one arm.</p>
+    <div class="tc-row"><input id="gp-name" placeholder="group name"><input id="gp-a" placeholder="member A dest id"><input id="gp-aw" placeholder="A weight"><input id="gp-b" placeholder="member B dest id"></div>
+    <div class="tc-row"><input id="gp-bw" placeholder="B weight" style="max-width:160px"></div>
+    <button class="go" id="gp-add">Add A/B group</button> <span id="gp-out" class="muted"></span>
+  </div>
 </div>
 
 <script>
@@ -156,7 +169,16 @@ async function loadRules(){const rp=await api('/rules/plain?ruleset_id='+encodeU
 async function loadFields(){const f=await api('/fields');window.__F=f.fields||[];renderFields();$('#f-q').oninput=renderFields;}
 function renderFields(){const q=($('#f-q').value||'').toLowerCase();$('#f-list').innerHTML=(window.__F||[]).filter(x=>!q||(x.field+x.path+x.description).toLowerCase().includes(q)).map(x=>'<tr><td><b>'+esc(x.field)+'</b><br><span class="muted">'+esc(x.path)+'</span></td><td>'+esc(x.group)+'</td><td>'+esc(x.type)+'</td><td>'+esc(x.description)+'</td><td>'+esc(x.values?(Array.isArray(x.values)?x.values.join(', '):x.values):'')+'</td></tr>').join('');}
 async function loadLists(){const s=await api('/seed-history',{method:'POST',body:JSON.stringify({limit:1,seed_limit:1})}).catch(()=>({}));$('#list-counts').innerHTML=[['whitelist (from history)',s.whitelist],['blacklist (from history)',s.blacklist]].map(([k,v])=>'<div class="stat"><div class="big">'+(v||0)+'</div><div class="muted">'+k+'</div></div>').join('');}
-async function loadVersions(){const rl=SNAP;$('#v-dst').innerHTML=(rl.destinations||[]).map(d=>'<tr><td><code>'+esc(d.id)+'</code></td><td>'+esc(d.name||'')+'</td><td>'+esc(d.type)+'</td><td class="muted">'+esc(d.url||d.health||'')+'</td></tr>').join('')||'<tr><td colspan=4 class="muted">none</td></tr>';}
+async function loadVersions(){
+  const rl=await api('/rulesets');SNAP=rl;
+  $('#v-dst').innerHTML=(rl.destinations||[]).map(d=>'<tr><td><code>'+esc(d.id)+'</code></td><td>'+esc(d.name||'')+'</td><td>'+esc(d.type)+'</td><td class="muted">'+esc(d.url||(d.type==='group'?'(weighted members)':''))+'</td><td>'+esc(d.health||'')+'</td></tr>').join('')||'<tr><td colspan=5 class="muted">none</td></tr>';
+  const sq=await api('/squeeze');
+  $('#v-sqz').innerHTML=(sq.squeeze_pages||[]).map(s=>'<tr><td><code>'+esc(s.id)+'</code></td><td>'+esc(s.name||'')+'</td><td>'+esc(s.version)+'</td><td>'+esc(s.weight)+'</td><td>'+esc(s.status)+(s.enabled?'':' (off)')+'</td><td>'+esc(s.headline||'')+'</td></tr>').join('')||'<tr><td colspan=6 class="muted">no squeeze variants yet</td></tr>';
+}
+function campaignId(){return (SNAP.campaigns&&SNAP.campaigns[0]||{}).id;}
+$('#sq-add').onclick=async()=>{const cid=campaignId();if(!cid){$('#sq-out').textContent='no campaign found';return;}const r=await api('/config',{method:'POST',body:JSON.stringify({table:'traffic_squeeze_pages',patch:{__create:true,campaign_id:cid,name:$('#sq-name').value,headline:$('#sq-head').value,cta_text:$('#sq-cta').value,message_template:'JOIN {code}',weight:Number($('#sq-weight').value)||1,status:'active',enabled:1}})});$('#sq-out').textContent=r.ok?'Added variant '+r.id:('Error: '+JSON.stringify(r.errors||r.error));loadVersions();};
+$('#dn-add').onclick=async()=>{const patch={__create:true,name:$('#dn-name').value,type:$('#dn-type').value,enabled:1};if($('#dn-url').value)patch.url=$('#dn-url').value;if($('#dn-hosts').value)patch.allowed_hosts_json=JSON.stringify($('#dn-hosts').value.split(',').map(s=>s.trim()).filter(Boolean));const r=await api('/config',{method:'POST',body:JSON.stringify({table:'traffic_destinations',patch})});$('#dn-out').textContent=r.ok?'Added '+r.id:('Error: '+JSON.stringify(r.errors||r.error));loadVersions();};
+$('#gp-add').onclick=async()=>{const members=[{id:$('#gp-a').value,weight:Number($('#gp-aw').value)||1},{id:$('#gp-b').value,weight:Number($('#gp-bw').value)||1}];const r=await api('/config',{method:'POST',body:JSON.stringify({table:'traffic_destinations',patch:{__create:true,name:$('#gp-name').value||'A/B group',type:'group',enabled:1,sticky:1,members_json:JSON.stringify(members)}})});$('#gp-out').textContent=r.ok?'Added group '+r.id+' — set a rule/destination to it, then Activate.':('Error: '+JSON.stringify(r.errors||r.error));loadVersions();};
 
 $('#t-run').onclick=async()=>{const entry=(SNAP.rulesets.find(r=>r.id===RS)||{}).entry?.[0]?.entry||'acceptance';const sim={url:location.origin+'/go/'+entry,entry,ruleset_id:RS,country:$('#t-country').value||undefined,region:$('#t-region').value||undefined,bot_score:$('#t-bot').value?Number($('#t-bot').value):undefined,as_org:$('#t-asorg').value||undefined,user_agent:$('#t-ua').value||undefined,profile:{known:$('#t-known').value==='1',tags:($('#t-tags').value||'').split(',').map(s=>s.trim()).filter(Boolean)}};if($('#t-ref').value)sim.headers={referer:'https://'+$('#t-ref').value};const r=await api('/explain',{method:'POST',body:JSON.stringify({sim})});const d=r.decision||{};$('#t-out').innerHTML='<div class="tc-card"><b>Sent to:</b> '+pill(d.experience||('send to '+(d.destination_id||'—')))+'<br><span class="muted">reason: '+esc(d.reason||'')+'</span><br><span class="muted">matched: '+esc((d.matched_rules||[]).join(', ')||'none')+'</span></div><div class="res">'+esc(JSON.stringify({experience:d.experience,destination:d.destination_id,outcome:d.outcome,risk:d.risk,reasons:(d.reasons||[]).slice(0,10)},null,1))+'</div>';};
 $('#r-add').onclick=async()=>{const r=await api('/rule/plain',{method:'POST',body:JSON.stringify({ruleset_id:RS,text:$('#r-text').value,priority:$('#r-prio').value||undefined,name:$('#r-name').value||undefined})});$('#r-out').textContent=r.ok?('Added: '+r.plain+' — Activate to make live.'):('Error: '+(r.message||r.error));if(r.ok){$('#r-text').value='';loadRules();}};
