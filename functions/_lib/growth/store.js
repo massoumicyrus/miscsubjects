@@ -69,11 +69,66 @@ export async function upsertEntity(env, t, table, fields) {
 }
 
 // ------------------------------------------------------------------ observations (append-only, unique per subject/metric/interval/dims/source)
-export async function observe(env, t, o) {
+async function observeStmt(env, t, o) {
   const dimsHash = o.dimensions && Object.keys(o.dimensions).length ? (await sha256(JSON.stringify(o.dimensions))).slice(0, 16) : 'none';
-  const r = await env.DB.prepare(`INSERT OR IGNORE INTO metric_observations (id, tenant_id, subject_type, subject_id, metric, value, state, interval_start, interval_end, dimensions_json, dimensions_hash, currency, timezone, source, evidence_class, observed_at, evidence_id, sync_run_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .bind(newId('mo'), t, o.subject_type, o.subject_id, o.metric, o.value ?? null, o.state || (o.value == null ? 'not_collected' : 'observed'), o.interval_start, o.interval_end, JSON.stringify(o.dimensions || {}), dimsHash, o.currency || null, o.timezone || null, o.source, o.evidence_class || 'provider_reported', buildNowIso(), o.evidence_id || null, o.sync_run_id || null).run();
-  return !!(r.meta && r.meta.changes);
+  return env.DB.prepare(`INSERT OR IGNORE INTO metric_observations (id, tenant_id, subject_type, subject_id, metric, value, state, interval_start, interval_end, dimensions_json, dimensions_hash, currency, timezone, source, evidence_class, observed_at, evidence_id, sync_run_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .bind(newId('mo'), t, o.subject_type, o.subject_id, o.metric, o.value ?? null, o.state || (o.value == null ? 'not_collected' : 'observed'), o.interval_start, o.interval_end, JSON.stringify(o.dimensions || {}), dimsHash, o.currency || null, o.timezone || null, o.source, o.evidence_class || 'provider_reported', buildNowIso(), o.evidence_id || null, o.sync_run_id || null);
+}
+export async function observe(env, t, o) { const r = await (await observeStmt(env, t, o)).run(); return !!(r.meta && r.meta.changes); }
+
+// ------------------------------------------------------------------ batched writes (one subrequest per chunk, not per row)
+// A Pages Function gets ~1,000 subrequests per request; a real ad account is hundreds of entities and
+// thousands of daily observations. Every bulk path below writes in D1 batches and reads ids back with
+// IN (…) lookups of ≤90 binds (the binding cap is 100).
+export async function runBatch(env, stmts, size = 100) {
+  let changes = 0;
+  for (let i = 0; i < stmts.length; i += size) { const rs = await env.DB.batch(stmts.slice(i, i + size)); for (const r of rs || []) changes += Number(r?.meta?.changes || 0); }
+  return changes;
+}
+const chunks = (arr, n = 90) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; };
+/** Append many observations. Returns how many were new (duplicates are ignored by the unique index). */
+export async function observeMany(env, t, list) {
+  const stmts = []; for (const o of list) stmts.push(await observeStmt(env, t, o));
+  return runBatch(env, stmts);
+}
+/** Many raw snapshots, stored once each. Returns { snapshots: [{id, hash}] aligned with items, created }.
+ *  Small bodies go in batches with a hash-derived id; bodies over the R2 cutoff take the single path. */
+export async function snapshotMany(env, t, { provider_id, sync_run_id = null, items }) {
+  const now = buildNowIso(); const prepared = [];
+  for (const it of items) { const str = typeof it.body === 'string' ? it.body : JSON.stringify(it.body); prepared.push({ ...it, str, hash: await sha256(str), bytes: new TextEncoder().encode(str).length }); }
+  const ids = new Map(); let created = 0;
+  for (const p of prepared.filter((x) => x.bytes > R2_CUTOFF)) { const s = await snapshot(env, t, { provider_id, sync_run_id, subject_type: p.subject_type, subject_external_id: p.subject_external_id, body: p.str }); ids.set(p.hash, s.id); if (!s.deduped) created++; }
+  const small = prepared.filter((x) => x.bytes <= R2_CUTOFF);
+  created += await runBatch(env, small.map((p) => env.DB.prepare('INSERT OR IGNORE INTO raw_snapshots (id, tenant_id, provider_id, sync_run_id, subject_type, subject_external_id, captured_at, body_preview, body_inline, r2_key, body_hash, bytes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+    .bind('raw_' + p.hash.slice(0, 20), t, provider_id, sync_run_id, p.subject_type || null, p.subject_external_id == null ? null : String(p.subject_external_id), now, p.str.slice(0, 300), p.str, null, p.hash, p.bytes)));
+  for (const c of chunks([...new Set(small.map((p) => p.hash))])) {
+    const rows = (await env.DB.prepare(`SELECT id, body_hash FROM raw_snapshots WHERE tenant_id=? AND provider_id=? AND body_hash IN (${c.map(() => '?').join(',')})`).bind(t, provider_id, ...c).all()).results || [];
+    for (const r of rows) ids.set(r.body_hash, r.id);
+  }
+  return { snapshots: prepared.map((p) => ({ id: ids.get(p.hash) || null, hash: p.hash })), created };
+}
+/** Upsert many canonical entities of one table (same provider). Returns { ids: Map<key,id>, created }.
+ *  key = external_id (creatives: asset_hash). A key repeated in the input resolves to one row. */
+export async function upsertMany(env, t, table, rows) {
+  if (!rows.length) return { ids: new Map(), created: 0 };
+  const now = buildNowIso(); const isCr = table === 'creatives';
+  const keyOf = (f) => String(isCr ? f.asset_hash : f.external_id);
+  const existing = new Map();
+  for (const c of chunks([...new Set(rows.map(keyOf))])) {
+    const qs = c.map(() => '?').join(',');
+    const q = isCr ? `SELECT id, asset_hash k FROM creatives WHERE tenant_id=? AND asset_hash IN (${qs})` : `SELECT id, external_id k FROM ${table} WHERE tenant_id=? AND provider_id=? AND external_id IN (${qs})`;
+    for (const r of (await env.DB.prepare(q).bind(...(isCr ? [t, ...c] : [t, rows[0].provider_id, ...c])).all()).results || []) existing.set(String(r.k), r.id);
+  }
+  const stmts = [], ids = new Map(); let created = 0;
+  for (const f of rows) {
+    const k = keyOf(f); if (ids.has(k)) continue;
+    const cols = Object.keys(f).filter((c) => f[c] !== undefined); const vals = cols.map((c) => (f[c] !== null && typeof f[c] === 'object') ? JSON.stringify(f[c]) : f[c]);
+    const ex = existing.get(k);
+    if (ex) { stmts.push(env.DB.prepare(`UPDATE ${table} SET ${cols.map((c) => c + '=?').join(', ')}, ${isCr ? '' : 'synced_at=?, '}updated_at=? WHERE tenant_id=? AND id=?`).bind(...vals, ...(isCr ? [now] : [now, now]), t, ex)); ids.set(k, ex); }
+    else { const id = newId(PREFIX[table] || 'row'); const all = ['id', 'tenant_id', ...cols, ...(isCr ? [] : ['synced_at']), 'created_at', 'updated_at']; stmts.push(env.DB.prepare(`INSERT INTO ${table} (${all.join(',')}) VALUES (${all.map(() => '?').join(',')})`).bind(id, t, ...vals, ...(isCr ? [] : [now]), now, now)); ids.set(k, id); created++; }
+  }
+  await runBatch(env, stmts);
+  return { ids, created };
 }
 export const PRIMITIVES = ['spend', 'impressions', 'reach', 'frequency', 'clicks', 'landing_page_views', 'conversions', 'purchases', 'leads', 'revenue', 'refunds', 'orders'];
 
@@ -105,18 +160,25 @@ export async function ensureExperience(env, t, { key, kind, brand_id = null }) {
   await env.DB.prepare('INSERT OR IGNORE INTO experiences (id, tenant_id, brand_id, key, kind, created_at, updated_at) VALUES (?,?,?,?,?,?,?)').bind(id, t, brand_id, key, kind, now, now).run();
   return (await env.DB.prepare('SELECT id FROM experiences WHERE tenant_id=? AND key=?').bind(t, key).first()).id;
 }
-/** New immutable version (never overwrites). Same artifact hash as the latest version → no new version. */
+/** New immutable version (never overwrites). The same artifact anywhere in the experience → the same
+ *  version: several variants of one experience are live at once, so "the latest version" is never the
+ *  comparator (comparing against it made two A/B pages mint a fresh version on every registration).
+ *  A changed artifact for the SAME underlying page supersedes that page's previous version (retired);
+ *  sibling variants stay active. */
 export async function newVersion(env, t, { experience_key, kind, ref_table, ref_id, components, label = null, source = 'human', created_by = 'owner', change_reason = null, hypothesis_id = null, state = 'active' }) {
   const experience_id = await ensureExperience(env, t, { key: experience_key, kind });
   const artifact_hash = (await sha256(JSON.stringify(components || {}))).slice(0, 32);
-  const latest = await env.DB.prepare('SELECT id, version, artifact_hash FROM experience_versions WHERE tenant_id=? AND experience_id=? ORDER BY version DESC LIMIT 1').bind(t, experience_id).first();
-  if (latest && latest.artifact_hash === artifact_hash) return { id: latest.id, version: latest.version, created: false };
+  const same = await env.DB.prepare('SELECT id, version FROM experience_versions WHERE tenant_id=? AND experience_id=? AND artifact_hash=? ORDER BY version LIMIT 1').bind(t, experience_id, artifact_hash).first();
+  if (same) return { id: same.id, version: same.version, created: false, experience_id };
+  const latest = await env.DB.prepare('SELECT id, version FROM experience_versions WHERE tenant_id=? AND experience_id=? ORDER BY version DESC LIMIT 1').bind(t, experience_id).first();
+  const parent = ref_id ? await env.DB.prepare("SELECT id FROM experience_versions WHERE tenant_id=? AND experience_id=? AND ref_id=? AND state!='retired' ORDER BY version DESC LIMIT 1").bind(t, experience_id, String(ref_id)).first() : null;
   const version = (latest?.version || 0) + 1;
   const id = newId('xv'); const now = buildNowIso();
   await env.DB.prepare('INSERT INTO experience_versions (id, tenant_id, experience_id, version, parent_version_id, ref_table, ref_id, artifact_hash, components_json, hypothesis_id, change_reason, state, source, created_at, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
-    .bind(id, t, experience_id, version, latest?.id || null, ref_table, ref_id, artifact_hash, JSON.stringify(components || {}), hypothesis_id, change_reason, state, source, now, created_by).run();
+    .bind(id, t, experience_id, version, parent?.id || null, ref_table, ref_id, artifact_hash, JSON.stringify(components || {}), hypothesis_id, change_reason || (parent ? 'content changed' : null), state, source, now, created_by).run();
+  if (parent) await env.DB.prepare("UPDATE experience_versions SET state='retired', change_reason=COALESCE(change_reason,'') || ' superseded by ' || ? WHERE tenant_id=? AND id=?").bind(id, t, parent.id).run();
   await env.DB.prepare('UPDATE experiences SET current_version_id=?, updated_at=? WHERE tenant_id=? AND id=?').bind(id, now, t, experience_id).run();
-  return { id, version, created: true, experience_id };
+  return { id, version, created: true, experience_id, superseded: parent?.id || null };
 }
 /** Register every squeeze page and destination as versions (idempotent by artifact hash). */
 export async function registerTrafficVersions(env, t) {

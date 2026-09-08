@@ -70,7 +70,7 @@ async function route({ request, env }) {
     const b = await body(request);
     if (!b.account_id) return json({ ok: false, error: 'account_id_required' }, 400);
     if ((b.provider_id || 'meta_ads') !== 'meta_ads') return json({ ok: false, error: 'ADAPTER_NOT_BUILT', provider_id: b.provider_id, built: ['meta_ads'] }, 501);
-    const r = await importAccount(env, { tenant: t, origin, account_id: b.account_id, days: Number(b.days) || 30, actor: b.actor || 'owner', brand_id: b.brand_id || null });
+    const r = await importAccount(env, { tenant: t, origin, account_id: b.account_id, days: Number(b.days) || 30, since: b.since || null, until: b.until || null, actor: b.actor || 'owner', brand_id: b.brand_id || null });
     return json(r, r.ok ? 200 : 207);
   }
   if (seg(0) === 'media' && seg(1) === 'graph' && method === 'GET') return json({ ok: true, ...(await readGraph(env, t, { since_days: Number(url.searchParams.get('days')) || 30 })) });
@@ -119,5 +119,5 @@ async function route({ request, env }) {
     return json({ ok: true, matched: !!res.result, metrics: ctx, trace: res.trace, proposal, provider_calls: 0 });
   }
 
-  return json({ ok: false, error: 'unknown_route', routes: ['GET providers', 'POST providers/seed', 'GET syncs', 'GET|POST brands', 'GET media/accounts?live=1', 'POST media/import {account_id,days,brand_id}', 'GET media/graph?days=', 'GET metrics/<subject_type>/<id>?days=', 'GET observations', 'POST versions/register', 'GET versions', 'POST clicks/resolve', 'GET journey/<profile_id>', 'GET touchpoints', 'GET|POST proposals', 'POST rules/evaluate {text,subject_type,subject_id}'] }, 404);
+  return json({ ok: false, error: 'unknown_route', routes: ['GET providers', 'POST providers/seed', 'GET syncs', 'GET|POST brands', 'GET media/accounts?live=1', 'POST media/import {account_id,days|since+until,brand_id}', 'GET media/graph?days=', 'GET metrics/<subject_type>/<id>?days=', 'GET observations', 'POST versions/register', 'GET versions', 'POST clicks/resolve', 'GET journey/<profile_id>', 'GET touchpoints', 'GET|POST proposals', 'POST rules/evaluate {text,subject_type,subject_id}'] }, 404);
 }

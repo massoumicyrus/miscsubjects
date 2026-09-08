@@ -41,6 +41,18 @@ export const FIELD_ALIASES = Object.freeze([
   ['click id', 'attribution.click_id_present'],
   ['business hour', 'time.business_hhmm'],
   ['jci status', 'history.jci_status'],
+  // growth metrics — derived at read time from metric_observations; evaluated by /api/growth/rules/evaluate
+  ['spend', 'growth.spend'],
+  ['purchases', 'growth.purchases'],
+  ['conversions', 'growth.purchases'],
+  ['clicks', 'growth.clicks'],
+  ['impressions', 'growth.impressions'],
+  ['frequency', 'growth.frequency'],
+  ['ctr', 'growth.ctr'],
+  ['cpc', 'growth.cpc'],
+  ['cpa', 'growth.cpa'],
+  ['cost per purchase', 'growth.cpa'],
+  ['roas', 'growth.roas'],
 ]);
 const PATH_TO_ALIAS = (() => { const m = {}; for (const [a, p] of FIELD_ALIASES) if (!m[p]) m[p] = a; return m; })();
 
