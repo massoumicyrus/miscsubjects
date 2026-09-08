@@ -15,17 +15,19 @@ import { snapshot, evidence, startSync, finishSync, upsertEntity, upsertMany, sn
 export const manifest = { provider_id: 'meta_ads', reads: ['discover_accounts', 'discover_entities', 'read_entity', 'read_metrics', 'backfill'], writes: [], webhook: false };
 
 /** One receipted call to a directory capability. Returns { ok, list, raw, invocation_id, head } */
-async function call(env, origin, key, body) {
+export async function callCapability(env, origin, key, body) {
   const r = await fetch(origin + '/api/dispatch', { method: 'POST', headers: { 'content-type': 'application/json', 'x-terminal-key': String(env.TERMINAL_KEY || '') }, body: JSON.stringify({ key, body: JSON.stringify(body) }) });
   const j = await r.json().catch(() => ({}));
   const inv = j.invocation?.id || j.invocation_id || j.proof?.invocation_id || null;
   const s = String(j.result || ''); const i = s.indexOf('{');
-  if (i < 0) return { ok: false, error: s.slice(0, 200), invocation_id: inv, head: s.slice(0, 300) };
-  let o; try { o = JSON.parse(s.slice(i)); } catch { return { ok: false, error: 'unparseable', invocation_id: inv, head: s.slice(0, 300) }; }
-  if (o.ok === false) return { ok: false, error: o.data?.error?.message || o.text || 'meta error', raw: o, invocation_id: inv, head: s.slice(0, 300) };
+  if (i < 0) return { ok: false, list: [], error: s.slice(0, 200), invocation_id: inv, head: s.slice(0, 300) };
+  let o; try { o = JSON.parse(s.slice(i)); } catch { return { ok: false, list: [], error: 'unparseable', invocation_id: inv, head: s.slice(0, 300) }; }
+  if (o.ok === false) { const err = o.data?.error?.message || (typeof o.text === 'string' && o.text.startsWith('{') ? (() => { try { return JSON.parse(o.text)?.error?.message; } catch { return null; } })() : null) || o.text || 'meta error'; return { ok: false, list: [], error: String(err), raw: o, invocation_id: inv, head: s.slice(0, 300) }; }
   const list = o.accounts || (o.data && (o.data.data || o.data.accounts)) || o.data || [];
   return { ok: true, list: Array.isArray(list) ? list : [], raw: o, invocation_id: inv, head: s.slice(0, 300) };
 }
+const call = callCapability;
+const TOO_MUCH = /reduce the amount of data/i;
 const cents = (v) => v == null ? null : Number(v) / 100;
 const sum = (arr, types) => { let n = 0, seen = false; for (const a of arr || []) if (types.includes(a.action_type)) { n += Number(a.value) || 0; seen = true; } return seen ? n : null; };
 const PURCHASE = ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase'], LEAD = ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead'];
@@ -61,7 +63,9 @@ export async function importAccount(env, { tenant: t, origin, account_id, days =
   counts.groups = sets.list.length;
 
   // ---- creatives → logical creatives (one per content hash) + immutable creative versions
-  const crs = await call(env, origin, 'META_ADS_CREATIVES', { account_id }); rec('creatives', crs); if (!crs.ok) errors.push('creatives: ' + crs.error);
+  let crs = await call(env, origin, 'META_ADS_CREATIVES', { account_id, limit: 50 }); rec('creatives', crs);
+  if (!crs.ok && TOO_MUCH.test(crs.error || '')) { crs = await call(env, origin, 'META_ADS_CREATIVES', { account_id, limit: 10 }); rec('creatives-retry-10', crs); }
+  if (!crs.ok) errors.push('creatives: ' + crs.error);
   await snaps('creative', crs.list);
   const hashOf = new Map(); // meta creative id → asset_hash
   for (const cr of crs.list) { const text = [cr.title, cr.body, cr.call_to_action_type, cr.image_hash, cr.video_id].filter(Boolean).join('|'); hashOf.set(String(cr.id), (await sha256(text || 'meta:' + cr.id)).slice(0, 32)); }
