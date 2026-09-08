@@ -39,7 +39,16 @@ export async function discoverAccounts(env, { tenant, origin }) {
 }
 
 /** Import one account: entities + daily deployment-level metrics for [since, until]. Idempotent per window. */
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+export function validateWindow(since, until) {
+  if (since != null && !ISO_DAY.test(String(since))) return `since must be YYYY-MM-DD, got ${JSON.stringify(since)}`;
+  if (until != null && !ISO_DAY.test(String(until))) return `until must be YYYY-MM-DD, got ${JSON.stringify(until)}`;
+  if (since && until && since > until) return `since ${since} is after until ${until}`;
+  return null;
+}
+
 export async function importAccount(env, { tenant: t, origin, account_id, days = 30, since = null, until = null, actor = 'owner', brand_id = null }) {
+  const bad = validateWindow(since, until); if (bad) throw new Error('BAD_WINDOW: ' + bad);
   until = until || day(Date.now()); since = since || day(Date.parse(until + 'T00:00:00Z') - days * 86400 * 1000);
   const sync = await startSync(env, t, { provider_id: 'meta_ads', kind: 'entities+metrics', window_start: since, window_end: until, actor });
   const counts = { initiatives: 0, groups: 0, deployments: 0, creatives: 0, creative_versions: 0, observations: 0, not_collected: 0, snapshots: 0, insight_rows: 0 }, errors = [], receipts = [];
