@@ -2,12 +2,12 @@
  "_what": "This repository is a generated projection of a private operating repository. Every file here was produced by scripts/publish-mirror.mjs from the source commit below, with identity substituted and gates run against the output. See docs/PUBLISHING.md.",
  "source": {
   "repository": "the private operating repository",
-  "commit": "3d039c0575f9d9bf054ed2de6c9c1fd5683cd732"
+  "commit": "1919e703f8f5f15857b95800142dbf7a158a2b91"
  },
- "generated_at": "2026-09-08T02:43:03.850Z",
- "files": 1298,
- "bytes": 10907242,
- "tracked_in_source": 6516,
+ "generated_at": "2026-09-08T02:46:14.718Z",
+ "files": 1299,
+ "bytes": 10907392,
+ "tracked_in_source": 6517,
  "dropped": {
   "not in allow-list": 4700,
   "editor backups of prompts and modules; the live version is the file beside them": 15,
@@ -17,7 +17,7 @@
   "URW DIN is a commercially licensed font; the site serves it but the repository cannot redistribute it": 1,
   "this file lists the identity strings it removes": 1
  },
- "substituted_files": 579,
+ "substituted_files": 580,
  "substitutions": [
   {
    "path": ".claude/hooks/cc-turn-log.js",
@@ -3203,6 +3203,13 @@
    }
   },
   {
+   "path": "migrations/0387_growth_media_initiatives_brand.sql",
+   "substitutions": {
+    "literal": 1,
+    "diary_comments": 1
+   }
+  },
+  {
    "path": "migrations/fix_fn_rows.py",
    "substitutions": {
     "owner_identity": 1
@@ -4423,7 +4430,7 @@
    "functions/_lib/traffic/jci_import.js",
    "functions/_lib/x_oauth1.js"
   ],
-  "comments_removed": 849,
+  "comments_removed": 850,
   "markdown_blocks_removed": 74,
   "narrative_phrases_removed": 153,
   "dated_strings_remaining": 245,
@@ -4443,13 +4450,13 @@
  "gates": [
   {
    "name": "forbidden_strings",
-   "examined": 1297,
+   "examined": 1298,
    "hits": 0,
    "ok": true
   },
   {
    "name": "paths",
-   "examined": 1297,
+   "examined": 1298,
    "hits": 0,
    "ok": true
   },
@@ -4462,7 +4469,7 @@
   },
   {
    "name": "size",
-   "examined": 1297,
+   "examined": 1298,
    "hits": 0,
    "ok": true
   },
@@ -4475,18 +4482,18 @@
   },
   {
    "name": "diary",
-   "examined": 1295,
+   "examined": 1296,
    "hits": 0,
    "ok": true
   },
   {
    "name": "gitleaks",
-   "examined": 1298,
+   "examined": 1299,
    "hits": 0,
    "ok": true,
    "note": "8.30.1"
   }
  ],
  "all_gates_ok": true,
- "content_hash": "719dedef7f22988ef11aa4563167d56266e23b6f618faafd61c1d70fc3ab1899"
+ "content_hash": "2fb1ad3a74333364732e3308fa8101b565fc416755c106a504e93d9c74ee2e3e"
 }
