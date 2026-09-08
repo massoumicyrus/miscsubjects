@@ -65,6 +65,8 @@ const OP_WORDS = [
   ['is not', '!='], ['not equal to', '!='], ['isnt', '!='], ["isn't", '!='], ['!=', '!='],
   ['is at least', '>='], ['at least', '>='], ['greater than or equal', '>='], ['>=', '>='],
   ['is at most', '<='], ['at most', '<='], ['less than or equal', '<='], ['<=', '<='],
+  ['is greater than', '>'], ['is more than', '>'], ['is over', '>'], ['is above', '>'],
+  ['is less than', '<'], ['is fewer than', '<'], ['is under', '<'], ['is below', '<'],
   ['greater than', '>'], ['more than', '>'], ['over', '>'], ['above', '>'], ['>', '>'],
   ['less than', '<'], ['fewer than', '<'], ['under', '<'], ['below', '<'], ['<', '<'],
   ['starts with', 'starts'], ['begins with', 'starts'],
