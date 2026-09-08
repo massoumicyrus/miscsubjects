@@ -270,6 +270,9 @@ export async function readGraph(env, t, { since_days = 30 } = {}) {
   ]);
   const prim = await q("SELECT subject_type, subject_id, metric, SUM(value) v FROM metric_observations WHERE tenant_id=? AND state='observed' AND interval_start>=? AND interval_end<=? AND dimensions_hash='none' GROUP BY subject_type, subject_id, metric", since, until + 'T23:59:59');
   const stat = {}; for (const r of prim) { const k = r.subject_type + ':' + r.subject_id; (stat[k] = stat[k] || {})[r.metric] = Number(r.v); }
+  const initAccount = Object.fromEntries(initiatives.map((i) => [i.id, i.account_id]));
+  const add = (k, m) => { if (!k || k.endsWith(':null')) return; const s = stat[k] = stat[k] || {}; for (const [metric, v] of Object.entries(m)) if (!metric.endsWith('_reported')) s[metric] = (s[metric] || 0) + v; };
+  for (const d of deployments) { const m = stat['deployment:' + d.id]; if (!m) continue; add('group:' + d.group_id, m); add('initiative:' + d.initiative_id, m); add('account:' + initAccount[d.initiative_id], m); }
   const withStat = (type, r) => { const m = stat[type + ':' + r.id] || {}; return { ...r, primitives: m, derived: { ctr_pct: m.impressions ? (m.clicks || 0) / m.impressions * 100 : null, cpc: m.clicks ? (m.spend || 0) / m.clicks : null, cpa: (m.purchases || m.conversions) ? (m.spend || 0) / (m.purchases || m.conversions) : null, roas: m.spend ? (m.revenue || 0) / m.spend : null } }; };
   const clickMap = Object.fromEntries(clicks.map((c) => [c.deployment_external_id, c]));
   return { since, until, accounts: accounts.map((a) => withStat('account', a)), initiatives: initiatives.map((i) => withStat('initiative', i)), groups: groups.map((g) => withStat('group', g)), deployments: deployments.map((d) => ({ ...withStat('deployment', d), site: clickMap[d.external_id] || null })), creatives };
