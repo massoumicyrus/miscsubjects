@@ -47,7 +47,16 @@ export function validateWindow(since, until) {
   return null;
 }
 
-export async function importAccount(env, { tenant: t, origin, account_id, days = 30, since = null, until = null, actor = 'owner', brand_id = null }) {
+export async function entitiesFresh(env, t, account_row_id, max_age_hours = 6) {
+  const r = await env.DB.prepare('SELECT MAX(md.synced_at) s, COUNT(*) n FROM media_deployments md JOIN media_initiatives mi ON mi.id=md.initiative_id WHERE md.tenant_id=? AND mi.account_id=?').bind(t, account_row_id).first();
+  if (!r || !Number(r.n) || !r.s) return null;
+  const age_min = Math.round((Date.now() - Date.parse(r.s)) / 60000);
+  if (!(age_min >= 0 && age_min < max_age_hours * 60)) return null;
+  const rows = (await env.DB.prepare('SELECT md.id, md.external_id FROM media_deployments md JOIN media_initiatives mi ON mi.id=md.initiative_id WHERE md.tenant_id=? AND mi.account_id=?').bind(t, account_row_id).all()).results || [];
+  return { ids: new Map(rows.map((x) => [String(x.external_id), x.id])), age_min, count: rows.length, synced_at: r.s };
+}
+
+export async function importAccount(env, { tenant: t, origin, account_id, days = 30, since = null, until = null, actor = 'owner', brand_id = null, refresh_entities = false, entities_max_age_hours = 6 }) {
   const bad = validateWindow(since, until); if (bad) throw new Error('BAD_WINDOW: ' + bad);
   until = until || day(Date.now()); since = since || day(Date.parse(until + 'T00:00:00Z') - days * 86400 * 1000);
   const sync = await startSync(env, t, { provider_id: 'meta_ads', kind: 'entities+metrics', window_start: since, window_end: until, actor });
@@ -59,6 +68,13 @@ export async function importAccount(env, { tenant: t, origin, account_id, days =
   const acctSnap = await snapshot(env, t, { provider_id: 'meta_ads', sync_run_id: sync.id, subject_type: 'account', subject_external_id: account_id, body: { id: account_id } });
   const acct = await upsertEntity(env, t, 'media_accounts', { brand_id, provider_id: 'meta_ads', external_id: account_id, native_type: 'ad_account', raw_snapshot_id: acctSnap.id });
 
+  const reuse = refresh_entities ? null : await entitiesFresh(env, t, acct.id, entities_max_age_hours);
+  let deployments;
+  if (reuse) {
+    deployments = { ids: reuse.ids, created: 0 };
+    counts.entities_reused = reuse.count; counts.entities_synced_at = reuse.synced_at;
+    receipts.push({ op: 'entities', reused: true, rows: reuse.count, head: `reused ${reuse.count} deployments synced ${reuse.age_min} min ago; pass refresh_entities:true to re-pull` });
+  } else {
   // ---- campaigns → initiatives
   const camps = await call(env, origin, 'META_ADS_CAMPAIGNS', { account_id }); rec('campaigns', camps); if (!camps.ok) errors.push('campaigns: ' + camps.error);
   const campSnap = await snaps('initiative', camps.list);
@@ -100,8 +116,9 @@ export async function importAccount(env, { tenant: t, origin, account_id, days =
   // ---- ads → deployments
   const ads = await call(env, origin, 'META_ADS_ADS', { account_id }); rec('ads', ads); if (!ads.ok) errors.push('ads: ' + ads.error);
   const adSnap = await snaps('deployment', ads.list);
-  const deployments = await upsertMany(env, t, 'media_deployments', ads.list.map((a, i) => { const cv = a.creative?.id ? cvOf.get(String(a.creative.id)) : null; return { group_id: groups.ids.get(String(a.adset_id)) || null, initiative_id: initiatives.ids.get(String(a.campaign_id)) || null, provider_id: 'meta_ads', external_id: String(a.id), name: a.name, status: a.effective_status || a.status, native_type: 'ad', creative_id: cv?.creative_id || null, creative_version_id: cv?.version_id || null, raw_snapshot_id: adSnap[i], first_seen: now, last_seen: now }; }));
+  deployments = await upsertMany(env, t, 'media_deployments', ads.list.map((a, i) => { const cv = a.creative?.id ? cvOf.get(String(a.creative.id)) : null; return { group_id: groups.ids.get(String(a.adset_id)) || null, initiative_id: initiatives.ids.get(String(a.campaign_id)) || null, provider_id: 'meta_ads', external_id: String(a.id), name: a.name, status: a.effective_status || a.status, native_type: 'ad', creative_id: cv?.creative_id || null, creative_version_id: cv?.version_id || null, raw_snapshot_id: adSnap[i], first_seen: now, last_seen: now }; }));
   counts.deployments = ads.list.length;
+  }
 
   // ---- daily deployment-level metrics for the explicit window
   const ins = await call(env, origin, 'META_ADS_INSIGHTS', { account_id, level: 'ad', time_range: { since, until }, time_increment: 1, fields: ['ad_id', 'campaign_id', 'adset_id', 'spend', 'impressions', 'reach', 'frequency', 'clicks', 'inline_link_clicks', 'ctr', 'cpc', 'cpm', 'actions', 'action_values'] });

@@ -133,11 +133,28 @@ export async function upsertMany(env, t, table, rows) {
 export const PRIMITIVES = ['spend', 'impressions', 'reach', 'frequency', 'clicks', 'landing_page_views', 'conversions', 'purchases', 'leads', 'revenue', 'refunds', 'orders'];
 
 /** Canonical ratios derived from primitives over a window. Never stored. */
+export async function deploymentIdsFor(env, t, subject_type, subject_id) {
+  const q = subject_type === 'account' ? 'SELECT md.id FROM media_deployments md JOIN media_initiatives mi ON mi.id=md.initiative_id WHERE md.tenant_id=? AND mi.account_id=?'
+    : subject_type === 'initiative' ? 'SELECT id FROM media_deployments WHERE tenant_id=? AND initiative_id=?'
+    : subject_type === 'group' ? 'SELECT id FROM media_deployments WHERE tenant_id=? AND group_id=?' : null;
+  if (!q) return null;
+  return ((await env.DB.prepare(q).bind(t, subject_id).all()).results || []).map((r) => r.id);
+}
+
 export async function derived(env, t, { subject_type, subject_id, since, until, dimensions_hash = 'none' }) {
-  const rows = (await env.DB.prepare("SELECT metric, SUM(value) v, COUNT(*) n, MIN(state) st FROM metric_observations WHERE tenant_id=? AND subject_type=? AND subject_id=? AND dimensions_hash=? AND interval_start>=? AND interval_end<=? AND state='observed' GROUP BY metric").bind(t, subject_type, subject_id, dimensions_hash, since, until).all()).results || [];
-  const m = {}; for (const r of rows) m[r.metric] = Number(r.v);
+  const deps = await deploymentIdsFor(env, t, subject_type, subject_id);
+  const subjects = deps ? deps.map((id) => ['deployment', id]) : [[subject_type, subject_id]];
+  const m = {}; const repAcc = {};
+  for (const c of chunks(subjects)) {
+    if (!c.length) break;
+    const qs = c.map(() => '?').join(','); const ids = c.map((x) => x[1]); const st = c[0][0];
+    const rows = (await env.DB.prepare(`SELECT metric, SUM(value) v FROM metric_observations WHERE tenant_id=? AND subject_type=? AND subject_id IN (${qs}) AND dimensions_hash=? AND interval_start>=? AND interval_end<=? AND state='observed' GROUP BY metric`).bind(t, st, ...ids, dimensions_hash, since, until).all()).results || [];
+    for (const r of rows) m[r.metric] = (m[r.metric] || 0) + Number(r.v);
+    const rep = (await env.DB.prepare(`SELECT metric, SUM(value) v, COUNT(*) n FROM metric_observations WHERE tenant_id=? AND subject_type=? AND subject_id IN (${qs}) AND metric LIKE '%_reported' AND interval_start>=? AND interval_end<=? GROUP BY metric`).bind(t, st, ...ids, since, until).all()).results || [];
+    for (const r of rep) { const a = repAcc[r.metric] || (repAcc[r.metric] = { v: 0, n: 0 }); a.v += Number(r.v); a.n += Number(r.n); }
+  }
   const has = (k) => m[k] != null;
-  const out = { subject_type, subject_id, since, until, primitives: m, derived: {} };
+  const out = { subject_type, subject_id, since, until, primitives: m, derived: {}, rolled_up_from: deps ? { deployments: deps.length } : null };
   if (has('impressions') && has('clicks')) out.derived.ctr_pct = m.impressions ? (m.clicks / m.impressions) * 100 : null;
   if (has('spend') && has('clicks')) out.derived.cpc = m.clicks ? m.spend / m.clicks : null;
   if (has('spend') && has('impressions')) out.derived.cpm = m.impressions ? (m.spend / m.impressions) * 1000 : null;
@@ -145,9 +162,8 @@ export async function derived(env, t, { subject_type, subject_id, since, until, 
   if (has('spend') && conv != null) out.derived.cpa = conv ? m.spend / conv : null;
   if (has('spend') && has('revenue')) out.derived.roas = m.spend ? m.revenue / m.spend : null;
   if (has('clicks') && conv != null) out.derived.click_to_conversion_pct = m.clicks ? (conv / m.clicks) * 100 : null;
-  // reported ratios, if the provider supplied them, for reconciliation only
-  const rep = (await env.DB.prepare("SELECT metric, AVG(value) v FROM metric_observations WHERE tenant_id=? AND subject_type=? AND subject_id=? AND metric LIKE '%_reported' AND interval_start>=? AND interval_end<=? GROUP BY metric").bind(t, subject_type, subject_id, since, until).all()).results || [];
-  out.reported = Object.fromEntries(rep.map((r) => [r.metric, Number(r.v)]));
+  // reported ratios, if the provider supplied them, for reconciliation only (mean over the rows in the window)
+  out.reported = Object.fromEntries(Object.entries(repAcc).map(([k, a]) => [k, a.n ? a.v / a.n : null]));
   if (out.reported.ctr_reported != null && out.derived.ctr_pct != null) out.reconciliation = { ctr_delta_pp: Math.abs(out.derived.ctr_pct - out.reported.ctr_reported) };
   return out;
 }
